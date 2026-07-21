@@ -7,20 +7,29 @@ const habits = [
 
 const days = Array.from({ length: 30 }, (_, index) => index + 1);
 
-function Icon({ children, active = false }: { children: React.ReactNode; active?: boolean }) {
-  return <span className={`navIcon${active ? " active" : ""}`}>{children}</span>;
+function Icon({ children, active = false, label, onClick }: { children: React.ReactNode; active?: boolean; label: string; onClick: () => void }) {
+  return <button type="button" className={`navIcon${active ? " active" : ""}`} aria-label={label} title={label} onClick={onClick}>{children}</button>;
 }
 
 export default function Home() {
+  const [activeSection, setActiveSection] = useState("overview");
+  const navigateTo = (section: string) => {
+    setActiveSection(section);
+    document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
   return (
     <main className="pageShell">
       <section className="dashboard">
         <aside className="sidebar" aria-label="主导航">
-          <a className="brand" href="#" aria-label="Pulse 首页"><span>✦</span><b>Pulse</b></a>
+          <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="Pulse 首页"><span>✦</span><b>Pulse</b></button>
           <nav>
-            <Icon active>⌂</Icon><Icon>◔</Icon><Icon>⚑</Icon><Icon>□</Icon>
+            <Icon label="今日概览" active={activeSection === "overview"} onClick={() => navigateTo("overview")}>⌂</Icon>
+            <Icon label="训练日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
+            <Icon label="目标进度" active={activeSection === "goals"} onClick={() => navigateTo("goals")}>⚑</Icon>
+            <Icon label="习惯列表" active={activeSection === "habits"} onClick={() => navigateTo("habits")}>□</Icon>
           </nav>
-          <div className="sideBottom"><Icon>♢</Icon><Icon>⚙</Icon><span className="avatar">AM</span></div>
+          <div className="sideBottom"><Icon label="通知" onClick={() => navigateTo("habits")}>♢</Icon><Icon label="设置" onClick={() => navigateTo("goals")}>⚙</Icon><span className="avatar">AM</span></div>
         </aside>
 
         <div className="content">
@@ -30,7 +39,7 @@ export default function Home() {
           </header>
 
           <div className="grid">
-            <article className="card activity">
+            <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
               <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2></div><span className="roundBadge">◫</span></div>
               <div className="bubbleStage" aria-label="今日消耗1875千卡，运动2.3小时">
                 <div className="bubble yellow"><strong>1,875</strong><small>千卡消耗</small></div>
@@ -40,14 +49,14 @@ export default function Home() {
               <div className="legend"><span><i className="dot yellowDot" />总消耗</span><span><i className="dot coralDot" />活动消耗</span><span><i className="dot darkDot" />运动时长</span></div>
             </article>
 
-            <article className="card calendar">
+            <article id="calendar" className={`card calendar${activeSection === "calendar" ? " sectionActive" : ""}`}>
               <div className="cardHead"><div><p className="eyebrow light">连续训练 4 周</p><h2>训练日历</h2></div><button className="month">七月⌄</button></div>
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
               <div className="days">{days.map(day => <span key={day} className={day === 22 ? "today" : [1,5,14,17,19,23,28].includes(day) ? "trained" : ""}>{day}</span>)}</div>
               <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 已完成</span><span>● 已计划</span></div>
             </article>
 
-            <div className="statsColumn">
+            <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
               <article className="card steps">
                 <div><p className="eyebrow">每日目标</p><h2>今日步数</h2><strong>5,201</strong><span> / 8,500 步</span><button className="textButton">调整目标 →</button></div>
                 <div className="progressRing"><div><b>61%</b><small>已完成</small></div></div>
@@ -58,7 +67,7 @@ export default function Home() {
               </article>
             </div>
 
-            <article className="card habits">
+            <article id="habits" className={`card habits${activeSection === "habits" ? " sectionActive" : ""}`}>
               <div className="cardHead"><div><p className="eyebrow">保持节奏</p><h2>我的习惯</h2></div><button className="addButton">＋ 添加习惯</button></div>
               <div className="habitList">{habits.map(habit => (
                 <div className="habit" key={habit.name}>
@@ -74,3 +83,6 @@ export default function Home() {
     </main>
   );
 }
+"use client";
+
+import { useState } from "react";
