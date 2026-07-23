@@ -1,3 +1,7 @@
+"use client";
+
+import { useState } from "react";
+
 const habits = [
   { icon: "↗", name: "晨间拉伸", coach: "Alice McCain", done: 9, total: 12 },
   { icon: "●", name: "瑜伽训练", coach: "Jennifer Lubin", done: 6, total: 10 },
@@ -83,6 +87,3 @@ export default function Home() {
     </main>
   );
 }
-"use client";
-
-import { useState } from "react";
