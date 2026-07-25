@@ -17,7 +17,7 @@ function Icon({ children, active = false, label, onClick }: { children: React.Re
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
-  const [workdays, setWorkdays] = useState(22);
+  const [workdays, setWorkdays] = useState(23);
   const dailyRate = 275;
   const deductions = 60 + 50 + 20;
   const grossSalary = workdays * dailyRate;
