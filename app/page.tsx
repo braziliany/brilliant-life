@@ -9,7 +9,16 @@ const habits = [
   { icon: "⌁", name: "核心训练", coach: "自主训练", done: 8, total: 10 },
 ];
 
-const days = Array.from({ length: 30 }, (_, index) => index + 1);
+const calendarDays: Array<number | null> = [
+  null,
+  null,
+  ...Array.from({ length: 31 }, (_, index) => index + 1),
+];
+
+const isWorkday = (day: number) => {
+  const weekday = new Date(2026, 6, day).getDay();
+  return weekday !== 0 && weekday !== 6;
+};
 
 function Icon({ children, active = false, label, onClick }: { children: React.ReactNode; active?: boolean; label: string; onClick: () => void }) {
   return <button type="button" className={`navIcon${active ? " active" : ""}`} aria-label={label} title={label} onClick={onClick}>{children}</button>;
@@ -42,7 +51,7 @@ export default function Home() {
           <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="Pulse 首页"><span>✦</span><b>Pulse</b></button>
           <nav>
             <Icon label="今日概览" active={activeSection === "overview"} onClick={() => navigateTo("overview")}>⌂</Icon>
-            <Icon label="训练日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
+            <Icon label="工作日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
             <Icon label="目标进度" active={activeSection === "goals"} onClick={() => navigateTo("goals")}>⚑</Icon>
             <Icon label="习惯列表" active={activeSection === "habits"} onClick={() => navigateTo("habits")}>□</Icon>
             <Icon label="工资计算" active={activeSection === "salary"} onClick={() => navigateTo("salary")}>¥</Icon>
@@ -68,10 +77,23 @@ export default function Home() {
             </article>
 
             <article id="calendar" className={`card calendar${activeSection === "calendar" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow light">连续训练 4 周</p><h2>训练日历</h2></div><button className="month">七月⌄</button></div>
+              <div className="cardHead"><div><p className="eyebrow light">2026 年 7 月 · 23 个工作日</p><h2>工作日历</h2></div><button className="month">七月⌄</button></div>
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
-              <div className="days">{days.map(day => <span key={day} className={day === 22 ? "today" : [1,5,14,17,19,23,28].includes(day) ? "trained" : ""}>{day}</span>)}</div>
-              <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 已完成</span><span>● 已计划</span></div>
+              <div className="days">
+                {calendarDays.map((day, index) => {
+                  if (day === null) return <span className="emptyDay" aria-hidden="true" key={`empty-${index}`} />;
+                  const workday = isWorkday(day);
+                  const className = day === 25
+                    ? "today"
+                    : workday && day <= 24
+                      ? "worked"
+                      : workday
+                        ? "workday"
+                        : "weekend";
+                  return <span key={day} className={className} aria-label={`7月${day}日，${workday ? "工作日" : "周末"}`}>{day}</span>;
+                })}
+              </div>
+              <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 已工作</span><span>○ 待工作</span><span>● 周末</span></div>
             </article>
 
             <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>

@@ -17,7 +17,8 @@ test("renders the Pulse health dashboard", async () => {
   const html = await response.text();
   assert.match(html, /Pulse/);
   assert.match(html, /训练成果/);
-  assert.match(html, /训练日历/);
+  assert.match(html, /工作日历/);
+  assert.match(html, /23 个工作日/);
   assert.match(html, /今日步数/);
   assert.match(html, /我的习惯/);
   assert.match(html, /本月工资计算/);
