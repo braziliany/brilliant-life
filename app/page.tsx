@@ -1,6 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type HealthDaily = {
+  date: string;
+  steps: number;
+  activeEnergyKcal: number;
+  exerciseMinutes: number;
+  workoutCount: number;
+};
 
 const habits = [
   { icon: "↗", name: "晨间拉伸", coach: "Alice McCain", done: 9, total: 12 },
@@ -27,6 +35,26 @@ function Icon({ children, active = false, label, onClick }: { children: React.Re
 export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
   const [workdays, setWorkdays] = useState(23);
+  const [health, setHealth] = useState<HealthDaily | null>(null);
+  const [healthStatus, setHealthStatus] = useState<"loading" | "synced" | "empty">("loading");
+  const stepGoal = 8500;
+  const steps = health?.steps ?? 5201;
+  const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
+  const activeEnergy = Math.round(health?.activeEnergyKcal ?? 850);
+  const exerciseHours = ((health?.exerciseMinutes ?? 138) / 60).toFixed(1);
+
+  useEffect(() => {
+    fetch("/api/health", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Health data unavailable");
+        return response.json() as Promise<{ health: HealthDaily | null }>;
+      })
+      .then(({ health: latest }) => {
+        setHealth(latest);
+        setHealthStatus(latest ? "synced" : "empty");
+      })
+      .catch(() => setHealthStatus("empty"));
+  }, []);
   const dailyRate = 275;
   const deductions = 60 + 50 + 20;
   const grossSalary = workdays * dailyRate;
@@ -67,11 +95,11 @@ export default function Home() {
 
           <div className="grid">
             <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2></div><span className="roundBadge">◫</span></div>
-              <div className="bubbleStage" aria-label="今日消耗1875千卡，运动2.3小时">
+              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2><span className={`syncStatus ${healthStatus}`}>{healthStatus === "synced" ? `Apple 健康 · ${health?.date}` : healthStatus === "loading" ? "正在读取健康数据" : "等待 iPhone 首次同步"}</span></div><span className="roundBadge">◫</span></div>
+              <div className="bubbleStage" aria-label={`今日活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
                 <div className="bubble yellow"><strong>1,875</strong><small>千卡消耗</small></div>
-                <div className="bubble coral"><strong>850</strong><small>活动千卡</small></div>
-                <div className="bubble dark"><strong>2.3</strong><small>小时</small></div>
+                <div className="bubble coral"><strong>{activeEnergy.toLocaleString("zh-CN")}</strong><small>活动千卡</small></div>
+                <div className="bubble dark"><strong>{exerciseHours}</strong><small>小时</small></div>
               </div>
               <div className="legend"><span><i className="dot yellowDot" />总消耗</span><span><i className="dot coralDot" />活动消耗</span><span><i className="dot darkDot" />运动时长</span></div>
             </article>
@@ -98,8 +126,8 @@ export default function Home() {
 
             <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
               <article className="card steps">
-                <div><p className="eyebrow">每日目标</p><h2>今日步数</h2><strong>5,201</strong><span> / 8,500 步</span><button className="textButton">调整目标 →</button></div>
-                <div className="progressRing"><div><b>61%</b><small>已完成</small></div></div>
+                <div><p className="eyebrow">每日目标</p><h2>今日步数</h2><strong>{steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span><button className="textButton">调整目标 →</button></div>
+                <div className="progressRing" style={{ background: `conic-gradient(var(--coral) 0 ${stepProgress}%, #eceae5 ${stepProgress}%)` }}><div><b>{stepProgress}%</b><small>已完成</small></div></div>
               </article>
               <article className="card weight">
                 <div className="cardHead"><div><p className="eyebrow">12 周计划</p><h2>减重目标</h2></div><strong>68%<small> 已完成</small></strong></div>
