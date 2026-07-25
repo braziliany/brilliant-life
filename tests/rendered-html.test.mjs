@@ -20,5 +20,8 @@ test("renders the Pulse health dashboard", async () => {
   assert.match(html, /训练日历/);
   assert.match(html, /今日步数/);
   assert.match(html, /我的习惯/);
+  assert.match(html, /本月工资计算/);
+  assert.match(html, /预计实发工资/);
+  assert.match(html, /5,892\.40/);
   assert.doesNotMatch(html, /codex-preview|SkeletonPreview/);
 });

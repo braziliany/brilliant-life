@@ -17,6 +17,19 @@ function Icon({ children, active = false, label, onClick }: { children: React.Re
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
+  const [workdays, setWorkdays] = useState(22);
+  const dailyRate = 275;
+  const deductions = 60 + 50 + 20;
+  const grossSalary = workdays * dailyRate;
+  const taxableIncome = Math.max(0, grossSalary - deductions - 5000);
+  const incomeTax = taxableIncome * 0.03;
+  const netSalary = grossSalary - deductions - incomeTax;
+  const money = (value: number) =>
+    new Intl.NumberFormat("zh-CN", {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
+
   const navigateTo = (section: string) => {
     setActiveSection(section);
     document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -32,6 +45,7 @@ export default function Home() {
             <Icon label="训练日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
             <Icon label="目标进度" active={activeSection === "goals"} onClick={() => navigateTo("goals")}>⚑</Icon>
             <Icon label="习惯列表" active={activeSection === "habits"} onClick={() => navigateTo("habits")}>□</Icon>
+            <Icon label="工资计算" active={activeSection === "salary"} onClick={() => navigateTo("salary")}>¥</Icon>
           </nav>
           <div className="sideBottom"><Icon label="通知" onClick={() => navigateTo("habits")}>♢</Icon><Icon label="设置" onClick={() => navigateTo("goals")}>⚙</Icon><span className="avatar">AM</span></div>
         </aside>
@@ -80,6 +94,50 @@ export default function Home() {
                   <div className="ticks" aria-label={`${habit.done}/${habit.total}次完成`}>{Array.from({ length: habit.total }, (_, i) => <i className={i < habit.done ? "done" : ""} key={i} />)}</div><button className="more" aria-label={`${habit.name}更多选项`}>•••</button>
                 </div>
               ))}</div>
+            </article>
+
+            <article id="salary" className={`card salary${activeSection === "salary" ? " sectionActive" : ""}`}>
+              <div className="salaryIntro">
+                <div>
+                  <p className="eyebrow">工资助手</p>
+                  <h2>本月工资计算</h2>
+                  <p className="salarySubtitle">日薪 275 元，固定税前扣除 130 元，起征点 5,000 元，税率 3%</p>
+                </div>
+                <label className="workdayInput">
+                  <span>本月工作日</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="31"
+                    step="1"
+                    value={workdays}
+                    onChange={(event) => {
+                      const value = Number(event.target.value);
+                      setWorkdays(Number.isFinite(value) ? Math.min(31, Math.max(0, value)) : 0);
+                    }}
+                  />
+                  <b>天</b>
+                </label>
+              </div>
+
+              <div className="salarySummary">
+                <div className="netPay">
+                  <span>预计实发工资</span>
+                  <strong>¥ {money(netSalary)}</strong>
+                  <small>应发工资 − 固定扣除 − 个税</small>
+                </div>
+                <div className="salaryMetrics">
+                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>{workdays} × ¥275</small></div>
+                  <div><span>税前扣除</span><b>− ¥ {money(deductions)}</b><small>保险 60 + 房租 50 + 水电 20</small></div>
+                  <div><span>计税收入</span><b>¥ {money(taxableIncome)}</b><small>扣除后再减 ¥5,000</small></div>
+                  <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × 3%</small></div>
+                </div>
+              </div>
+
+              <div className="salaryFormula">
+                <span>计算公式</span>
+                <code>实发 = 工作日 × 275 − 130 − max(0, 工作日 × 275 − 130 − 5000) × 3%</code>
+              </div>
             </article>
           </div>
         </div>
