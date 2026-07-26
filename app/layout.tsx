@@ -5,7 +5,7 @@ import "./globals.css";
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "璀璨人生 · 健康、工作与生活仪表盘",
+  title: "璀璨人生",
   description: "集中掌握健康数据、工作日历、工资与生活目标。",
   openGraph: {
     title: "璀璨人生",

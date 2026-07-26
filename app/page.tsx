@@ -14,6 +14,7 @@ type SalaryRecord = {
   month: string;
   workdays: number;
   grossSalary: number;
+  deductions: number;
   incomeTax: number;
   netSalary: number;
 };
@@ -137,6 +138,8 @@ export default function Home() {
   const taxableIncome = Math.max(0, grossSalary - deductions - 5000);
   const incomeTax = taxableIncome * 0.03;
   const netSalary = grossSalary - deductions - incomeTax;
+  const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
+  const salaryTrendMax = Math.max(1, ...salaryTrend.map((record) => record.grossSalary));
   const money = (value: number) =>
     new Intl.NumberFormat("zh-CN", {
       minimumFractionDigits: 2,
@@ -343,6 +346,29 @@ export default function Home() {
                 </button>
               </div>
               {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}
+              {salaryTrend.length > 0 && (
+                <section className="salaryTrend" aria-label="最近六个月工资趋势">
+                  <div className="trendLegend">
+                    <span><i className="grossKey" />应发</span>
+                    <span><i className="deductionKey" />扣除</span>
+                    <span><i className="taxKey" />个税</span>
+                    <span><i className="netKey" />实发</span>
+                  </div>
+                  <div className="trendPlot">
+                    {salaryTrend.map((record) => (
+                      <div className="trendMonth" key={record.month}>
+                        <div className="trendBars" aria-label={`${record.month}：应发${money(record.grossSalary)}元，扣除${money(record.deductions)}元，个税${money(record.incomeTax)}元，实发${money(record.netSalary)}元`}>
+                          <i className="grossBar" style={{ height: `${Math.max(4, record.grossSalary / salaryTrendMax * 100)}%` }} />
+                          <i className="deductionBar" style={{ height: `${Math.max(4, record.deductions / salaryTrendMax * 100)}%` }} />
+                          <i className="taxBar" style={{ height: `${Math.max(4, record.incomeTax / salaryTrendMax * 100)}%` }} />
+                          <i className="netBar" style={{ height: `${Math.max(4, record.netSalary / salaryTrendMax * 100)}%` }} />
+                        </div>
+                        <b>{Number(record.month.slice(5))}月</b>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              )}
               <div className="salaryHistory">
                 {salaryRecords.length === 0 ? (
                   <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
