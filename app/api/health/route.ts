@@ -10,6 +10,11 @@ type HealthPayload = {
   exerciseMinutes?: number;
   workoutCount?: number;
   source?: string;
+  metrics?: Array<{
+    name?: string;
+    units?: string;
+    data?: Array<{ qty?: number; date?: string }>;
+  }>;
 };
 
 const jsonHeaders = {
@@ -28,6 +33,64 @@ function hasDashboardAccess(request: Request) {
     host === "127.0.0.1" ||
     request.headers.has("Cf-Access-Jwt-Assertion")
   );
+}
+
+function dateOnly(value: unknown) {
+  const match = String(value ?? "").match(/^(\d{4}-\d{2}-\d{2})/);
+  return match?.[1] ?? "";
+}
+
+function normalizePayload(payload: HealthPayload) {
+  if (!Array.isArray(payload.metrics)) {
+    const date = dateOnly(payload.date);
+    return date
+      ? [{
+          date,
+          steps: Math.round(numberInRange(payload.steps, 0, 200_000)),
+          activeEnergyKcal: numberInRange(payload.activeEnergyKcal, 0, 20_000),
+          exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
+          workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
+          source: payload.source?.trim().slice(0, 64) || "apple-health",
+        }]
+      : [];
+  }
+
+  const days = new Map<string, {
+    date: string;
+    steps: number;
+    activeEnergyKcal: number;
+    exerciseMinutes: number;
+    workoutCount: number;
+    source: string;
+  }>();
+  const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
+
+  for (const metric of payload.metrics) {
+    const name = metric.name?.toLowerCase() ?? "";
+    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name)) continue;
+
+    for (const point of metric.data ?? []) {
+      const date = dateOnly(point.date);
+      if (!date) continue;
+      const day = days.get(date) ?? {
+        date,
+        steps: 0,
+        activeEnergyKcal: 0,
+        exerciseMinutes: 0,
+        workoutCount: 0,
+        source: "health-auto-export",
+      };
+      const qty = numberInRange(point.qty, 0, 200_000);
+      if (name === "step_count") day.steps += Math.round(qty);
+      if (name === "active_energy") day.activeEnergyKcal += qty;
+      if (exerciseNames.has(name)) {
+        day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
+      }
+      days.set(date, day);
+    }
+  }
+
+  return [...days.values()];
 }
 
 export async function GET(request: Request) {
@@ -57,32 +120,30 @@ export async function POST(request: Request) {
 
   try {
     const payload = (await request.json()) as HealthPayload;
-    const date = payload.date?.trim() ?? "";
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-      return Response.json({ error: "date must use YYYY-MM-DD" }, { status: 400, headers: jsonHeaders });
+    const rows = normalizePayload(payload);
+    if (rows.length === 0) {
+      return Response.json(
+        { error: "No supported health metrics found" },
+        { status: 400, headers: jsonHeaders }
+      );
     }
 
-    const values = {
-      date,
-      steps: Math.round(numberInRange(payload.steps, 0, 200_000)),
-      activeEnergyKcal: numberInRange(payload.activeEnergyKcal, 0, 20_000),
-      exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
-      workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
-      source: payload.source?.trim().slice(0, 64) || "apple-health",
-      updatedAt: new Date().toISOString(),
-    };
-
     const db = getDb();
-    await db
-      .insert(healthDaily)
-      .values(values)
-      .onConflictDoUpdate({
+    for (const row of rows) {
+      const values = { ...row, updatedAt: new Date().toISOString() };
+      await db.insert(healthDaily).values(values).onConflictDoUpdate({
         target: healthDaily.date,
         set: values,
       });
-    const [health] = await db.select().from(healthDaily).where(eq(healthDaily.date, date)).limit(1);
-    return Response.json({ health }, { status: 200, headers: jsonHeaders });
-  } catch {
-    return Response.json({ error: "Invalid JSON payload" }, { status: 400, headers: jsonHeaders });
+    }
+    const [health] = await db
+      .select()
+      .from(healthDaily)
+      .where(eq(healthDaily.date, rows.at(-1)!.date))
+      .limit(1);
+    return Response.json({ imported: rows.length, health }, { status: 200, headers: jsonHeaders });
+  } catch (error) {
+    const message = error instanceof SyntaxError ? "Invalid JSON payload" : "Health data import failed";
+    return Response.json({ error: message }, { status: 400, headers: jsonHeaders });
   }
 }
