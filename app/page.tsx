@@ -17,14 +17,8 @@ const habits = [
   { icon: "⌁", name: "核心训练", coach: "自主训练", done: 8, total: 10 },
 ];
 
-const calendarDays: Array<number | null> = [
-  null,
-  null,
-  ...Array.from({ length: 31 }, (_, index) => index + 1),
-];
-
-const isWorkday = (day: number) => {
-  const weekday = new Date(2026, 6, day).getDay();
+const isWorkday = (year: number, month: number, day: number) => {
+  const weekday = new Date(year, month, day).getDay();
   return weekday !== 0 && weekday !== 6;
 };
 
@@ -36,7 +30,23 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
   const [workdays, setWorkdays] = useState(23);
   const [health, setHealth] = useState<HealthDaily | null>(null);
-  const [healthStatus, setHealthStatus] = useState<"loading" | "synced" | "empty">("loading");
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() };
+  });
+  const today = new Date();
+  const firstDayOffset = (new Date(calendarMonth.year, calendarMonth.month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
+  const calendarDays: Array<number | null> = [
+    ...Array.from({ length: firstDayOffset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ];
+  const calendarRows = Math.ceil(calendarDays.length / 7);
+  const calendarWorkdays = Array.from(
+    { length: daysInMonth },
+    (_, index) => index + 1
+  ).filter((day) => isWorkday(calendarMonth.year, calendarMonth.month, day)).length;
+  const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   const stepGoal = 8500;
   const steps = health?.steps ?? 5201;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
@@ -51,9 +61,8 @@ export default function Home() {
       })
       .then(({ health: latest }) => {
         setHealth(latest);
-        setHealthStatus(latest ? "synced" : "empty");
       })
-      .catch(() => setHealthStatus("empty"));
+      .catch(() => setHealth(null));
   }, []);
   const dailyRate = 275;
   const deductions = 60 + 50 + 20;
@@ -70,6 +79,13 @@ export default function Home() {
   const navigateTo = (section: string) => {
     setActiveSection(section);
     document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" });
+  };
+
+  const changeCalendarMonth = (offset: number) => {
+    setCalendarMonth((current) => {
+      const next = new Date(current.year, current.month + offset, 1);
+      return { year: next.getFullYear(), month: next.getMonth() };
+    });
   };
 
   return (
@@ -95,7 +111,7 @@ export default function Home() {
 
           <div className="grid">
             <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2><span className={`syncStatus ${healthStatus}`}>{healthStatus === "synced" ? `Apple 健康 · ${health?.date}` : healthStatus === "loading" ? "正在读取健康数据" : "等待 iPhone 首次同步"}</span></div><span className="roundBadge">◫</span></div>
+              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2></div><span className="roundBadge">◫</span></div>
               <div className="bubbleStage" aria-label={`今日活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
                 <div className="bubble yellow"><strong>1,875</strong><small>千卡消耗</small></div>
                 <div className="bubble coral"><strong>{activeEnergy.toLocaleString("zh-CN")}</strong><small>活动千卡</small></div>
@@ -105,20 +121,29 @@ export default function Home() {
             </article>
 
             <article id="calendar" className={`card calendar${activeSection === "calendar" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow light">2026 年 7 月 · 23 个工作日</p><h2>工作日历</h2></div><button className="month">七月⌄</button></div>
+              <div className="cardHead">
+                <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
+                <div className="monthSwitcher" aria-label="切换月份">
+                  <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="上个月">‹</button>
+                  <span aria-live="polite">{calendarMonth.month + 1}月</span>
+                  <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="下个月">›</button>
+                </div>
+              </div>
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
-              <div className="days">
+              <div className={`days${calendarRows === 6 ? " sixRows" : ""}`}>
                 {calendarDays.map((day, index) => {
                   if (day === null) return <span className="emptyDay" aria-hidden="true" key={`empty-${index}`} />;
-                  const workday = isWorkday(day);
-                  const className = day === 25
+                  const date = new Date(calendarMonth.year, calendarMonth.month, day);
+                  const workday = isWorkday(calendarMonth.year, calendarMonth.month, day);
+                  const isToday = date.toDateString() === today.toDateString();
+                  const className = isToday
                     ? "today"
-                    : workday && day <= 24
+                    : workday && date < today
                       ? "worked"
                       : workday
                         ? "workday"
                         : "weekend";
-                  return <span key={day} className={className} aria-label={`7月${day}日，${workday ? "工作日" : "周末"}`}>{day}</span>;
+                  return <span key={day} className={className} aria-label={`${calendarMonth.month + 1}月${day}日，${workday ? "工作日" : "周末"}`}>{day}</span>;
                 })}
               </div>
               <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 已工作</span><span>○ 待工作</span><span>● 周末</span></div>
