@@ -17,7 +17,35 @@ const habits = [
   { icon: "⌁", name: "核心训练", coach: "自主训练", done: 8, total: 10 },
 ];
 
-const isWorkday = (year: number, month: number, day: number) => {
+const holidayRanges = [
+  ["2026-01-01", "2026-01-03", "元旦"],
+  ["2026-02-15", "2026-02-23", "春节"],
+  ["2026-04-04", "2026-04-06", "清明"],
+  ["2026-05-01", "2026-05-05", "劳动节"],
+  ["2026-06-19", "2026-06-21", "端午"],
+  ["2026-09-25", "2026-09-27", "中秋"],
+  ["2026-10-01", "2026-10-07", "国庆"],
+] as const;
+
+const makeupWorkdays = new Set([
+  "2026-01-04",
+  "2026-02-14",
+  "2026-02-28",
+  "2026-05-09",
+  "2026-09-20",
+  "2026-10-10",
+]);
+
+const dateKey = (year: number, month: number, day: number) =>
+  `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+
+const holidayName = (date: string) =>
+  holidayRanges.find(([start, end]) => date >= start && date <= end)?.[2] ?? null;
+
+const defaultIsWorkday = (year: number, month: number, day: number) => {
+  const key = dateKey(year, month, day);
+  if (makeupWorkdays.has(key)) return true;
+  if (holidayName(key)) return false;
   const weekday = new Date(year, month, day).getDay();
   return weekday !== 0 && weekday !== 6;
 };
@@ -28,8 +56,10 @@ function Icon({ children, active = false, label, onClick }: { children: React.Re
 
 export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
-  const [workdays, setWorkdays] = useState(23);
   const [health, setHealth] = useState<HealthDaily | null>(null);
+  const [calendarEditing, setCalendarEditing] = useState(false);
+  const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
+  const [savingDate, setSavingDate] = useState<string | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -45,8 +75,12 @@ export default function Home() {
   const calendarWorkdays = Array.from(
     { length: daysInMonth },
     (_, index) => index + 1
-  ).filter((day) => isWorkday(calendarMonth.year, calendarMonth.month, day)).length;
+  ).filter((day) => {
+    const key = dateKey(calendarMonth.year, calendarMonth.month, day);
+    return calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
+  }).length;
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
+  const workdays = calendarWorkdays;
   const stepGoal = 8500;
   const steps = health?.steps ?? 5201;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
@@ -64,6 +98,19 @@ export default function Home() {
       })
       .catch(() => setHealth(null));
   }, []);
+
+  useEffect(() => {
+    const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
+    fetch(`/api/calendar?month=${month}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Calendar data unavailable");
+        return response.json() as Promise<{ overrides: Array<{ date: string; isWorkday: boolean }> }>;
+      })
+      .then(({ overrides }) => {
+        setCalendarOverrides(Object.fromEntries(overrides.map((item) => [item.date, item.isWorkday])));
+      })
+      .catch(() => setCalendarOverrides({}));
+  }, [calendarMonth]);
   const dailyRate = 275;
   const deductions = 60 + 50 + 20;
   const grossSalary = workdays * dailyRate;
@@ -86,6 +133,27 @@ export default function Home() {
       const next = new Date(current.year, current.month + offset, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
     });
+  };
+
+  const toggleWorkday = async (day: number) => {
+    if (!calendarEditing) return;
+    const key = dateKey(calendarMonth.year, calendarMonth.month, day);
+    const current = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
+    const next = !current;
+    setCalendarOverrides((values) => ({ ...values, [key]: next }));
+    setSavingDate(key);
+    try {
+      const response = await fetch("/api/calendar", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: key, isWorkday: next }),
+      });
+      if (!response.ok) throw new Error("Save failed");
+    } catch {
+      setCalendarOverrides((values) => ({ ...values, [key]: current }));
+    } finally {
+      setSavingDate(null);
+    }
   };
 
   return (
@@ -123,10 +191,13 @@ export default function Home() {
             <article id="calendar" className={`card calendar${activeSection === "calendar" ? " sectionActive" : ""}`}>
               <div className="cardHead">
                 <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
-                <div className="monthSwitcher" aria-label="切换月份">
-                  <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="上个月">‹</button>
-                  <span aria-live="polite">{calendarMonth.month + 1}月</span>
-                  <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="下个月">›</button>
+                <div className="calendarActions">
+                  <button type="button" className={`editCalendar${calendarEditing ? " active" : ""}`} onClick={() => setCalendarEditing((value) => !value)}>{calendarEditing ? "完成" : "编辑"}</button>
+                  <div className="monthSwitcher" aria-label="切换月份">
+                    <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="上个月">‹</button>
+                    <span aria-live="polite">{calendarMonth.month + 1}月</span>
+                    <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="下个月">›</button>
+                  </div>
                 </div>
               </div>
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
@@ -134,7 +205,10 @@ export default function Home() {
                 {calendarDays.map((day, index) => {
                   if (day === null) return <span className="emptyDay" aria-hidden="true" key={`empty-${index}`} />;
                   const date = new Date(calendarMonth.year, calendarMonth.month, day);
-                  const workday = isWorkday(calendarMonth.year, calendarMonth.month, day);
+                  const key = dateKey(calendarMonth.year, calendarMonth.month, day);
+                  const holiday = holidayName(key);
+                  const makeup = makeupWorkdays.has(key);
+                  const workday = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
                   const isToday = date.toDateString() === today.toDateString();
                   const className = isToday
                     ? "today"
@@ -143,10 +217,27 @@ export default function Home() {
                       : workday
                         ? "workday"
                         : "weekend";
-                  return <span key={day} className={className} aria-label={`${calendarMonth.month + 1}月${day}日，${workday ? "工作日" : "周末"}`}>{day}</span>;
+                  const statusLabel = holiday
+                    ? `${holiday} · ${workday ? "个人设为工作" : "法定休假"}`
+                    : makeup
+                      ? `调休日 · ${workday ? "上班" : "个人设为休息"}`
+                      : workday ? "工作日" : "休息日";
+                  return (
+                    <button
+                      type="button"
+                      key={day}
+                      className={`${className}${holiday && !workday ? " holiday" : ""}${holiday && workday ? " personalWork" : ""}${makeup && workday ? " makeup" : ""}${makeup && !workday ? " personalRest" : ""}${calendarEditing ? " editable" : ""}`}
+                      aria-label={`${calendarMonth.month + 1}月${day}日，${statusLabel}${calendarEditing ? "，点击切换状态" : ""}`}
+                      title={`${statusLabel}${calendarEditing ? " · 点击切换" : ""}`}
+                      onClick={() => toggleWorkday(day)}
+                      disabled={!calendarEditing || savingDate === key}
+                    >
+                      {day}
+                    </button>
+                  );
                 })}
               </div>
-              <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 已工作</span><span>○ 待工作</span><span>● 周末</span></div>
+              <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 工作日</span><span className="holidayText">● 法定休假</span><span>● 周末</span></div>
             </article>
 
             <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
@@ -179,17 +270,11 @@ export default function Home() {
                   <p className="salarySubtitle">日薪 275 元，固定税前扣除 130 元，起征点 5,000 元，税率 3%</p>
                 </div>
                 <label className="workdayInput">
-                  <span>本月工作日</span>
+                  <span>{monthLabel}工作日</span>
                   <input
                     type="number"
-                    min="0"
-                    max="31"
-                    step="1"
+                    readOnly
                     value={workdays}
-                    onChange={(event) => {
-                      const value = Number(event.target.value);
-                      setWorkdays(Number.isFinite(value) ? Math.min(31, Math.max(0, value)) : 0);
-                    }}
                   />
                   <b>天</b>
                 </label>

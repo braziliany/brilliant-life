@@ -15,3 +15,14 @@ export const healthDaily = sqliteTable(
   },
   (table) => [uniqueIndex("health_daily_date_unique").on(table.date)]
 );
+
+export const calendarOverrides = sqliteTable(
+  "calendar_overrides",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    date: text("date").notNull(),
+    isWorkday: integer("is_workday", { mode: "boolean" }).notNull(),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex("calendar_overrides_date_unique").on(table.date)]
+);
