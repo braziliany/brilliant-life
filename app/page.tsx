@@ -15,6 +15,9 @@ type SalaryRecord = {
   workdays: number;
   grossSalary: number;
   deductions: number;
+  extraIncome: number;
+  bonus: number;
+  leaveDeduction: number;
   incomeTax: number;
   netSalary: number;
 };
@@ -24,6 +27,12 @@ type SalarySettings = {
   deductions: number;
   taxThreshold: number;
   taxRate: number;
+};
+
+type SalaryAdjustments = {
+  extraIncome: number;
+  bonus: number;
+  leaveDeduction: number;
 };
 
 const getShanghaiDate = (value = new Date()) => {
@@ -97,6 +106,7 @@ export default function Home() {
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
   const [settingsStatus, setSettingsStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [salaryAdjustments, setSalaryAdjustments] = useState<SalaryAdjustments>({ extraIncome: 0, bonus: 0, leaveDeduction: 0 });
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = getShanghaiDate();
     return { year: now.year, month: now.month };
@@ -162,11 +172,19 @@ export default function Home() {
       })
       .catch(() => setSalaryRecords([]));
   }, []);
+  useEffect(() => {
+    const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
+    const record = salaryRecords.find((item) => item.month === month);
+    setSalaryAdjustments(record
+      ? { extraIncome: record.extraIncome, bonus: record.bonus, leaveDeduction: record.leaveDeduction }
+      : { extraIncome: 0, bonus: 0, leaveDeduction: 0 });
+  }, [calendarMonth, salaryRecords]);
   const { dailyRate, deductions, taxThreshold, taxRate } = salarySettings;
-  const grossSalary = workdays * dailyRate;
-  const taxableIncome = Math.max(0, grossSalary - deductions - taxThreshold);
+  const { extraIncome, bonus, leaveDeduction } = salaryAdjustments;
+  const grossSalary = workdays * dailyRate + extraIncome + bonus;
+  const taxableIncome = Math.max(0, grossSalary - deductions - leaveDeduction - taxThreshold);
   const incomeTax = taxableIncome * taxRate / 100;
-  const netSalary = grossSalary - deductions - incomeTax;
+  const netSalary = grossSalary - deductions - leaveDeduction - incomeTax;
   const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
   const salaryTrendMax = Math.max(1, ...salaryTrend.map((record) => record.grossSalary));
   const money = (value: number) =>
@@ -215,7 +233,7 @@ export default function Home() {
       const response = await fetch("/api/salary", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, workdays }),
+        body: JSON.stringify({ month, workdays, ...salaryAdjustments }),
       });
       if (!response.ok) throw new Error("Save failed");
       const { record } = await response.json() as { record: SalaryRecord };
@@ -375,6 +393,12 @@ export default function Home() {
               </div>
               {settingsStatus === "error" && <p className="salaryError" role="alert">工资参数保存失败，请稍后再试。</p>}
 
+              <div className="salaryAdjustments">
+                <label><span>额外收入</span><input type="number" min="0" value={extraIncome} onChange={(event) => setSalaryAdjustments((current) => ({ ...current, extraIncome: Number(event.target.value) }))} /><b>元</b></label>
+                <label><span>奖金</span><input type="number" min="0" value={bonus} onChange={(event) => setSalaryAdjustments((current) => ({ ...current, bonus: Number(event.target.value) }))} /><b>元</b></label>
+                <label><span>请假扣款</span><input type="number" min="0" value={leaveDeduction} onChange={(event) => setSalaryAdjustments((current) => ({ ...current, leaveDeduction: Number(event.target.value) }))} /><b>元</b></label>
+              </div>
+
               <div className="salarySummary">
                 <div className="netPay">
                   <span>预计实发工资</span>
@@ -382,8 +406,8 @@ export default function Home() {
                   <small>应发工资 − 固定扣除 − 个税</small>
                 </div>
                 <div className="salaryMetrics">
-                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>{workdays} × ¥{money(dailyRate)}</small></div>
-                  <div><span>固定扣除</span><b>− ¥ {money(deductions)}</b><small>保存的月度固定扣除</small></div>
+                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>基本工资 + 额外收入 + 奖金</small></div>
+                  <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除 + 请假扣款</small></div>
                   <div><span>计税收入</span><b>¥ {money(taxableIncome)}</b><small>扣除后再减 ¥{money(taxThreshold)}</small></div>
                   <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × {taxRate}%</small></div>
                 </div>
@@ -391,7 +415,7 @@ export default function Home() {
 
               <div className="salaryFormula">
                 <span>计算公式</span>
-                <code>实发 = 工作日 × 日薪 − 固定扣除 − max(0, 应发 − 固定扣除 − 起征点) × 税率</code>
+                <code>实发 = 工作日 × 日薪 + 额外收入 + 奖金 − 固定扣除 − 请假扣款 − 个税</code>
               </div>
               <div className="salaryHistoryHead">
                 <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
@@ -428,7 +452,7 @@ export default function Home() {
                   <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
                 ) : salaryRecords.map((record) => (
                   <div className="salaryRecord" key={record.month}>
-                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日</small></div>
+                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}</small></div>
                     <span>应发 ¥{money(record.grossSalary)}</span>
                     <span>个税 ¥{money(record.incomeTax)}</span>
                     <strong>实发 ¥{money(record.netSalary)}</strong>

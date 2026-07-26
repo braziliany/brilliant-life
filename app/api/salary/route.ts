@@ -44,22 +44,32 @@ export async function PUT(request: Request) {
     ) {
       return Response.json({ error: "Invalid salary record" }, { status: 400, headers: jsonHeaders });
     }
+    const adjustmentKeys = ["extraIncome", "bonus", "leaveDeduction"] as const;
+    if (adjustmentKeys.some((key) => typeof payload[key] !== "number" || !Number.isFinite(payload[key]) || (payload[key] as number) < 0 || (payload[key] as number) > 1000000)) {
+      return Response.json({ error: "Invalid salary adjustments" }, { status: 400, headers: jsonHeaders });
+    }
 
     const db = getDb();
     const savedSettings = await db.select().from(salarySettings).where(eq(salarySettings.id, "default")).limit(1);
     const { dailyRate, deductions, taxThreshold, taxRate } = savedSettings[0] ?? defaultSettings;
-    const grossSalary = payload.workdays * dailyRate;
-    const taxableIncome = Math.max(0, grossSalary - deductions - taxThreshold);
+    const extraIncome = payload.extraIncome as number;
+    const bonus = payload.bonus as number;
+    const leaveDeduction = payload.leaveDeduction as number;
+    const grossSalary = payload.workdays * dailyRate + extraIncome + bonus;
+    const taxableIncome = Math.max(0, grossSalary - deductions - leaveDeduction - taxThreshold);
     const incomeTax = taxableIncome * taxRate / 100;
     const values = {
       month: payload.month,
       workdays: payload.workdays,
       dailyRate,
       deductions,
+      extraIncome,
+      bonus,
+      leaveDeduction,
       grossSalary,
       taxableIncome,
       incomeTax,
-      netSalary: grossSalary - deductions - incomeTax,
+      netSalary: grossSalary - deductions - leaveDeduction - incomeTax,
       updatedAt: new Date().toISOString(),
     };
 
