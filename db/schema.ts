@@ -43,3 +43,12 @@ export const salaryRecords = sqliteTable(
   },
   (table) => [uniqueIndex("salary_records_month_unique").on(table.month)]
 );
+
+export const salarySettings = sqliteTable("salary_settings", {
+  id: text("id").primaryKey(),
+  dailyRate: real("daily_rate").notNull().default(275),
+  deductions: real("deductions").notNull().default(130),
+  taxThreshold: real("tax_threshold").notNull().default(5000),
+  taxRate: real("tax_rate").notNull().default(3),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

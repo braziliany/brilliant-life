@@ -19,6 +19,30 @@ type SalaryRecord = {
   netSalary: number;
 };
 
+type SalarySettings = {
+  dailyRate: number;
+  deductions: number;
+  taxThreshold: number;
+  taxRate: number;
+};
+
+const getShanghaiDate = (value = new Date()) => {
+  const parts = new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    weekday: "long",
+  }).formatToParts(value);
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return {
+    year: Number(read("year")),
+    month: Number(read("month")) - 1,
+    day: Number(read("day")),
+    weekday: read("weekday"),
+  };
+};
+
 const habits = [
   { icon: "↗", name: "晨间拉伸", coach: "Alice McCain", done: 9, total: 12 },
   { icon: "●", name: "瑜伽训练", coach: "Jennifer Lubin", done: 6, total: 10 },
@@ -71,11 +95,14 @@ export default function Home() {
   const [savingDate, setSavingDate] = useState<string | null>(null);
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
+  const [settingsStatus, setSettingsStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [calendarMonth, setCalendarMonth] = useState(() => {
-    const now = new Date();
-    return { year: now.getFullYear(), month: now.getMonth() };
+    const now = getShanghaiDate();
+    return { year: now.year, month: now.month };
   });
-  const today = new Date();
+  const today = getShanghaiDate();
+  const todayKey = dateKey(today.year, today.month, today.day);
   const firstDayOffset = (new Date(calendarMonth.year, calendarMonth.month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
   const calendarDays: Array<number | null> = [
@@ -127,16 +154,18 @@ export default function Home() {
     fetch("/api/salary", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Salary history unavailable");
-        return response.json() as Promise<{ records: SalaryRecord[] }>;
+        return response.json() as Promise<{ records: SalaryRecord[]; settings: SalarySettings }>;
       })
-      .then(({ records }) => setSalaryRecords(records))
+      .then(({ records, settings }) => {
+        setSalaryRecords(records);
+        setSalarySettings(settings);
+      })
       .catch(() => setSalaryRecords([]));
   }, []);
-  const dailyRate = 275;
-  const deductions = 60 + 50 + 20;
+  const { dailyRate, deductions, taxThreshold, taxRate } = salarySettings;
   const grossSalary = workdays * dailyRate;
-  const taxableIncome = Math.max(0, grossSalary - deductions - 5000);
-  const incomeTax = taxableIncome * 0.03;
+  const taxableIncome = Math.max(0, grossSalary - deductions - taxThreshold);
+  const incomeTax = taxableIncome * taxRate / 100;
   const netSalary = grossSalary - deductions - incomeTax;
   const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
   const salaryTrendMax = Math.max(1, ...salaryTrend.map((record) => record.grossSalary));
@@ -197,6 +226,23 @@ export default function Home() {
     }
   };
 
+  const saveSalarySettings = async () => {
+    setSettingsStatus("saving");
+    try {
+      const response = await fetch("/api/salary", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(salarySettings),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      const { settings } = await response.json() as { settings: SalarySettings };
+      setSalarySettings(settings);
+      setSettingsStatus("saved");
+    } catch {
+      setSettingsStatus("error");
+    }
+  };
+
   return (
     <main className="pageShell">
       <section className="dashboard">
@@ -214,7 +260,7 @@ export default function Home() {
 
         <div className="content">
           <header className="topbar">
-            <div><p className="eyebrow">星期三 · 7月22日</p><h1>早上好，Amanda!</h1><p className="subtitle">来看看你今天的活动进度吧</p></div>
+            <div><p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p><h1>早上好，Amanda!</h1><p className="subtitle">来看看你今天的活动进度吧</p></div>
             <div className="actions"><label className="search"><span>⌕</span><input aria-label="搜索健康数据" placeholder="搜索健康数据" /></label><button>升级计划</button></div>
           </header>
 
@@ -245,15 +291,14 @@ export default function Home() {
               <div className={`days${calendarRows === 6 ? " sixRows" : ""}`}>
                 {calendarDays.map((day, index) => {
                   if (day === null) return <span className="emptyDay" aria-hidden="true" key={`empty-${index}`} />;
-                  const date = new Date(calendarMonth.year, calendarMonth.month, day);
                   const key = dateKey(calendarMonth.year, calendarMonth.month, day);
                   const holiday = holidayName(key);
                   const makeup = makeupWorkdays.has(key);
                   const workday = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
-                  const isToday = date.toDateString() === today.toDateString();
+                  const isToday = key === todayKey;
                   const className = isToday
                     ? "today"
-                    : workday && date < today
+                    : workday && key < todayKey
                       ? "worked"
                       : workday
                         ? "workday"
@@ -308,7 +353,7 @@ export default function Home() {
                 <div>
                   <p className="eyebrow">工资助手</p>
                   <h2>本月工资计算</h2>
-                  <p className="salarySubtitle">日薪 275 元，固定税前扣除 130 元，起征点 5,000 元，税率 3%</p>
+                  <p className="salarySubtitle">日薪 {money(dailyRate)} 元，固定扣除 {money(deductions)} 元，起征点 {money(taxThreshold)} 元，税率 {taxRate}%</p>
                 </div>
                 <label className="workdayInput">
                   <span>{monthLabel}工作日</span>
@@ -321,6 +366,15 @@ export default function Home() {
                 </label>
               </div>
 
+              <div className="salarySettings">
+                <label><span>日薪</span><input type="number" min="0" value={dailyRate} onChange={(event) => setSalarySettings((current) => ({ ...current, dailyRate: Number(event.target.value) }))} /><b>元</b></label>
+                <label><span>固定扣除</span><input type="number" min="0" value={deductions} onChange={(event) => setSalarySettings((current) => ({ ...current, deductions: Number(event.target.value) }))} /><b>元</b></label>
+                <label><span>起征点</span><input type="number" min="0" value={taxThreshold} onChange={(event) => setSalarySettings((current) => ({ ...current, taxThreshold: Number(event.target.value) }))} /><b>元</b></label>
+                <label><span>税率</span><input type="number" min="0" max="100" step="0.1" value={taxRate} onChange={(event) => setSalarySettings((current) => ({ ...current, taxRate: Number(event.target.value) }))} /><b>%</b></label>
+                <button type="button" onClick={saveSalarySettings} disabled={settingsStatus === "saving"}>{settingsStatus === "saving" ? "保存中…" : settingsStatus === "saved" ? "参数已保存" : "保存参数"}</button>
+              </div>
+              {settingsStatus === "error" && <p className="salaryError" role="alert">工资参数保存失败，请稍后再试。</p>}
+
               <div className="salarySummary">
                 <div className="netPay">
                   <span>预计实发工资</span>
@@ -328,16 +382,16 @@ export default function Home() {
                   <small>应发工资 − 固定扣除 − 个税</small>
                 </div>
                 <div className="salaryMetrics">
-                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>{workdays} × ¥275</small></div>
-                  <div><span>税前扣除</span><b>− ¥ {money(deductions)}</b><small>保险 60 + 房租 50 + 水电 20</small></div>
-                  <div><span>计税收入</span><b>¥ {money(taxableIncome)}</b><small>扣除后再减 ¥5,000</small></div>
-                  <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × 3%</small></div>
+                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>{workdays} × ¥{money(dailyRate)}</small></div>
+                  <div><span>固定扣除</span><b>− ¥ {money(deductions)}</b><small>保存的月度固定扣除</small></div>
+                  <div><span>计税收入</span><b>¥ {money(taxableIncome)}</b><small>扣除后再减 ¥{money(taxThreshold)}</small></div>
+                  <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × {taxRate}%</small></div>
                 </div>
               </div>
 
               <div className="salaryFormula">
                 <span>计算公式</span>
-                <code>实发 = 工作日 × 275 − 130 − max(0, 工作日 × 275 − 130 − 5000) × 3%</code>
+                <code>实发 = 工作日 × 日薪 − 固定扣除 − max(0, 应发 − 固定扣除 − 起征点) × 税率</code>
               </div>
               <div className="salaryHistoryHead">
                 <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
