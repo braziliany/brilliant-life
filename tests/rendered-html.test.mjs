@@ -10,12 +10,12 @@ async function render() {
   }, { waitUntil() {}, passThroughOnException() {} });
 }
 
-test("renders the Pulse health dashboard", async () => {
+test("renders the Brilliant Life dashboard", async () => {
   const response = await render();
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
   const html = await response.text();
-  assert.match(html, /Pulse/);
+  assert.match(html, /璀璨人生/);
   assert.match(html, /训练成果/);
   assert.match(html, /工作日历/);
   assert.match(html, /23 个工作日/);

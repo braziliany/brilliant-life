@@ -15,6 +15,13 @@
       "when": 1785061346842,
       "tag": "0001_silly_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1785082580047,
+      "tag": "0002_funny_masked_marvel",
+      "breakpoints": true
     }
   ]
 }

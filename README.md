@@ -1,6 +1,6 @@
-# Pulse 健康训练仪表盘
+# 璀璨人生
 
-基于 React、vinext 和 Cloudflare Workers 构建的响应式健身仪表盘。
+基于 React、vinext 和 Cloudflare Workers 构建的健康、工作、工资与生活仪表盘。
 
 ## 本地运行
 

@@ -10,6 +10,14 @@ type HealthDaily = {
   workoutCount: number;
 };
 
+type SalaryRecord = {
+  month: string;
+  workdays: number;
+  grossSalary: number;
+  incomeTax: number;
+  netSalary: number;
+};
+
 const habits = [
   { icon: "↗", name: "晨间拉伸", coach: "Alice McCain", done: 9, total: 12 },
   { icon: "●", name: "瑜伽训练", coach: "Jennifer Lubin", done: 6, total: 10 },
@@ -60,6 +68,8 @@ export default function Home() {
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
   const [savingDate, setSavingDate] = useState<string | null>(null);
+  const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
+  const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -111,6 +121,16 @@ export default function Home() {
       })
       .catch(() => setCalendarOverrides({}));
   }, [calendarMonth]);
+
+  useEffect(() => {
+    fetch("/api/salary", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Salary history unavailable");
+        return response.json() as Promise<{ records: SalaryRecord[] }>;
+      })
+      .then(({ records }) => setSalaryRecords(records))
+      .catch(() => setSalaryRecords([]));
+  }, []);
   const dailyRate = 275;
   const deductions = 60 + 50 + 20;
   const grossSalary = workdays * dailyRate;
@@ -156,11 +176,29 @@ export default function Home() {
     }
   };
 
+  const saveSalaryRecord = async () => {
+    const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
+    setSalaryStatus("saving");
+    try {
+      const response = await fetch("/api/salary", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month, workdays }),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      const { record } = await response.json() as { record: SalaryRecord };
+      setSalaryRecords((records) => [record, ...records.filter((item) => item.month !== record.month)].slice(0, 12));
+      setSalaryStatus("saved");
+    } catch {
+      setSalaryStatus("error");
+    }
+  };
+
   return (
     <main className="pageShell">
       <section className="dashboard">
         <aside className="sidebar" aria-label="主导航">
-          <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="Pulse 首页"><span className="brandMark" aria-hidden="true" /><b>Pulse</b></button>
+          <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="璀璨人生首页"><span className="brandMark" aria-hidden="true" /><b>璀璨人生</b></button>
           <nav>
             <Icon label="今日概览" active={activeSection === "overview"} onClick={() => navigateTo("overview")}>⌂</Icon>
             <Icon label="工作日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
@@ -297,6 +335,25 @@ export default function Home() {
               <div className="salaryFormula">
                 <span>计算公式</span>
                 <code>实发 = 工作日 × 275 − 130 − max(0, 工作日 × 275 − 130 − 5000) × 3%</code>
+              </div>
+              <div className="salaryHistoryHead">
+                <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
+                <button type="button" className="saveSalary" onClick={saveSalaryRecord} disabled={salaryStatus === "saving"}>
+                  {salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}
+                </button>
+              </div>
+              {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}
+              <div className="salaryHistory">
+                {salaryRecords.length === 0 ? (
+                  <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
+                ) : salaryRecords.map((record) => (
+                  <div className="salaryRecord" key={record.month}>
+                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日</small></div>
+                    <span>应发 ¥{money(record.grossSalary)}</span>
+                    <span>个税 ¥{money(record.incomeTax)}</span>
+                    <strong>实发 ¥{money(record.netSalary)}</strong>
+                  </div>
+                ))}
               </div>
             </article>
           </div>
