@@ -15,6 +15,13 @@ type HealthPayload = {
     units?: string;
     data?: Array<{ qty?: number; date?: string }>;
   }>;
+  data?: {
+    metrics?: Array<{
+      name?: string;
+      units?: string;
+      data?: Array<{ qty?: number; date?: string }>;
+    }>;
+  };
 };
 
 const jsonHeaders = {
@@ -41,7 +48,8 @@ function dateOnly(value: unknown) {
 }
 
 function normalizePayload(payload: HealthPayload) {
-  if (!Array.isArray(payload.metrics)) {
+  const metrics = payload.data?.metrics ?? payload.metrics;
+  if (!Array.isArray(metrics)) {
     const date = dateOnly(payload.date);
     return date
       ? [{
@@ -65,7 +73,7 @@ function normalizePayload(payload: HealthPayload) {
   }>();
   const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
 
-  for (const metric of payload.metrics) {
+  for (const metric of metrics) {
     const name = metric.name?.toLowerCase() ?? "";
     if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name)) continue;
 
