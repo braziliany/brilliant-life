@@ -160,7 +160,7 @@ export default function Home() {
     <main className="pageShell">
       <section className="dashboard">
         <aside className="sidebar" aria-label="主导航">
-          <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="Pulse 首页"><span>✦</span><b>Pulse</b></button>
+          <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="Pulse 首页"><span className="brandMark" aria-hidden="true" /><b>Pulse</b></button>
           <nav>
             <Icon label="今日概览" active={activeSection === "overview"} onClick={() => navigateTo("overview")}>⌂</Icon>
             <Icon label="工作日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
