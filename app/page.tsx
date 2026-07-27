@@ -6,6 +6,7 @@ type HealthDaily = {
   date: string;
   steps: number;
   activeEnergyKcal: number;
+  restingEnergyKcal: number;
   exerciseMinutes: number;
   workoutCount: number;
 };
@@ -106,6 +107,7 @@ export default function Home() {
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
   const [savingDate, setSavingDate] = useState<string | null>(null);
+  const [lastCalendarChange, setLastCalendarChange] = useState<{ date: string; previous: boolean; hadOverride: boolean } | null>(null);
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
@@ -136,7 +138,10 @@ export default function Home() {
   const stepGoal = 8500;
   const steps = health?.steps ?? 5201;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
-  const activeEnergy = Math.round(health?.activeEnergyKcal ?? 850);
+  const activeEnergy = Math.round(health?.activeEnergyKcal ?? 0);
+  const totalEnergy = health && health.restingEnergyKcal > 0
+    ? Math.round(health.activeEnergyKcal + health.restingEnergyKcal)
+    : null;
   const exerciseHours = ((health?.exerciseMinutes ?? 138) / 60).toFixed(1);
 
   useEffect(() => {
@@ -203,6 +208,7 @@ export default function Home() {
   };
 
   const changeCalendarMonth = (offset: number) => {
+    setLastCalendarChange(null);
     setCalendarMonth((current) => {
       const next = new Date(current.year, current.month + offset, 1);
       return { year: next.getFullYear(), month: next.getMonth() };
@@ -212,6 +218,7 @@ export default function Home() {
   const toggleWorkday = async (day: number) => {
     if (!calendarEditing) return;
     const key = dateKey(calendarMonth.year, calendarMonth.month, day);
+    const hadOverride = Object.hasOwn(calendarOverrides, key);
     const current = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
     const next = !current;
     setCalendarOverrides((values) => ({ ...values, [key]: next }));
@@ -223,8 +230,34 @@ export default function Home() {
         body: JSON.stringify({ date: key, isWorkday: next }),
       });
       if (!response.ok) throw new Error("Save failed");
+      setLastCalendarChange({ date: key, previous: current, hadOverride });
     } catch {
       setCalendarOverrides((values) => ({ ...values, [key]: current }));
+    } finally {
+      setSavingDate(null);
+    }
+  };
+
+  const undoCalendarChange = async () => {
+    if (!lastCalendarChange) return;
+    const change = lastCalendarChange;
+    setSavingDate(change.date);
+    try {
+      const response = await fetch("/api/calendar", {
+        method: change.hadOverride ? "PUT" : "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(change.hadOverride ? { date: change.date, isWorkday: change.previous } : { date: change.date }),
+      });
+      if (!response.ok) throw new Error("Undo failed");
+      setCalendarOverrides((values) => {
+        const next = { ...values };
+        if (change.hadOverride) next[change.date] = change.previous;
+        else delete next[change.date];
+        return next;
+      });
+      setLastCalendarChange(null);
+    } catch {
+      // Keep the latest change available so the user can retry undoing it.
     } finally {
       setSavingDate(null);
     }
@@ -320,15 +353,15 @@ export default function Home() {
           <div className="grid">
             <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
               <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2></div><span className="roundBadge">◫</span></div>
-              <div className="bubbleStage" aria-label={`今日活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
-                <div className="bubble yellow"><strong>1,875</strong><small>千卡消耗</small></div>
+              <div className="bubbleStage" aria-label={`今日总消耗${totalEnergy ?? "暂无"}千卡，活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
+                <div className="bubble yellow"><strong>{totalEnergy?.toLocaleString("zh-CN") ?? "—"}</strong><small>{totalEnergy === null ? "等待静息能量" : "总千卡消耗"}</small></div>
                 <div className="bubble coral"><strong>{activeEnergy.toLocaleString("zh-CN")}</strong><small>活动千卡</small></div>
                 <div className="bubble dark"><strong>{exerciseHours}</strong><small>小时</small></div>
               </div>
               <div className="legend"><span><i className="dot yellowDot" />总消耗</span><span><i className="dot coralDot" />活动消耗</span><span><i className="dot darkDot" />运动时长</span></div>
             </article>
 
-            <article id="calendar" className={`card calendar${activeSection === "calendar" ? " sectionActive" : ""}`}>
+            <article id="calendar" className={`card calendar${calendarEditing ? " editing" : ""}${activeSection === "calendar" ? " sectionActive" : ""}`}>
               <div className="cardHead">
                 <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
                 <div className="calendarActions">
@@ -340,6 +373,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+              {calendarEditing && <div className="calendarEditHint"><span>点击日期切换工作或休息</span><button type="button" onClick={undoCalendarChange} disabled={!lastCalendarChange || savingDate !== null}>撤销上次修改</button></div>}
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
               <div className={`days${calendarRows === 6 ? " sixRows" : ""}`}>
                 {calendarDays.map((day, index) => {

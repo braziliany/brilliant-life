@@ -8,6 +8,7 @@ export const healthDaily = sqliteTable(
     date: text("date").notNull(),
     steps: integer("steps").notNull().default(0),
     activeEnergyKcal: real("active_energy_kcal").notNull().default(0),
+    restingEnergyKcal: real("resting_energy_kcal").notNull().default(0),
     exerciseMinutes: real("exercise_minutes").notNull().default(0),
     workoutCount: integer("workout_count").notNull().default(0),
     source: text("source").notNull().default("apple-health"),

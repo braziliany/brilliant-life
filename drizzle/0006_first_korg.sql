@@ -1,0 +1,1 @@
+ALTER TABLE `health_daily` ADD `resting_energy_kcal` real DEFAULT 0 NOT NULL;

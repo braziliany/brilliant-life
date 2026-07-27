@@ -7,6 +7,7 @@ type HealthPayload = {
   date?: string;
   steps?: number;
   activeEnergyKcal?: number;
+  restingEnergyKcal?: number;
   exerciseMinutes?: number;
   workoutCount?: number;
   source?: string;
@@ -56,6 +57,7 @@ function normalizePayload(payload: HealthPayload) {
           date,
           steps: Math.round(numberInRange(payload.steps, 0, 200_000)),
           activeEnergyKcal: numberInRange(payload.activeEnergyKcal, 0, 20_000),
+          restingEnergyKcal: numberInRange(payload.restingEnergyKcal, 0, 20_000),
           exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
           workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
           source: payload.source?.trim().slice(0, 64) || "apple-health",
@@ -67,15 +69,17 @@ function normalizePayload(payload: HealthPayload) {
     date: string;
     steps: number;
     activeEnergyKcal: number;
+    restingEnergyKcal: number;
     exerciseMinutes: number;
     workoutCount: number;
     source: string;
   }>();
   const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
+  const restingEnergyNames = new Set(["basal_energy", "basal_energy_burned", "resting_energy", "resting_energy_burned"]);
 
   for (const metric of metrics) {
     const name = metric.name?.toLowerCase() ?? "";
-    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name)) continue;
+    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name)) continue;
 
     for (const point of metric.data ?? []) {
       const date = dateOnly(point.date);
@@ -84,6 +88,7 @@ function normalizePayload(payload: HealthPayload) {
         date,
         steps: 0,
         activeEnergyKcal: 0,
+        restingEnergyKcal: 0,
         exerciseMinutes: 0,
         workoutCount: 0,
         source: "health-auto-export",
@@ -91,6 +96,7 @@ function normalizePayload(payload: HealthPayload) {
       const qty = numberInRange(point.qty, 0, 200_000);
       if (name === "step_count") day.steps += Math.round(qty);
       if (name === "active_energy") day.activeEnergyKcal += qty;
+      if (restingEnergyNames.has(name)) day.restingEnergyKcal += qty;
       if (exerciseNames.has(name)) {
         day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
       }

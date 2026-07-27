@@ -1,4 +1,4 @@
-import { and, gte, lt } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { calendarOverrides } from "../../../db/schema";
 
@@ -66,5 +66,22 @@ export async function PUT(request: Request) {
     return Response.json({ override: values }, { headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Calendar update failed" }, { status: 500, headers: jsonHeaders });
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!hasDashboardAccess(request)) {
+    return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
+  }
+
+  try {
+    const payload = (await request.json()) as { date?: string };
+    if (!validDate(payload.date)) {
+      return Response.json({ error: "date is required" }, { status: 400, headers: jsonHeaders });
+    }
+    await getDb().delete(calendarOverrides).where(eq(calendarOverrides.date, payload.date!));
+    return Response.json({ deleted: payload.date }, { headers: jsonHeaders });
+  } catch {
+    return Response.json({ error: "Calendar reset failed" }, { status: 500, headers: jsonHeaders });
   }
 }
