@@ -13,8 +13,12 @@ type HealthDaily = {
 type SalaryRecord = {
   month: string;
   workdays: number;
+  dailyRate: number;
   grossSalary: number;
   deductions: number;
+  taxThreshold: number;
+  taxRate: number;
+  taxableIncome: number;
   extraIncome: number;
   bonus: number;
   leaveDeduction: number;
@@ -261,6 +265,37 @@ export default function Home() {
     }
   };
 
+  const exportSalaryRecords = () => {
+    if (salaryRecords.length === 0) return;
+    const headers = ["月份", "工作日", "日薪", "固定扣除", "起征点", "税率(%)", "额外收入", "奖金", "请假扣款", "应发工资", "计税收入", "个人所得税", "实发工资"];
+    const rows = salaryRecords.map((record) => [
+      record.month,
+      record.workdays,
+      record.dailyRate,
+      record.deductions,
+      record.taxThreshold,
+      record.taxRate,
+      record.extraIncome,
+      record.bonus,
+      record.leaveDeduction,
+      record.grossSalary,
+      record.taxableIncome,
+      record.incomeTax,
+      record.netSalary,
+    ]);
+    const escapeCsv = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `璀璨人生-工资记录-${today.year}-${String(today.month + 1).padStart(2, "0")}-${String(today.day).padStart(2, "0")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <main className="pageShell">
       <section className="dashboard">
@@ -419,9 +454,12 @@ export default function Home() {
               </div>
               <div className="salaryHistoryHead">
                 <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
-                <button type="button" className="saveSalary" onClick={saveSalaryRecord} disabled={salaryStatus === "saving"}>
-                  {salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}
-                </button>
+                <div className="salaryHistoryActions">
+                  <button type="button" className="exportSalary" onClick={exportSalaryRecords} disabled={salaryRecords.length === 0}>导出 CSV</button>
+                  <button type="button" className="saveSalary" onClick={saveSalaryRecord} disabled={salaryStatus === "saving"}>
+                    {salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}
+                  </button>
+                </div>
               </div>
               {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}
               {salaryTrend.length > 0 && (

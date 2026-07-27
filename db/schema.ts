@@ -35,6 +35,8 @@ export const salaryRecords = sqliteTable(
     workdays: integer("workdays").notNull(),
     dailyRate: real("daily_rate").notNull(),
     deductions: real("deductions").notNull(),
+    taxThreshold: real("tax_threshold").notNull().default(5000),
+    taxRate: real("tax_rate").notNull().default(3),
     extraIncome: real("extra_income").notNull().default(0),
     bonus: real("bonus").notNull().default(0),
     leaveDeduction: real("leave_deduction").notNull().default(0),

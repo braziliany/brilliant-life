@@ -63,6 +63,8 @@ export async function PUT(request: Request) {
       workdays: payload.workdays,
       dailyRate,
       deductions,
+      taxThreshold,
+      taxRate,
       extraIncome,
       bonus,
       leaveDeduction,
