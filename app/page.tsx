@@ -427,7 +427,8 @@ export default function Home() {
                       onClick={() => toggleWorkday(day)}
                       disabled={!calendarEditing || savingDate === key}
                     >
-                      {day}
+                      <span className="dayNumber">{day}</span>
+                      {holiday && <small className="holidayName">{holiday}</small>}
                     </button>
                   );
                 })}
