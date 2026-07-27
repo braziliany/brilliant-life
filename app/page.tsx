@@ -404,6 +404,7 @@ export default function Home() {
                   const holiday = holidayName(key);
                   const makeup = makeupWorkdays.has(key);
                   const workday = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
+                  const personalOverride = Object.prototype.hasOwnProperty.call(calendarOverrides, key);
                   const isToday = key === todayKey;
                   const className = isToday
                     ? "today"
@@ -412,16 +413,18 @@ export default function Home() {
                       : workday
                         ? "workday"
                         : "weekend";
-                  const statusLabel = holiday
-                    ? `${holiday} · ${workday ? "个人设为工作" : "法定休假"}`
+                  const statusLabel = personalOverride
+                    ? `个人设为${workday ? "工作" : "休息"}`
+                    : holiday
+                    ? `${holiday} · 法定休假`
                     : makeup
-                      ? `调休日 · ${workday ? "上班" : "个人设为休息"}`
+                      ? "调休上班"
                       : workday ? "工作日" : "休息日";
                   return (
                     <button
                       type="button"
                       key={day}
-                      className={`${className}${holiday && !workday ? " holiday" : ""}${holiday && workday ? " personalWork" : ""}${makeup && workday ? " makeup" : ""}${makeup && !workday ? " personalRest" : ""}${calendarEditing ? " editable" : ""}`}
+                      className={`${className}${holiday ? " holiday" : ""}${makeup ? " makeup" : ""}${personalOverride ? (workday ? " personalWork" : " personalRest") : ""}${calendarEditing ? " editable" : ""}`}
                       aria-label={`${calendarMonth.month + 1}月${day}日，${statusLabel}${calendarEditing ? "，点击切换状态" : ""}`}
                       title={`${statusLabel}${calendarEditing ? " · 点击切换" : ""}`}
                       onClick={() => toggleWorkday(day)}
@@ -433,7 +436,14 @@ export default function Home() {
                   );
                 })}
               </div>
-              <div className="calendarLegend"><span>◉ 今天</span><span className="limeText">● 工作日</span><span className="holidayText">● 法定休假</span><span>● 周末</span></div>
+              <div className="calendarLegend">
+                <span><i className="todayLine" />今天</span>
+                <span><i className="workLine" />工作日</span>
+                <span><i className="holidayLine" />法定假日</span>
+                <span><i className="makeupLine" />调休上班</span>
+                <span><i className="weekendLine" />周末</span>
+                <span><i className="personalLine" />个人修改</span>
+              </div>
             </article>
 
             <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
