@@ -75,12 +75,20 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const payload = (await request.json()) as { date?: string };
-    if (!validDate(payload.date)) {
-      return Response.json({ error: "date is required" }, { status: 400, headers: jsonHeaders });
+    const payload = (await request.json()) as { date?: string; month?: string };
+    if (validDate(payload.date)) {
+      await getDb().delete(calendarOverrides).where(eq(calendarOverrides.date, payload.date!));
+      return Response.json({ deleted: payload.date }, { headers: jsonHeaders });
     }
-    await getDb().delete(calendarOverrides).where(eq(calendarOverrides.date, payload.date!));
-    return Response.json({ deleted: payload.date }, { headers: jsonHeaders });
+    if (typeof payload.month === "string" && /^\d{4}-\d{2}$/.test(payload.month)) {
+      const start = `${payload.month}-01`;
+      const [year, monthNumber] = payload.month.split("-").map(Number);
+      const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
+      const end = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
+      await getDb().delete(calendarOverrides).where(and(gte(calendarOverrides.date, start), lt(calendarOverrides.date, end)));
+      return Response.json({ reset: payload.month }, { headers: jsonHeaders });
+    }
+    return Response.json({ error: "date or month is required" }, { status: 400, headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Calendar reset failed" }, { status: 500, headers: jsonHeaders });
   }

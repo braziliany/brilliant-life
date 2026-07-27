@@ -108,6 +108,7 @@ export default function Home() {
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
   const [savingDate, setSavingDate] = useState<string | null>(null);
   const [lastCalendarChange, setLastCalendarChange] = useState<{ date: string; previous: boolean; hadOverride: boolean } | null>(null);
+  const [resettingCalendar, setResettingCalendar] = useState(false);
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
@@ -263,6 +264,27 @@ export default function Home() {
     }
   };
 
+  const resetOfficialCalendar = async () => {
+    if (Object.keys(calendarOverrides).length === 0) return;
+    const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
+    if (!window.confirm(`确定清除${monthLabel}的个人修改并恢复官方日历吗？`)) return;
+    setResettingCalendar(true);
+    try {
+      const response = await fetch("/api/calendar", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ month }),
+      });
+      if (!response.ok) throw new Error("Reset failed");
+      setCalendarOverrides({});
+      setLastCalendarChange(null);
+    } catch {
+      // Keep existing overrides when the reset request fails.
+    } finally {
+      setResettingCalendar(false);
+    }
+  };
+
   const saveSalaryRecord = async () => {
     const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
     setSalaryStatus("saving");
@@ -373,7 +395,7 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              {calendarEditing && <div className="calendarEditHint"><span>点击日期切换工作或休息</span><button type="button" onClick={undoCalendarChange} disabled={!lastCalendarChange || savingDate !== null}>撤销上次修改</button></div>}
+              {calendarEditing && <div className="calendarEditHint"><span>点击日期切换工作或休息</span><div><button type="button" onClick={undoCalendarChange} disabled={!lastCalendarChange || savingDate !== null}>撤销</button><button type="button" className="resetCalendar" onClick={resetOfficialCalendar} disabled={Object.keys(calendarOverrides).length === 0 || resettingCalendar}>{resettingCalendar ? "恢复中…" : "恢复官方"}</button></div></div>}
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
               <div className={`days${calendarRows === 6 ? " sixRows" : ""}`}>
                 {calendarDays.map((day, index) => {
