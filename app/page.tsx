@@ -40,6 +40,17 @@ type SalaryAdjustments = {
   leaveDeduction: number;
 };
 
+type WorkExperience = {
+  id: number;
+  company: string;
+  role: string;
+  startDate: string;
+  endDate: string | null;
+  summary: string;
+};
+
+type WorkExperienceDraft = Omit<WorkExperience, "id">;
+
 const getShanghaiDate = (value = new Date()) => {
   const parts = new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -56,13 +67,6 @@ const getShanghaiDate = (value = new Date()) => {
     weekday: read("weekday"),
   };
 };
-
-const habits = [
-  { icon: "↗", name: "晨间拉伸", coach: "Alice McCain", done: 9, total: 12 },
-  { icon: "●", name: "瑜伽训练", coach: "Jennifer Lubin", done: 6, total: 10 },
-  { icon: "◆", name: "肩颈放松", coach: "Johnson Cooper", done: 4, total: 8 },
-  { icon: "⌁", name: "核心训练", coach: "自主训练", done: 8, total: 10 },
-];
 
 const holidayRanges = [
   ["2026-01-01", "2026-01-03", "元旦"],
@@ -105,6 +109,8 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [calendarEditing, setCalendarEditing] = useState(false);
+  const [showAnnualStats, setShowAnnualStats] = useState(false);
+  const [annualOverrides, setAnnualOverrides] = useState<Record<string, boolean>>({});
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
   const [savingDate, setSavingDate] = useState<string | null>(null);
   const [lastCalendarChange, setLastCalendarChange] = useState<{ date: string; previous: boolean; hadOverride: boolean } | null>(null);
@@ -114,6 +120,11 @@ export default function Home() {
   const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
   const [settingsStatus, setSettingsStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [salaryAdjustments, setSalaryAdjustments] = useState<SalaryAdjustments>({ extraIncome: 0, bonus: 0, leaveDeduction: 0 });
+  const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
+  const [experienceEditingId, setExperienceEditingId] = useState<number | null>(null);
+  const [experienceFormOpen, setExperienceFormOpen] = useState(false);
+  const [experienceStatus, setExperienceStatus] = useState<"idle" | "loading" | "saving" | "error">("loading");
+  const [experienceDraft, setExperienceDraft] = useState<WorkExperienceDraft>({ company: "", role: "", startDate: "", endDate: null, summary: "" });
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = getShanghaiDate();
     return { year: now.year, month: now.month };
@@ -134,6 +145,14 @@ export default function Home() {
     const key = dateKey(calendarMonth.year, calendarMonth.month, day);
     return calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
   }).length;
+  const annualWorkdays = Array.from({ length: 12 }, (_, month) => {
+    const count = new Date(calendarMonth.year, month + 1, 0).getDate();
+    return Array.from({ length: count }, (_, index) => index + 1).filter((day) => {
+      const key = dateKey(calendarMonth.year, month, day);
+      return annualOverrides[key] ?? defaultIsWorkday(calendarMonth.year, month, day);
+    }).length;
+  });
+  const annualWorkdayTotal = annualWorkdays.reduce((sum, count) => sum + count, 0);
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   const workdays = calendarWorkdays;
   const stepGoal = 8500;
@@ -169,6 +188,16 @@ export default function Home() {
       })
       .catch(() => setCalendarOverrides({}));
   }, [calendarMonth]);
+  useEffect(() => {
+    if (!showAnnualStats) return;
+    fetch(`/api/calendar?year=${calendarMonth.year}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Annual calendar unavailable");
+        return response.json() as Promise<{ overrides: Array<{ date: string; isWorkday: boolean }> }>;
+      })
+      .then(({ overrides }) => setAnnualOverrides(Object.fromEntries(overrides.map((item) => [item.date, item.isWorkday]))))
+      .catch(() => setAnnualOverrides({}));
+  }, [calendarMonth.year, showAnnualStats, calendarOverrides]);
 
   useEffect(() => {
     fetch("/api/salary", { cache: "no-store" })
@@ -181,6 +210,18 @@ export default function Home() {
         setSalarySettings(settings);
       })
       .catch(() => setSalaryRecords([]));
+  }, []);
+  useEffect(() => {
+    fetch("/api/work-experiences", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Work experiences unavailable");
+        return response.json() as Promise<{ experiences: WorkExperience[] }>;
+      })
+      .then(({ experiences }) => {
+        setWorkExperiences(experiences);
+        setExperienceStatus("idle");
+      })
+      .catch(() => setExperienceStatus("error"));
   }, []);
   useEffect(() => {
     const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
@@ -351,6 +392,52 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  const openExperienceForm = (experience?: WorkExperience) => {
+    setExperienceEditingId(experience?.id ?? null);
+    setExperienceDraft(experience
+      ? { company: experience.company, role: experience.role, startDate: experience.startDate, endDate: experience.endDate, summary: experience.summary }
+      : { company: "", role: "", startDate: "", endDate: null, summary: "" });
+    setExperienceStatus("idle");
+    setExperienceFormOpen(true);
+  };
+
+  const saveWorkExperience = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setExperienceStatus("saving");
+    try {
+      const response = await fetch("/api/work-experiences", {
+        method: experienceEditingId ? "PUT" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...experienceDraft, id: experienceEditingId }),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      const { experience } = await response.json() as { experience: WorkExperience };
+      setWorkExperiences((items) => experienceEditingId
+        ? items.map((item) => item.id === experience.id ? experience : item)
+        : [...items, experience]);
+      setExperienceFormOpen(false);
+      setExperienceEditingId(null);
+      setExperienceStatus("idle");
+    } catch {
+      setExperienceStatus("error");
+    }
+  };
+
+  const deleteWorkExperience = async (experience: WorkExperience) => {
+    if (!window.confirm(`确定删除“${experience.company} · ${experience.role}”吗？`)) return;
+    try {
+      const response = await fetch("/api/work-experiences", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: experience.id }),
+      });
+      if (!response.ok) throw new Error("Delete failed");
+      setWorkExperiences((items) => items.filter((item) => item.id !== experience.id));
+    } catch {
+      setExperienceStatus("error");
+    }
+  };
+
   return (
     <main className="pageShell">
       <section className="dashboard">
@@ -360,7 +447,7 @@ export default function Home() {
             <Icon label="今日概览" active={activeSection === "overview"} onClick={() => navigateTo("overview")}>⌂</Icon>
             <Icon label="工作日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
             <Icon label="目标进度" active={activeSection === "goals"} onClick={() => navigateTo("goals")}>⚑</Icon>
-            <Icon label="习惯列表" active={activeSection === "habits"} onClick={() => navigateTo("habits")}>□</Icon>
+            <Icon label="工作经历" active={activeSection === "habits"} onClick={() => navigateTo("habits")}>□</Icon>
             <Icon label="工资计算" active={activeSection === "salary"} onClick={() => navigateTo("salary")}>¥</Icon>
           </nav>
           <div className="sideBottom"><Icon label="通知" onClick={() => navigateTo("habits")}>♢</Icon><Icon label="设置" onClick={() => navigateTo("goals")}>⚙</Icon><span className="avatar">AM</span></div>
@@ -387,6 +474,7 @@ export default function Home() {
               <div className="cardHead">
                 <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
                 <div className="calendarActions">
+                  <button type="button" className={`annualCalendarButton${showAnnualStats ? " active" : ""}`} onClick={() => { setShowAnnualStats((value) => !value); setCalendarEditing(false); }}>{showAnnualStats ? "月历" : "全年"}</button>
                   <button type="button" className={`editCalendar${calendarEditing ? " active" : ""}`} onClick={() => setCalendarEditing((value) => !value)}>{calendarEditing ? "完成" : "编辑"}</button>
                   <div className="monthSwitcher" aria-label="切换月份">
                     <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="上个月">‹</button>
@@ -395,6 +483,16 @@ export default function Home() {
                   </div>
                 </div>
               </div>
+              {showAnnualStats ? (
+                <div className="annualCalendar">
+                  <div className="annualTotal"><strong>{annualWorkdayTotal}</strong><span>个工作日</span><small>{calendarMonth.year} 年度统计</small></div>
+                  <div className="annualMonths">{annualWorkdays.map((count, month) => (
+                    <button type="button" key={month} onClick={() => { setCalendarMonth({ year: calendarMonth.year, month }); setShowAnnualStats(false); }}>
+                      <span>{month + 1}月</span><strong>{count}</strong><small>天</small>
+                    </button>
+                  ))}</div>
+                </div>
+              ) : <>
               {calendarEditing && <div className="calendarEditHint"><span>点击日期切换工作或休息</span><div><button type="button" onClick={undoCalendarChange} disabled={!lastCalendarChange || savingDate !== null}>撤销</button><button type="button" className="resetCalendar" onClick={resetOfficialCalendar} disabled={Object.keys(calendarOverrides).length === 0 || resettingCalendar}>{resettingCalendar ? "恢复中…" : "恢复官方"}</button></div></div>}
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
               <div className={`days${calendarRows === 6 ? " sixRows" : ""}`}>
@@ -444,6 +542,7 @@ export default function Home() {
                 <span><i className="weekendLine" />周末</span>
                 <span><i className="personalLine" />个人修改</span>
               </div>
+              </>}
             </article>
 
             <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
@@ -458,14 +557,33 @@ export default function Home() {
             </div>
 
             <article id="habits" className={`card habits${activeSection === "habits" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow">保持节奏</p><h2>我的习惯</h2></div><button className="addButton">＋ 添加习惯</button></div>
-              <div className="habitList">{habits.map(habit => (
-                <div className="habit" key={habit.name}>
-                  <span className="habitIcon">{habit.icon}</span><div className="habitName"><b>{habit.name}</b><small>{habit.coach}</small></div>
-                  <span className="sessions">完成 {habit.done}/{habit.total}</span>
-                  <div className="ticks" aria-label={`${habit.done}/${habit.total}次完成`}>{Array.from({ length: habit.total }, (_, i) => <i className={i < habit.done ? "done" : ""} key={i} />)}</div><button className="more" aria-label={`${habit.name}更多选项`}>•••</button>
+              <div className="cardHead"><div><p className="eyebrow">职业档案</p><h2>工作经历</h2></div><button type="button" className="addButton" onClick={() => openExperienceForm()}>＋ 添加经历</button></div>
+              {experienceFormOpen ? (
+                <form className="experienceForm" onSubmit={saveWorkExperience}>
+                  <div className="experienceFields">
+                    <label><span>单位</span><input required maxLength={80} value={experienceDraft.company} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, company: event.target.value }))} /></label>
+                    <label><span>职位</span><input required maxLength={80} value={experienceDraft.role} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, role: event.target.value }))} /></label>
+                    <label><span>开始</span><input required type="month" value={experienceDraft.startDate} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, startDate: event.target.value }))} /></label>
+                    <label><span>结束</span><input type="month" value={experienceDraft.endDate ?? ""} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, endDate: event.target.value || null }))} /></label>
+                  </div>
+                  <label className="experienceSummary"><span>工作内容</span><textarea maxLength={300} rows={2} value={experienceDraft.summary} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, summary: event.target.value }))} /></label>
+                  {experienceStatus === "error" && <p className="experienceError" role="alert">保存失败，请稍后重试。</p>}
+                  <div className="experienceFormActions"><button type="button" onClick={() => setExperienceFormOpen(false)}>取消</button><button type="submit" disabled={experienceStatus === "saving"}>{experienceStatus === "saving" ? "保存中…" : experienceEditingId ? "保存修改" : "添加经历"}</button></div>
+                </form>
+              ) : (
+                <div className="experienceList">
+                  {experienceStatus === "loading" && <p className="experienceEmpty">正在读取工作经历…</p>}
+                  {experienceStatus === "error" && <p className="experienceEmpty" role="alert">读取失败，请刷新页面重试。</p>}
+                  {experienceStatus === "idle" && workExperiences.length === 0 && <button type="button" className="experienceEmpty addExperienceEmpty" onClick={() => openExperienceForm()}>还没有工作经历，点击添加第一条</button>}
+                  {workExperiences.map((experience) => (
+                    <div className="experienceItem" key={experience.id}>
+                      <span className="experienceMark" aria-hidden="true" />
+                      <div className="experienceContent"><b>{experience.role}</b><strong>{experience.company}</strong><small>{experience.startDate} — {experience.endDate ?? "至今"}</small>{experience.summary && <p>{experience.summary}</p>}</div>
+                      <div className="experienceActions"><button type="button" onClick={() => openExperienceForm(experience)}>编辑</button><button type="button" className="deleteExperience" onClick={() => deleteWorkExperience(experience)}>删除</button></div>
+                    </div>
+                  ))}
                 </div>
-              ))}</div>
+              )}
             </article>
 
             <article id="salary" className={`card salary${activeSection === "salary" ? " sectionActive" : ""}`}>

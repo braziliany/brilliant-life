@@ -22,15 +22,22 @@ export async function GET(request: Request) {
     return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
   }
 
-  const month = new URL(request.url).searchParams.get("month") ?? "";
-  if (!/^\d{4}-\d{2}$/.test(month)) {
-    return Response.json({ error: "month must use YYYY-MM" }, { status: 400, headers: jsonHeaders });
+  const searchParams = new URL(request.url).searchParams;
+  const month = searchParams.get("month") ?? "";
+  const requestedYear = searchParams.get("year") ?? "";
+  if (!/^\d{4}-\d{2}$/.test(month) && !/^\d{4}$/.test(requestedYear)) {
+    return Response.json({ error: "month must use YYYY-MM or year must use YYYY" }, { status: 400, headers: jsonHeaders });
   }
 
-  const start = `${month}-01`;
-  const [year, monthNumber] = month.split("-").map(Number);
-  const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
-  const end = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  const start = month ? `${month}-01` : `${requestedYear}-01-01`;
+  let end: string;
+  if (month) {
+    const [year, monthNumber] = month.split("-").map(Number);
+    const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
+    end = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
+  } else {
+    end = `${Number(requestedYear) + 1}-01-01`;
+  }
 
   try {
     const overrides = await getDb()

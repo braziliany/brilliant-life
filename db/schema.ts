@@ -58,3 +58,14 @@ export const salarySettings = sqliteTable("salary_settings", {
   taxRate: real("tax_rate").notNull().default(3),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const workExperiences = sqliteTable("work_experiences", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  company: text("company").notNull(),
+  role: text("role").notNull(),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date"),
+  summary: text("summary").notNull().default(""),
+  sortOrder: integer("sort_order").notNull().default(0),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
