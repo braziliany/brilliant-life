@@ -110,11 +110,20 @@ const defaultIsWorkday = (year: number, month: number, day: number) => {
   return weekday !== 0 && weekday !== 6;
 };
 
+const genshinQuotes = [
+  { text: "旅程总有一天会迎来终点，不必匆忙。", source: "钟离" },
+  { text: "我们终将重逢。", source: "旅行者" },
+  { text: "向着星辰与深渊！", source: "凯瑟琳" },
+  { text: "在黎明到来之前，必须有人稍微照亮黑暗。", source: "迪卢克" },
+  { text: "风带来了故事的种子，时间使之发芽。", source: "蒙德古语" },
+] as const;
+
 export default function Home() {
   const [sitePage, setSitePage] = useState<"home" | "dashboard">("home");
   const [activeSection, setActiveSection] = useState("overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
+  const [healthLoadStatus, setHealthLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
   const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes">("steps");
   const [showHealthTrend, setShowHealthTrend] = useState(false);
@@ -143,6 +152,8 @@ export default function Home() {
     return { year: now.year, month: now.month };
   });
   const today = getShanghaiDate();
+  const quoteDay = Math.floor(Date.UTC(today.year, today.month, today.day) / 86_400_000);
+  const dailyQuote = genshinQuotes[quoteDay % genshinQuotes.length];
   const todayKey = dateKey(today.year, today.month, today.day);
   const firstDayOffset = (new Date(calendarMonth.year, calendarMonth.month, 1).getDay() + 6) % 7;
   const daysInMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
@@ -170,13 +181,13 @@ export default function Home() {
   const calendarMonthKey = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
   const workdays = calendarWorkdays;
   const stepGoal = 8500;
-  const steps = health?.steps ?? 5201;
+  const steps = health?.steps ?? 0;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
   const activeEnergy = Math.round(health?.activeEnergyKcal ?? 0);
   const totalEnergy = health && health.restingEnergyKcal > 0
     ? Math.round(health.activeEnergyKcal + health.restingEnergyKcal)
     : null;
-  const exerciseHours = ((health?.exerciseMinutes ?? 138) / 60).toFixed(1);
+  const exerciseHours = ((health?.exerciseMinutes ?? 0) / 60).toFixed(1);
   const visibleHealthHistory = healthHistory.slice(-healthPeriod);
   const healthMetricConfig = {
     steps: { label: "步数", unit: "步", color: "var(--lime)" },
@@ -188,7 +199,8 @@ export default function Home() {
     ? Math.round(visibleHealthHistory.reduce((sum, item) => sum + item[healthMetric], 0) / visibleHealthHistory.length)
     : 0;
 
-  useEffect(() => {
+  const loadHealthData = () => {
+    setHealthLoadStatus("loading");
     fetch("/api/health?days=30", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Health data unavailable");
@@ -197,11 +209,16 @@ export default function Home() {
       .then(({ health: latest, history }) => {
         setHealth(latest);
         setHealthHistory([...history].reverse());
+        setHealthLoadStatus("ready");
       })
       .catch(() => {
         setHealth(null);
         setHealthHistory([]);
+        setHealthLoadStatus("error");
       });
+  };
+  useEffect(() => {
+    loadHealthData();
   }, []);
 
   useEffect(() => {
@@ -516,13 +533,14 @@ export default function Home() {
             <div className="homeHero">
               <div>
                 <p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p>
-                <h1>让每一天，都成为<br /><span>璀璨人生</span>的一部分。</h1>
+                <h1 className="dailyQuote">“{dailyQuote.text}”</h1>
+                <p className="quoteSource">— {dailyQuote.source} · 《原神》每日一言</p>
                 <p>把健康、工作、收入与职业经历放在同一个地方，清楚看见生活正在如何向前。</p>
                 <button type="button" onClick={() => openDashboard()}>进入数据中心 <span>→</span></button>
               </div>
               <div className="homeSnapshot" aria-label="今日生活概览">
                 <div className="snapshotHead"><div><i /><span>今日状态</span></div><small>{today.month + 1}月{today.day}日</small></div>
-                <div className="snapshotPrimary"><span>今日步数</span><strong>{steps.toLocaleString("zh-CN")}</strong><small>目标 {stepGoal.toLocaleString("zh-CN")} 步</small><div><i style={{ width: `${stepProgress}%` }} /></div></div>
+                <div className="snapshotPrimary"><span>今日步数</span><strong>{healthLoadStatus === "loading" ? "读取中" : healthLoadStatus === "error" ? "—" : steps.toLocaleString("zh-CN")}</strong><small>{healthLoadStatus === "error" ? "健康数据暂时无法读取" : `目标 ${stepGoal.toLocaleString("zh-CN")} 步`}</small><div><i style={{ width: `${stepProgress}%` }} /></div></div>
                 <div className="snapshotMetrics">
                   <div><span>活动能量</span><b>{activeEnergy.toLocaleString("zh-CN")}</b><small>千卡</small></div>
                   <div><span>本月工作</span><b>{workdays}</b><small>天</small></div>
@@ -567,7 +585,7 @@ export default function Home() {
                         </div>
                       ))}
                     </div>
-                  ) : <p className="healthTrendEmpty">还没有可用于绘制趋势的健康数据</p>}
+                  ) : <div className="healthTrendEmpty"><p>{healthLoadStatus === "loading" ? "正在读取健康数据…" : healthLoadStatus === "error" ? "健康数据读取失败" : "还没有可用于绘制趋势的健康数据"}</p>{healthLoadStatus === "error" && <button type="button" onClick={loadHealthData}>重新加载</button>}</div>}
                 </div>
               ) : <>
               <div className="bubbleStage" aria-label={`今日总消耗${totalEnergy ?? "暂无"}千卡，活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
