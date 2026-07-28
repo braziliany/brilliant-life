@@ -11,7 +11,9 @@
     "start": "vinext start",
     "test": "npm run build && node --test tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-d1.ps1",
+    "db:restore": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore-d1.ps1"
   },
   "dependencies": {
     "@fontsource/lxgw-wenkai": "^5.3.0",
