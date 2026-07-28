@@ -63,6 +63,7 @@ test("health normalization aggregates supported metrics and clamps unsafe values
       { name: "step_count", data: [{ qty: 20, date: "2026-07-28 08:00:00 +0800" }, { qty: 30, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "active_energy", data: [{ qty: 120, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "apple_exercise_time", units: "hr", data: [{ qty: 0.5, date: "2026-07-28 09:00:00 +0800" }] },
+      { name: "weight_body_mass", units: "lb", data: [{ qty: 132.277, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "unknown_metric", data: [{ qty: 999, date: "2026-07-28" }] },
     ],
   });
@@ -73,9 +74,11 @@ test("health normalization aggregates supported metrics and clamps unsafe values
     restingEnergyKcal: 0,
     exerciseMinutes: 30,
     workoutCount: 0,
+    weightKg: 60,
     source: "health-auto-export",
   }]);
 
   assert.deepEqual(normalizeHealthPayload({ date: "2026-07-28", steps: 999_999 })[0].steps, 200_000);
+  assert.equal(normalizeHealthPayload({ date: "2026-07-28", weightKg: 53.2 })[0].weightKg, 53.2);
   assert.deepEqual(normalizeHealthPayload({ metrics: [{ name: "unsupported", data: [] }] }), []);
 });

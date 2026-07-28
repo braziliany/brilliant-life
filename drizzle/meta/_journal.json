@@ -64,6 +64,13 @@
       "when": 1785211920907,
       "tag": "0008_thin_firestar",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1785277840706,
+      "tag": "0009_handy_justice",
+      "breakpoints": true
     }
   ]
 }

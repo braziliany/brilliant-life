@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { healthDaily } from "../../../db/schema";
@@ -51,7 +51,10 @@ export async function POST(request: Request) {
       const values = { ...row, updatedAt: new Date().toISOString() };
       await db.insert(healthDaily).values(values).onConflictDoUpdate({
         target: healthDaily.date,
-        set: values,
+        set: {
+          ...values,
+          weightKg: sql`coalesce(excluded.weight_kg, ${healthDaily.weightKg})`,
+        },
       });
     }
     const [health] = await db

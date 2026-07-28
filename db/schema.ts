@@ -11,6 +11,7 @@ export const healthDaily = sqliteTable(
     restingEnergyKcal: real("resting_energy_kcal").notNull().default(0),
     exerciseMinutes: real("exercise_minutes").notNull().default(0),
     workoutCount: integer("workout_count").notNull().default(0),
+    weightKg: real("weight_kg"),
     source: text("source").notNull().default("apple-health"),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },

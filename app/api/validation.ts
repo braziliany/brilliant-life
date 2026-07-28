@@ -5,6 +5,7 @@ export type HealthPayload = {
   restingEnergyKcal?: number;
   exerciseMinutes?: number;
   workoutCount?: number;
+  weightKg?: number;
   source?: string;
   metrics?: HealthMetric[];
   data?: { metrics?: HealthMetric[] };
@@ -48,6 +49,18 @@ function dateOnly(value: unknown) {
   return match?.[1] ?? "";
 }
 
+function weightInKg(value: unknown, units = "kg") {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  const normalizedUnits = units.toLowerCase();
+  const kilograms = normalizedUnits.startsWith("lb")
+    ? parsed * 0.45359237
+    : normalizedUnits.startsWith("g") && !normalizedUnits.startsWith("kg")
+      ? parsed / 1000
+      : parsed;
+  return kilograms >= 20 && kilograms <= 400 ? Math.round(kilograms * 1000) / 1000 : null;
+}
+
 export function normalizeHealthPayload(payload: HealthPayload) {
   const metrics = payload.data?.metrics ?? payload.metrics;
   if (!Array.isArray(metrics)) {
@@ -60,6 +73,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
           restingEnergyKcal: numberInRange(payload.restingEnergyKcal, 0, 20_000),
           exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
           workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
+          weightKg: weightInKg(payload.weightKg),
           source: payload.source?.trim().slice(0, 64) || "apple-health",
         }]
       : [];
@@ -72,14 +86,16 @@ export function normalizeHealthPayload(payload: HealthPayload) {
     restingEnergyKcal: number;
     exerciseMinutes: number;
     workoutCount: number;
+    weightKg: number | null;
     source: string;
   }>();
   const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
   const restingEnergyNames = new Set(["basal_energy", "basal_energy_burned", "resting_energy", "resting_energy_burned"]);
+  const weightNames = new Set(["weight", "body_weight", "body_mass", "weight_body_mass"]);
 
   for (const metric of metrics) {
     const name = metric.name?.toLowerCase() ?? "";
-    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name)) continue;
+    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name)) continue;
 
     for (const point of metric.data ?? []) {
       const date = dateOnly(point.date);
@@ -91,6 +107,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
         restingEnergyKcal: 0,
         exerciseMinutes: 0,
         workoutCount: 0,
+        weightKg: null,
         source: "health-auto-export",
       };
       const qty = numberInRange(point.qty, 0, 200_000);
@@ -98,6 +115,9 @@ export function normalizeHealthPayload(payload: HealthPayload) {
       if (name === "active_energy") day.activeEnergyKcal += qty;
       if (restingEnergyNames.has(name)) day.restingEnergyKcal += qty;
       if (exerciseNames.has(name)) day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
+      if (weightNames.has(name)) {
+        day.weightKg = weightInKg(point.qty, metric.units);
+      }
       days.set(date, day);
     }
   }

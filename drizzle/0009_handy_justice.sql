@@ -1,0 +1,1 @@
+ALTER TABLE `health_daily` ADD `weight_kg` real;
