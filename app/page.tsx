@@ -134,10 +134,13 @@ export default function Home() {
   const [calendarNote, setCalendarNote] = useState<CalendarNote>({ month: "", scheduleNote: "", leaveNote: "", overtimeNote: "" });
   const [calendarNoteStatus, setCalendarNoteStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">("idle");
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
+  const [calendarLoadStatus, setCalendarLoadStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [calendarReloadKey, setCalendarReloadKey] = useState(0);
   const [savingDate, setSavingDate] = useState<string | null>(null);
   const [lastCalendarChange, setLastCalendarChange] = useState<{ date: string; previous: boolean; hadOverride: boolean } | null>(null);
   const [resettingCalendar, setResettingCalendar] = useState(false);
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
+  const [salaryLoadStatus, setSalaryLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
   const [settingsStatus, setSettingsStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
@@ -222,6 +225,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    setCalendarLoadStatus("loading");
     fetch(`/api/calendar?month=${calendarMonthKey}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Calendar data unavailable");
@@ -229,9 +233,10 @@ export default function Home() {
       })
       .then(({ overrides }) => {
         setCalendarOverrides(Object.fromEntries(overrides.map((item) => [item.date, item.isWorkday])));
+        setCalendarLoadStatus("ready");
       })
-      .catch(() => setCalendarOverrides({}));
-  }, [calendarMonthKey]);
+      .catch(() => setCalendarLoadStatus("error"));
+  }, [calendarMonthKey, calendarReloadKey]);
   useEffect(() => {
     setCalendarNoteStatus("loading");
     fetch(`/api/calendar-notes?month=${calendarMonthKey}`, { cache: "no-store" })
@@ -259,7 +264,8 @@ export default function Home() {
       .catch(() => setAnnualOverrides({}));
   }, [calendarMonth.year, showAnnualStats, calendarOverrides]);
 
-  useEffect(() => {
+  const loadSalaryData = () => {
+    setSalaryLoadStatus("loading");
     fetch("/api/salary", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Salary history unavailable");
@@ -268,10 +274,15 @@ export default function Home() {
       .then(({ records, settings }) => {
         setSalaryRecords(records);
         setSalarySettings(settings);
+        setSalaryLoadStatus("ready");
       })
-      .catch(() => setSalaryRecords([]));
-  }, []);
+      .catch(() => setSalaryLoadStatus("error"));
+  };
   useEffect(() => {
+    loadSalaryData();
+  }, []);
+  const loadWorkExperiences = () => {
+    setExperienceStatus("loading");
     fetch("/api/work-experiences", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Work experiences unavailable");
@@ -282,6 +293,9 @@ export default function Home() {
         setExperienceStatus("idle");
       })
       .catch(() => setExperienceStatus("error"));
+  };
+  useEffect(() => {
+    loadWorkExperiences();
   }, []);
   useEffect(() => {
     const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
@@ -611,7 +625,11 @@ export default function Home() {
                   </div>
                 </div>
               </div>
-              {showAnnualStats ? (
+              {calendarLoadStatus === "loading" ? (
+                <div className="moduleState darkState"><span className="statePulse" /><p>正在读取工作日历…</p></div>
+              ) : calendarLoadStatus === "error" ? (
+                <div className="moduleState darkState" role="alert"><p>工作日历读取失败，当前数据未被覆盖。</p><button type="button" onClick={() => setCalendarReloadKey((value) => value + 1)}>重新加载</button></div>
+              ) : showAnnualStats ? (
                 <div className="annualCalendar">
                   <div className="annualTotal"><strong>{annualWorkdayTotal}</strong><span>个工作日</span><small>{calendarMonth.year} 年度统计</small></div>
                   <div className="annualMonths">{annualWorkdays.map((count, month) => (
@@ -709,7 +727,7 @@ export default function Home() {
               ) : (
                 <div className="experienceList">
                   {experienceStatus === "loading" && <p className="experienceEmpty">正在读取工作经历…</p>}
-                  {experienceStatus === "error" && <p className="experienceEmpty" role="alert">读取失败，请刷新页面重试。</p>}
+                  {experienceStatus === "error" && <div className="moduleState" role="alert"><p>工作经历读取失败。</p><button type="button" onClick={loadWorkExperiences}>重新加载</button></div>}
                   {experienceStatus === "idle" && workExperiences.length === 0 && <button type="button" className="experienceEmpty addExperienceEmpty" onClick={() => openExperienceForm()}>还没有工作经历，点击添加第一条</button>}
                   {workExperiences.map((experience) => (
                     <div className="experienceItem" key={experience.id}>
@@ -807,7 +825,11 @@ export default function Home() {
                 </section>
               )}
               <div className="salaryHistory">
-                {salaryRecords.length === 0 ? (
+                {salaryLoadStatus === "loading" ? (
+                  <div className="moduleState"><span className="statePulse" /><p>正在读取工资记录…</p></div>
+                ) : salaryLoadStatus === "error" ? (
+                  <div className="moduleState" role="alert"><p>工资记录读取失败，计算参数未被覆盖。</p><button type="button" onClick={loadSalaryData}>重新加载</button></div>
+                ) : salaryRecords.length === 0 ? (
                   <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
                 ) : salaryRecords.map((record) => (
                   <div className="salaryRecord" key={record.month}>
