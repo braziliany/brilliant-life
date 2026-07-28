@@ -57,6 +57,13 @@
       "when": 1785163198509,
       "tag": "0007_remarkable_mindworm",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1785211920907,
+      "tag": "0008_thin_firestar",
+      "breakpoints": true
     }
   ]
 }

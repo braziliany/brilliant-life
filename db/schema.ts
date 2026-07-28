@@ -28,6 +28,19 @@ export const calendarOverrides = sqliteTable(
   (table) => [uniqueIndex("calendar_overrides_date_unique").on(table.date)]
 );
 
+export const calendarNotes = sqliteTable(
+  "calendar_notes",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    month: text("month").notNull(),
+    scheduleNote: text("schedule_note").notNull().default(""),
+    leaveNote: text("leave_note").notNull().default(""),
+    overtimeNote: text("overtime_note").notNull().default(""),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [uniqueIndex("calendar_notes_month_unique").on(table.month)]
+);
+
 export const salaryRecords = sqliteTable(
   "salary_records",
   {

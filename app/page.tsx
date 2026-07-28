@@ -51,6 +51,13 @@ type WorkExperience = {
 
 type WorkExperienceDraft = Omit<WorkExperience, "id">;
 
+type CalendarNote = {
+  month: string;
+  scheduleNote: string;
+  leaveNote: string;
+  overtimeNote: string;
+};
+
 const getShanghaiDate = (value = new Date()) => {
   const parts = new Intl.DateTimeFormat("zh-CN", {
     timeZone: "Asia/Shanghai",
@@ -110,7 +117,10 @@ export default function Home() {
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
+  const [showCalendarNotes, setShowCalendarNotes] = useState(false);
   const [annualOverrides, setAnnualOverrides] = useState<Record<string, boolean>>({});
+  const [calendarNote, setCalendarNote] = useState<CalendarNote>({ month: "", scheduleNote: "", leaveNote: "", overtimeNote: "" });
+  const [calendarNoteStatus, setCalendarNoteStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">("idle");
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
   const [savingDate, setSavingDate] = useState<string | null>(null);
   const [lastCalendarChange, setLastCalendarChange] = useState<{ date: string; previous: boolean; hadOverride: boolean } | null>(null);
@@ -154,6 +164,7 @@ export default function Home() {
   });
   const annualWorkdayTotal = annualWorkdays.reduce((sum, count) => sum + count, 0);
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
+  const calendarMonthKey = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
   const workdays = calendarWorkdays;
   const stepGoal = 8500;
   const steps = health?.steps ?? 5201;
@@ -177,8 +188,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
-    fetch(`/api/calendar?month=${month}`, { cache: "no-store" })
+    fetch(`/api/calendar?month=${calendarMonthKey}`, { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Calendar data unavailable");
         return response.json() as Promise<{ overrides: Array<{ date: string; isWorkday: boolean }> }>;
@@ -187,7 +197,23 @@ export default function Home() {
         setCalendarOverrides(Object.fromEntries(overrides.map((item) => [item.date, item.isWorkday])));
       })
       .catch(() => setCalendarOverrides({}));
-  }, [calendarMonth]);
+  }, [calendarMonthKey]);
+  useEffect(() => {
+    setCalendarNoteStatus("loading");
+    fetch(`/api/calendar-notes?month=${calendarMonthKey}`, { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Calendar notes unavailable");
+        return response.json() as Promise<{ note: CalendarNote }>;
+      })
+      .then(({ note }) => {
+        setCalendarNote(note);
+        setCalendarNoteStatus("idle");
+      })
+      .catch(() => {
+        setCalendarNote({ month: calendarMonthKey, scheduleNote: "", leaveNote: "", overtimeNote: "" });
+        setCalendarNoteStatus("error");
+      });
+  }, [calendarMonthKey]);
   useEffect(() => {
     if (!showAnnualStats) return;
     fetch(`/api/calendar?year=${calendarMonth.year}`, { cache: "no-store" })
@@ -323,6 +349,24 @@ export default function Home() {
       // Keep existing overrides when the reset request fails.
     } finally {
       setResettingCalendar(false);
+    }
+  };
+
+  const saveCalendarNote = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setCalendarNoteStatus("saving");
+    try {
+      const response = await fetch("/api/calendar-notes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...calendarNote, month: calendarMonthKey }),
+      });
+      if (!response.ok) throw new Error("Calendar note save failed");
+      const { note } = await response.json() as { note: CalendarNote };
+      setCalendarNote(note);
+      setCalendarNoteStatus("saved");
+    } catch {
+      setCalendarNoteStatus("error");
     }
   };
 
@@ -474,8 +518,9 @@ export default function Home() {
               <div className="cardHead">
                 <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
                 <div className="calendarActions">
-                  <button type="button" className={`annualCalendarButton${showAnnualStats ? " active" : ""}`} onClick={() => { setShowAnnualStats((value) => !value); setCalendarEditing(false); }}>{showAnnualStats ? "月历" : "全年"}</button>
-                  <button type="button" className={`editCalendar${calendarEditing ? " active" : ""}`} onClick={() => setCalendarEditing((value) => !value)}>{calendarEditing ? "完成" : "编辑"}</button>
+                  <button type="button" className={`annualCalendarButton${showAnnualStats ? " active" : ""}`} onClick={() => { setShowAnnualStats((value) => !value); setShowCalendarNotes(false); setCalendarEditing(false); }}>{showAnnualStats ? "月历" : "全年"}</button>
+                  <button type="button" className={`calendarNotesButton${showCalendarNotes ? " active" : ""}`} onClick={() => { setShowCalendarNotes((value) => !value); setShowAnnualStats(false); setCalendarEditing(false); }}>{showCalendarNotes ? "月历" : "备注"}</button>
+                  <button type="button" className={`editCalendar${calendarEditing ? " active" : ""}`} onClick={() => { setCalendarEditing((value) => !value); setShowAnnualStats(false); setShowCalendarNotes(false); }}>{calendarEditing ? "完成" : "编辑"}</button>
                   <div className="monthSwitcher" aria-label="切换月份">
                     <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="上个月">‹</button>
                     <span aria-live="polite">{calendarMonth.month + 1}月</span>
@@ -492,6 +537,14 @@ export default function Home() {
                     </button>
                   ))}</div>
                 </div>
+              ) : showCalendarNotes ? (
+                <form className="calendarNotesForm" onSubmit={saveCalendarNote}>
+                  <p>{monthLabel}工作备注会自动保存在云端</p>
+                  <label><span><i className="scheduleNoteMark" />排班</span><textarea maxLength={500} rows={2} placeholder="例如：本月夜班、外出或临时排班" value={calendarNote.scheduleNote} onChange={(event) => setCalendarNote((note) => ({ ...note, scheduleNote: event.target.value }))} /></label>
+                  <label><span><i className="leaveNoteMark" />请假</span><textarea maxLength={500} rows={2} placeholder="例如：8月12日下午请假" value={calendarNote.leaveNote} onChange={(event) => setCalendarNote((note) => ({ ...note, leaveNote: event.target.value }))} /></label>
+                  <label><span><i className="overtimeNoteMark" />加班</span><textarea maxLength={500} rows={2} placeholder="例如：8月19日加班3小时" value={calendarNote.overtimeNote} onChange={(event) => setCalendarNote((note) => ({ ...note, overtimeNote: event.target.value }))} /></label>
+                  <div className="calendarNotesFooter"><span className={calendarNoteStatus === "error" ? "noteError" : ""}>{calendarNoteStatus === "loading" ? "读取中…" : calendarNoteStatus === "saved" ? "已保存" : calendarNoteStatus === "error" ? "保存失败，请重试" : ""}</span><button type="submit" disabled={calendarNoteStatus === "saving" || calendarNoteStatus === "loading"}>{calendarNoteStatus === "saving" ? "保存中…" : "保存备注"}</button></div>
+                </form>
               ) : <>
               {calendarEditing && <div className="calendarEditHint"><span>点击日期切换工作或休息</span><div><button type="button" onClick={undoCalendarChange} disabled={!lastCalendarChange || savingDate !== null}>撤销</button><button type="button" className="resetCalendar" onClick={resetOfficialCalendar} disabled={Object.keys(calendarOverrides).length === 0 || resettingCalendar}>{resettingCalendar ? "恢复中…" : "恢复官方"}</button></div></div>}
               <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
