@@ -110,11 +110,8 @@ const defaultIsWorkday = (year: number, month: number, day: number) => {
   return weekday !== 0 && weekday !== 6;
 };
 
-function Icon({ children, active = false, label, onClick }: { children: React.ReactNode; active?: boolean; label: string; onClick: () => void }) {
-  return <button type="button" className={`navIcon${active ? " active" : ""}`} aria-label={label} title={label} onClick={onClick}>{children}</button>;
-}
-
 export default function Home() {
+  const [sitePage, setSitePage] = useState<"home" | "dashboard">("home");
   const [activeSection, setActiveSection] = useState("overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
@@ -290,9 +287,10 @@ export default function Home() {
       maximumFractionDigits: 2,
     }).format(value);
 
-  const navigateTo = (section: string) => {
+  const openDashboard = (section = "overview") => {
+    setSitePage("dashboard");
     setActiveSection(section);
-    document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    window.setTimeout(() => document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
   };
 
   const changeCalendarMonth = (offset: number) => {
@@ -505,18 +503,39 @@ export default function Home() {
   return (
     <main className="pageShell">
       <section className="dashboard">
-        <aside className="sidebar" aria-label="主导航">
-          <button className="brand" type="button" onClick={() => navigateTo("overview")} aria-label="璀璨人生首页"><span className="brandMark" aria-hidden="true" /><b>璀璨人生</b></button>
-          <nav>
-            <Icon label="今日概览" active={activeSection === "overview"} onClick={() => navigateTo("overview")}>⌂</Icon>
-            <Icon label="工作日历" active={activeSection === "calendar"} onClick={() => navigateTo("calendar")}>◔</Icon>
-            <Icon label="目标进度" active={activeSection === "goals"} onClick={() => navigateTo("goals")}>⚑</Icon>
-            <Icon label="工作经历" active={activeSection === "habits"} onClick={() => navigateTo("habits")}>□</Icon>
-            <Icon label="工资计算" active={activeSection === "salary"} onClick={() => navigateTo("salary")}>¥</Icon>
+        <header className="siteNavigation">
+          <button className="siteBrand" type="button" onClick={() => setSitePage("home")} aria-label="璀璨人生首页"><span className="brandMark" aria-hidden="true" /><b>璀璨人生</b></button>
+          <nav aria-label="网站导航">
+            <button type="button" className={sitePage === "home" ? "active" : ""} onClick={() => setSitePage("home")}>首页</button>
+            <button type="button" className={sitePage === "dashboard" ? "active" : ""} onClick={() => setSitePage("dashboard")}>数据中心</button>
           </nav>
-          <div className="sideBottom"><Icon label="通知" onClick={() => navigateTo("habits")}>♢</Icon><Icon label="设置" onClick={() => navigateTo("goals")}>⚙</Icon><span className="avatar">AM</span></div>
-        </aside>
-
+          <div className="siteProfile"><span className="avatar">AM</span><div><b>Amanda</b><small>生活记录者</small></div></div>
+        </header>
+        {sitePage === "home" ? (
+          <section className="homePage">
+            <div className="homeHero">
+              <div>
+                <p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p>
+                <h1>让每一天，都成为<br /><span>璀璨人生</span>的一部分。</h1>
+                <p>把健康、工作、收入与职业经历放在同一个地方，清楚看见生活正在如何向前。</p>
+                <button type="button" onClick={() => openDashboard()}>进入数据中心 <span>→</span></button>
+              </div>
+              <div className="homePulse" aria-label="今日生活概览">
+                <span className="homeOrbit orbitOne" />
+                <span className="homeOrbit orbitTwo" />
+                <div className="homePulseCore"><small>今日步数</small><strong>{steps.toLocaleString("zh-CN")}</strong><span>目标 {stepGoal.toLocaleString("zh-CN")}</span></div>
+                <div className="homeFloatCard energy"><small>活动能量</small><b>{activeEnergy}</b><span>千卡</span></div>
+                <div className="homeFloatCard work"><small>{monthLabel}</small><b>{workdays}</b><span>工作日</span></div>
+              </div>
+            </div>
+            <div className="homeHighlights">
+              <button type="button" onClick={() => openDashboard("overview")}><i className="healthHighlight" /><span>健康趋势</span><strong>{healthHistory.length} 天</strong><small>Apple 健康记录</small></button>
+              <button type="button" onClick={() => openDashboard("calendar")}><i className="calendarHighlight" /><span>本月工作</span><strong>{workdays} 天</strong><small>日历实时统计</small></button>
+              <button type="button" onClick={() => openDashboard("salary")}><i className="salaryHighlight" /><span>预计实发</span><strong>¥{money(netSalary)}</strong><small>按当前工作日计算</small></button>
+              <button type="button" onClick={() => openDashboard("habits")}><i className="careerHighlight" /><span>职业档案</span><strong>{workExperiences.length} 条</strong><small>已保存工作经历</small></button>
+            </div>
+          </section>
+        ) : (
         <div className="content">
           <header className="topbar">
             <div><p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p><h1>早上好，Amanda!</h1><p className="subtitle">来看看你今天的活动进度吧</p></div>
@@ -782,6 +801,7 @@ export default function Home() {
             </article>
           </div>
         </div>
+        )}
       </section>
     </main>
   );
