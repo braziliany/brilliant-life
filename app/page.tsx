@@ -576,6 +576,26 @@ export default function Home() {
             <div className="actions"><label className="search"><span>⌕</span><input aria-label="搜索健康数据" placeholder="搜索健康数据" /></label><button>升级计划</button></div>
           </header>
 
+          <nav className="dataQuickNav" aria-label="数据中心模块快捷导航">
+            {[
+              ["overview", "健康"],
+              ["calendar", "工作日历"],
+              ["goals", "每日目标"],
+              ["habits", "工作经历"],
+              ["salary", "工资"],
+            ].map(([section, label]) => (
+              <button
+                type="button"
+                key={section}
+                className={activeSection === section ? "active" : ""}
+                aria-current={activeSection === section ? "location" : undefined}
+                onClick={() => openDashboard(section)}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
           <div className="grid">
             <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
               <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>{showHealthTrend ? "健康趋势" : "训练成果"}</h2></div><button type="button" className={`healthTrendToggle${showHealthTrend ? " active" : ""}`} onClick={() => setShowHealthTrend((value) => !value)}>{showHealthTrend ? "今日" : "趋势"}</button></div>
