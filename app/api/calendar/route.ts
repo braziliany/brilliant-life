@@ -1,6 +1,7 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { calendarOverrides } from "../../../db/schema";
+import { validDate, validMonth } from "../validation";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
 
@@ -13,10 +14,6 @@ function hasDashboardAccess(request: Request) {
   );
 }
 
-function validDate(value: unknown) {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
 export async function GET(request: Request) {
   if (!hasDashboardAccess(request)) {
     return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
@@ -25,7 +22,7 @@ export async function GET(request: Request) {
   const searchParams = new URL(request.url).searchParams;
   const month = searchParams.get("month") ?? "";
   const requestedYear = searchParams.get("year") ?? "";
-  if (!/^\d{4}-\d{2}$/.test(month) && !/^\d{4}$/.test(requestedYear)) {
+  if (!validMonth(month) && !/^\d{4}$/.test(requestedYear)) {
     return Response.json({ error: "month must use YYYY-MM or year must use YYYY" }, { status: 400, headers: jsonHeaders });
   }
 
@@ -87,7 +84,7 @@ export async function DELETE(request: Request) {
       await getDb().delete(calendarOverrides).where(eq(calendarOverrides.date, payload.date!));
       return Response.json({ deleted: payload.date }, { headers: jsonHeaders });
     }
-    if (typeof payload.month === "string" && /^\d{4}-\d{2}$/.test(payload.month)) {
+    if (validMonth(payload.month)) {
       const start = `${payload.month}-01`;
       const [year, monthNumber] = payload.month.split("-").map(Number);
       const nextMonth = new Date(Date.UTC(year, monthNumber, 1));

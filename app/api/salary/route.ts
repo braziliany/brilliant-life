@@ -1,6 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { salaryRecords, salarySettings } from "../../../db/schema";
+import { validSalaryAdjustments, validSalaryRecord, validSalarySettings } from "../validation";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
 const defaultSettings = { dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 };
@@ -34,18 +35,10 @@ export async function PUT(request: Request) {
 
   try {
     const payload = (await request.json()) as Record<string, unknown>;
-    if (
-      typeof payload.month !== "string" ||
-      !/^\d{4}-\d{2}$/.test(payload.month) ||
-      typeof payload.workdays !== "number" ||
-      !Number.isInteger(payload.workdays) ||
-      payload.workdays < 0 ||
-      payload.workdays > 31
-    ) {
+    if (!validSalaryRecord(payload)) {
       return Response.json({ error: "Invalid salary record" }, { status: 400, headers: jsonHeaders });
     }
-    const adjustmentKeys = ["extraIncome", "bonus", "leaveDeduction"] as const;
-    if (adjustmentKeys.some((key) => typeof payload[key] !== "number" || !Number.isFinite(payload[key]) || (payload[key] as number) < 0 || (payload[key] as number) > 1000000)) {
+    if (!validSalaryAdjustments(payload)) {
       return Response.json({ error: "Invalid salary adjustments" }, { status: 400, headers: jsonHeaders });
     }
 
@@ -92,11 +85,11 @@ export async function PATCH(request: Request) {
 
   try {
     const payload = (await request.json()) as Record<string, unknown>;
-    const keys = ["dailyRate", "deductions", "taxThreshold", "taxRate"] as const;
-    if (keys.some((key) => typeof payload[key] !== "number" || !Number.isFinite(payload[key]) || (payload[key] as number) < 0)) {
+    const settingsValidity = validSalarySettings(payload);
+    if (settingsValidity === "invalid") {
       return Response.json({ error: "Invalid salary settings" }, { status: 400, headers: jsonHeaders });
     }
-    if ((payload.dailyRate as number) > 100000 || (payload.deductions as number) > 100000 || (payload.taxThreshold as number) > 1000000 || (payload.taxRate as number) > 100) {
+    if (settingsValidity === "out-of-range") {
       return Response.json({ error: "Salary settings out of range" }, { status: 400, headers: jsonHeaders });
     }
     const values = {
