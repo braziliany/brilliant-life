@@ -113,12 +113,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [latest] = await getDb()
+    const requestedDays = Number(new URL(request.url).searchParams.get("days") ?? 1);
+    const days = requestedDays === 30 ? 30 : requestedDays === 7 ? 7 : 1;
+    const history = await getDb()
       .select()
       .from(healthDaily)
       .orderBy(desc(healthDaily.date))
-      .limit(1);
-    return Response.json({ health: latest ?? null }, { headers: jsonHeaders });
+      .limit(days);
+    return Response.json({ health: history[0] ?? null, history }, { headers: jsonHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database unavailable";
     return Response.json({ error: message }, { status: 500, headers: jsonHeaders });

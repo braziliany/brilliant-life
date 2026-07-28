@@ -9,6 +9,8 @@ type HealthDaily = {
   restingEnergyKcal: number;
   exerciseMinutes: number;
   workoutCount: number;
+  source: string;
+  updatedAt: string;
 };
 
 type SalaryRecord = {
@@ -115,6 +117,10 @@ function Icon({ children, active = false, label, onClick }: { children: React.Re
 export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
+  const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
+  const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
+  const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes">("steps");
+  const [showHealthTrend, setShowHealthTrend] = useState(false);
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
   const [showCalendarNotes, setShowCalendarNotes] = useState(false);
@@ -174,17 +180,31 @@ export default function Home() {
     ? Math.round(health.activeEnergyKcal + health.restingEnergyKcal)
     : null;
   const exerciseHours = ((health?.exerciseMinutes ?? 138) / 60).toFixed(1);
+  const visibleHealthHistory = healthHistory.slice(-healthPeriod);
+  const healthMetricConfig = {
+    steps: { label: "步数", unit: "步", color: "var(--lime)" },
+    activeEnergyKcal: { label: "活动能量", unit: "千卡", color: "var(--coral)" },
+    exerciseMinutes: { label: "锻炼时长", unit: "分钟", color: "#54d6ff" },
+  }[healthMetric];
+  const healthMetricMax = Math.max(1, ...visibleHealthHistory.map((item) => item[healthMetric]));
+  const healthMetricAverage = visibleHealthHistory.length
+    ? Math.round(visibleHealthHistory.reduce((sum, item) => sum + item[healthMetric], 0) / visibleHealthHistory.length)
+    : 0;
 
   useEffect(() => {
-    fetch("/api/health", { cache: "no-store" })
+    fetch("/api/health?days=30", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Health data unavailable");
-        return response.json() as Promise<{ health: HealthDaily | null }>;
+        return response.json() as Promise<{ health: HealthDaily | null; history: HealthDaily[] }>;
       })
-      .then(({ health: latest }) => {
+      .then(({ health: latest, history }) => {
         setHealth(latest);
+        setHealthHistory([...history].reverse());
       })
-      .catch(() => setHealth(null));
+      .catch(() => {
+        setHealth(null);
+        setHealthHistory([]);
+      });
   }, []);
 
   useEffect(() => {
@@ -505,13 +525,37 @@ export default function Home() {
 
           <div className="grid">
             <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>训练成果</h2></div><span className="roundBadge">◫</span></div>
+              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>{showHealthTrend ? "健康趋势" : "训练成果"}</h2></div><button type="button" className={`healthTrendToggle${showHealthTrend ? " active" : ""}`} onClick={() => setShowHealthTrend((value) => !value)}>{showHealthTrend ? "今日" : "趋势"}</button></div>
+              {showHealthTrend ? (
+                <div className="healthTrend">
+                  <div className="healthTrendControls">
+                    <div className="healthMetricTabs">
+                      <button type="button" className={healthMetric === "steps" ? "active" : ""} onClick={() => setHealthMetric("steps")}>步数</button>
+                      <button type="button" className={healthMetric === "activeEnergyKcal" ? "active" : ""} onClick={() => setHealthMetric("activeEnergyKcal")}>能量</button>
+                      <button type="button" className={healthMetric === "exerciseMinutes" ? "active" : ""} onClick={() => setHealthMetric("exerciseMinutes")}>锻炼</button>
+                    </div>
+                    <div className="healthPeriodTabs"><button type="button" className={healthPeriod === 7 ? "active" : ""} onClick={() => setHealthPeriod(7)}>7天</button><button type="button" className={healthPeriod === 30 ? "active" : ""} onClick={() => setHealthPeriod(30)}>30天</button></div>
+                  </div>
+                  <div className="healthTrendSummary"><span>日均</span><strong>{healthMetricAverage.toLocaleString("zh-CN")}</strong><small>{healthMetricConfig.unit}</small>{health && <span className="healthSyncStatus">最近同步 {health.date} · {health.source === "health-auto-export" ? "Apple 健康" : health.source}</span>}</div>
+                  {visibleHealthHistory.length ? (
+                    <div className={`healthBars${healthPeriod === 30 ? " compact" : ""}`} aria-label={`最近${healthPeriod}天${healthMetricConfig.label}趋势`}>
+                      {visibleHealthHistory.map((item) => (
+                        <div className="healthBarDay" key={item.date} title={`${item.date}：${Math.round(item[healthMetric]).toLocaleString("zh-CN")} ${healthMetricConfig.unit}`}>
+                          <i style={{ height: `${Math.max(4, Math.round(item[healthMetric] / healthMetricMax * 100))}%`, background: healthMetricConfig.color }} />
+                          {(healthPeriod === 7 || item.date.endsWith("-01") || item.date.endsWith("-10") || item.date.endsWith("-20")) && <small>{Number(item.date.slice(-2))}</small>}
+                        </div>
+                      ))}
+                    </div>
+                  ) : <p className="healthTrendEmpty">还没有可用于绘制趋势的健康数据</p>}
+                </div>
+              ) : <>
               <div className="bubbleStage" aria-label={`今日总消耗${totalEnergy ?? "暂无"}千卡，活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
                 <div className="bubble yellow"><strong>{totalEnergy?.toLocaleString("zh-CN") ?? "—"}</strong><small>{totalEnergy === null ? "等待静息能量" : "总千卡消耗"}</small></div>
                 <div className="bubble coral"><strong>{activeEnergy.toLocaleString("zh-CN")}</strong><small>活动千卡</small></div>
                 <div className="bubble dark"><strong>{exerciseHours}</strong><small>小时</small></div>
               </div>
               <div className="legend"><span><i className="dot yellowDot" />总消耗</span><span><i className="dot coralDot" />活动消耗</span><span><i className="dot darkDot" />运动时长</span></div>
+              </>}
             </article>
 
             <article id="calendar" className={`card calendar${calendarEditing ? " editing" : ""}${activeSection === "calendar" ? " sectionActive" : ""}`}>
