@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "@fontsource/lxgw-wenkai/500.css";
+import { PwaRegistration } from "./pwa-registration";
 import "./globals.css";
 
 const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
@@ -8,6 +9,13 @@ const geist = Geist({ variable: "--font-geist", subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "璀璨人生",
   description: "集中掌握健康数据、工作日历、工资与生活目标。",
+  applicationName: "璀璨人生",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "璀璨人生",
+  },
   openGraph: {
     title: "璀璨人生",
     description: "健康 · 工作 · 收入 · 生活",
@@ -29,6 +37,18 @@ export const metadata: Metadata = {
   },
 };
 
+export const viewport: Viewport = {
+  themeColor: "#f4f1e9",
+  viewportFit: "cover",
+};
+
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="zh-CN"><body className={geist.variable}>{children}</body></html>;
+  return (
+    <html lang="zh-CN">
+      <body className={geist.variable}>
+        {children}
+        <PwaRegistration />
+      </body>
+    </html>
+  );
 }
