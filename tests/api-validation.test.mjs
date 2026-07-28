@@ -5,10 +5,9 @@ import {
   normalizeHealthPayload,
   validDate,
   validMonth,
-  validSalaryAdjustments,
   validSalaryRecord,
-  validSalarySettings,
 } from "../app/api/validation.ts";
+import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
 
 test("calendar accepts only canonical month and date values", () => {
   assert.equal(validMonth("2026-07"), true);
@@ -24,16 +23,20 @@ test("salary record enforces month and workday boundaries", () => {
   assert.equal(validSalaryRecord({ month: "2026-7", workdays: 23 }), false);
 });
 
-test("salary adjustments reject missing, negative, and excessive values", () => {
-  assert.equal(validSalaryAdjustments({ extraIncome: 0, bonus: 500, leaveDeduction: 0 }), true);
-  assert.equal(validSalaryAdjustments({ extraIncome: -1, bonus: 0, leaveDeduction: 0 }), false);
-  assert.equal(validSalaryAdjustments({ extraIncome: 0, bonus: 1_000_001, leaveDeduction: 0 }), false);
-});
-
-test("salary settings distinguish invalid and out-of-range input", () => {
-  assert.equal(validSalarySettings({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 }), "valid");
-  assert.equal(validSalarySettings({ dailyRate: "275", deductions: 130, taxThreshold: 5000, taxRate: 3 }), "invalid");
-  assert.equal(validSalarySettings({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 101 }), "out-of-range");
+test("salary policy is fixed by the backend algorithm", () => {
+  assert.deepEqual(SALARY_POLICY, {
+    dailyRate: 275,
+    deductions: 130,
+    taxThreshold: 5000,
+    taxRate: 3,
+    extraIncome: 0,
+    bonus: 0,
+    leaveDeduction: 0,
+  });
+  assert.equal(Object.isFrozen(SALARY_POLICY), true);
+  assert.equal(calculateSalary(23).grossSalary, 6325);
+  assert.equal(calculateSalary(23).incomeTax, 35.85);
+  assert.equal(calculateSalary(23).netSalary, 6159.15);
 });
 
 test("health upload requires an exact independent API key", () => {

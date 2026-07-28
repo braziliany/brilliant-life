@@ -29,14 +29,11 @@ type SalaryRecord = {
   netSalary: number;
 };
 
-type SalarySettings = {
+type SalaryPolicy = {
   dailyRate: number;
   deductions: number;
   taxThreshold: number;
   taxRate: number;
-};
-
-type SalaryAdjustments = {
   extraIncome: number;
   bonus: number;
   leaveDeduction: number;
@@ -142,9 +139,7 @@ export default function Home() {
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [salaryLoadStatus, setSalaryLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [salarySettings, setSalarySettings] = useState<SalarySettings>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3 });
-  const [settingsStatus, setSettingsStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [salaryAdjustments, setSalaryAdjustments] = useState<SalaryAdjustments>({ extraIncome: 0, bonus: 0, leaveDeduction: 0 });
+  const [salaryPolicy, setSalaryPolicy] = useState<SalaryPolicy>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3, extraIncome: 0, bonus: 0, leaveDeduction: 0 });
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
   const [experienceEditingId, setExperienceEditingId] = useState<number | null>(null);
   const [experienceFormOpen, setExperienceFormOpen] = useState(false);
@@ -269,11 +264,11 @@ export default function Home() {
     fetch("/api/salary", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Salary history unavailable");
-        return response.json() as Promise<{ records: SalaryRecord[]; settings: SalarySettings }>;
+        return response.json() as Promise<{ records: SalaryRecord[]; policy: SalaryPolicy }>;
       })
-      .then(({ records, settings }) => {
+      .then(({ records, policy }) => {
         setSalaryRecords(records);
-        setSalarySettings(settings);
+        setSalaryPolicy(policy);
         setSalaryLoadStatus("ready");
       })
       .catch(() => setSalaryLoadStatus("error"));
@@ -297,15 +292,7 @@ export default function Home() {
   useEffect(() => {
     loadWorkExperiences();
   }, []);
-  useEffect(() => {
-    const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
-    const record = salaryRecords.find((item) => item.month === month);
-    setSalaryAdjustments(record
-      ? { extraIncome: record.extraIncome, bonus: record.bonus, leaveDeduction: record.leaveDeduction }
-      : { extraIncome: 0, bonus: 0, leaveDeduction: 0 });
-  }, [calendarMonth, salaryRecords]);
-  const { dailyRate, deductions, taxThreshold, taxRate } = salarySettings;
-  const { extraIncome, bonus, leaveDeduction } = salaryAdjustments;
+  const { dailyRate, deductions, taxThreshold, taxRate, extraIncome, bonus, leaveDeduction } = salaryPolicy;
   const grossSalary = workdays * dailyRate + extraIncome + bonus;
   const taxableIncome = Math.max(0, grossSalary - deductions - leaveDeduction - taxThreshold);
   const incomeTax = taxableIncome * taxRate / 100;
@@ -426,7 +413,7 @@ export default function Home() {
       const response = await fetch("/api/salary", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month, workdays, ...salaryAdjustments }),
+        body: JSON.stringify({ month, workdays }),
       });
       if (!response.ok) throw new Error("Save failed");
       const { record } = await response.json() as { record: SalaryRecord };
@@ -434,23 +421,6 @@ export default function Home() {
       setSalaryStatus("saved");
     } catch {
       setSalaryStatus("error");
-    }
-  };
-
-  const saveSalarySettings = async () => {
-    setSettingsStatus("saving");
-    try {
-      const response = await fetch("/api/salary", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(salarySettings),
-      });
-      if (!response.ok) throw new Error("Save failed");
-      const { settings } = await response.json() as { settings: SalarySettings };
-      setSalarySettings(settings);
-      setSettingsStatus("saved");
-    } catch {
-      setSettingsStatus("error");
     }
   };
 
@@ -778,21 +748,6 @@ export default function Home() {
                 </label>
               </div>
 
-              <div className="salarySettings">
-                <label><span>日薪</span><input type="number" min="0" value={dailyRate} onChange={(event) => setSalarySettings((current) => ({ ...current, dailyRate: Number(event.target.value) }))} /><b>元</b></label>
-                <label><span>固定扣除</span><input type="number" min="0" value={deductions} onChange={(event) => setSalarySettings((current) => ({ ...current, deductions: Number(event.target.value) }))} /><b>元</b></label>
-                <label><span>起征点</span><input type="number" min="0" value={taxThreshold} onChange={(event) => setSalarySettings((current) => ({ ...current, taxThreshold: Number(event.target.value) }))} /><b>元</b></label>
-                <label><span>税率</span><input type="number" min="0" max="100" step="0.1" value={taxRate} onChange={(event) => setSalarySettings((current) => ({ ...current, taxRate: Number(event.target.value) }))} /><b>%</b></label>
-                <button type="button" onClick={saveSalarySettings} disabled={settingsStatus === "saving"}>{settingsStatus === "saving" ? "保存中…" : settingsStatus === "saved" ? "参数已保存" : "保存参数"}</button>
-              </div>
-              {settingsStatus === "error" && <p className="salaryError" role="alert">工资参数保存失败，请稍后再试。</p>}
-
-              <div className="salaryAdjustments">
-                <label><span>额外收入</span><input type="number" min="0" value={extraIncome} onChange={(event) => setSalaryAdjustments((current) => ({ ...current, extraIncome: Number(event.target.value) }))} /><b>元</b></label>
-                <label><span>奖金</span><input type="number" min="0" value={bonus} onChange={(event) => setSalaryAdjustments((current) => ({ ...current, bonus: Number(event.target.value) }))} /><b>元</b></label>
-                <label><span>请假扣款</span><input type="number" min="0" value={leaveDeduction} onChange={(event) => setSalaryAdjustments((current) => ({ ...current, leaveDeduction: Number(event.target.value) }))} /><b>元</b></label>
-              </div>
-
               <div className="salarySummary">
                 <div className="netPay">
                   <span>预计实发工资</span>
@@ -800,8 +755,8 @@ export default function Home() {
                   <small>应发工资 − 固定扣除 − 个税</small>
                 </div>
                 <div className="salaryMetrics">
-                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>基本工资 + 额外收入 + 奖金</small></div>
-                  <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除 + 请假扣款</small></div>
+                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
+                  <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除</small></div>
                   <div><span>计税收入</span><b>¥ {money(taxableIncome)}</b><small>扣除后再减 ¥{money(taxThreshold)}</small></div>
                   <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × {taxRate}%</small></div>
                 </div>
@@ -848,7 +803,7 @@ export default function Home() {
                 {salaryLoadStatus === "loading" ? (
                   <div className="moduleState"><span className="statePulse" /><p>正在读取工资记录…</p></div>
                 ) : salaryLoadStatus === "error" ? (
-                  <div className="moduleState" role="alert"><p>工资记录读取失败，计算参数未被覆盖。</p><button type="button" onClick={loadSalaryData}>重新加载</button></div>
+                  <div className="moduleState" role="alert"><p>工资记录读取失败，固定计算规则仍可使用。</p><button type="button" onClick={loadSalaryData}>重新加载</button></div>
                 ) : salaryRecords.length === 0 ? (
                   <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
                 ) : salaryRecords.map((record) => (

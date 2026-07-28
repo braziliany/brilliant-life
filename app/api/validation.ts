@@ -34,29 +34,6 @@ export function validSalaryRecord(payload: Record<string, unknown>) {
   );
 }
 
-export function validSalaryAdjustments(payload: Record<string, unknown>) {
-  return ["extraIncome", "bonus", "leaveDeduction"].every((key) => {
-    const value = payload[key];
-    return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1_000_000;
-  });
-}
-
-export function validSalarySettings(payload: Record<string, unknown>) {
-  const keys = ["dailyRate", "deductions", "taxThreshold", "taxRate"];
-  if (keys.some((key) => typeof payload[key] !== "number" || !Number.isFinite(payload[key]) || (payload[key] as number) < 0)) {
-    return "invalid";
-  }
-  if (
-    (payload.dailyRate as number) > 100_000 ||
-    (payload.deductions as number) > 100_000 ||
-    (payload.taxThreshold as number) > 1_000_000 ||
-    (payload.taxRate as number) > 100
-  ) {
-    return "out-of-range";
-  }
-  return "valid";
-}
-
 export function isValidHealthApiKey(configuredKey: unknown, suppliedKey: unknown) {
   return typeof configuredKey === "string" && configuredKey.length > 0 && suppliedKey === configuredKey;
 }
