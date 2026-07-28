@@ -1,15 +1,11 @@
 import { desc } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { salaryRecords } from "../../../db/schema";
+import { hasDashboardAccess } from "../access";
 import { validSalaryRecord } from "../validation";
 import { calculateSalary, SALARY_POLICY } from "./policy";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
-
-function hasDashboardAccess(request: Request) {
-  const host = new URL(request.url).hostname;
-  return host === "localhost" || host === "127.0.0.1" || request.headers.has("Cf-Access-Jwt-Assertion");
-}
 
 export async function GET(request: Request) {
   if (!hasDashboardAccess(request)) {

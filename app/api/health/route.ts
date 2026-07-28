@@ -2,20 +2,12 @@ import { desc, eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { healthDaily } from "../../../db/schema";
+import { hasDashboardAccess } from "../access";
 import { type HealthPayload, isValidHealthApiKey, normalizeHealthPayload } from "../validation";
 
 const jsonHeaders = {
   "Cache-Control": "no-store",
 };
-
-function hasDashboardAccess(request: Request) {
-  const host = new URL(request.url).hostname;
-  return (
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    request.headers.has("Cf-Access-Jwt-Assertion")
-  );
-}
 
 export async function GET(request: Request) {
   if (!hasDashboardAccess(request)) {

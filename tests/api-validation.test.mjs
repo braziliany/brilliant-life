@@ -8,6 +8,18 @@ import {
   validSalaryRecord,
 } from "../app/api/validation.ts";
 import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
+import { hasDashboardAccess } from "../app/api/access.ts";
+
+test("dashboard access rejects forged headers on the public workers.dev host", () => {
+  assert.equal(hasDashboardAccess(new Request("https://pulse-health-dashboard.leopardser.workers.dev/api/salary", {
+    headers: { "Cf-Access-Jwt-Assertion": "forged" },
+  })), false);
+  assert.equal(hasDashboardAccess(new Request("https://pulse.sophier.org/api/salary")), false);
+  assert.equal(hasDashboardAccess(new Request("https://pulse.sophier.org/api/salary", {
+    headers: { "Cf-Access-Jwt-Assertion": "access-protected" },
+  })), true);
+  assert.equal(hasDashboardAccess(new Request("http://localhost/api/salary")), true);
+});
 
 test("calendar accepts only canonical month and date values", () => {
   assert.equal(validMonth("2026-07"), true);

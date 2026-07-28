@@ -1,18 +1,10 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { calendarOverrides } from "../../../db/schema";
+import { hasDashboardAccess } from "../access";
 import { validDate, validMonth } from "../validation";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
-
-function hasDashboardAccess(request: Request) {
-  const host = new URL(request.url).hostname;
-  return (
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    request.headers.has("Cf-Access-Jwt-Assertion")
-  );
-}
 
 export async function GET(request: Request) {
   if (!hasDashboardAccess(request)) {

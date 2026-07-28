@@ -1,13 +1,9 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { calendarNotes } from "../../../db/schema";
+import { hasDashboardAccess } from "../access";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
-
-function hasDashboardAccess(request: Request) {
-  const host = new URL(request.url).hostname;
-  return host === "localhost" || host === "127.0.0.1" || request.headers.has("Cf-Access-Jwt-Assertion");
-}
 
 function validMonth(value: unknown) {
   return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
