@@ -54,6 +54,7 @@ export async function POST(request: Request) {
         set: {
           ...values,
           weightKg: sql`coalesce(excluded.weight_kg, ${healthDaily.weightKg})`,
+          sleepMinutes: sql`coalesce(excluded.sleep_minutes, ${healthDaily.sleepMinutes})`,
         },
       });
     }

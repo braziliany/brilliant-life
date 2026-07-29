@@ -64,6 +64,11 @@ test("health normalization aggregates supported metrics and clamps unsafe values
       { name: "active_energy", data: [{ qty: 120, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "apple_exercise_time", units: "hr", data: [{ qty: 0.5, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "weight_body_mass", units: "lb", data: [{ qty: 132.277, date: "2026-07-28 09:00:00 +0800" }] },
+      { name: "sleep_analysis", units: "hr", data: [
+        { qty: 3.5, date: "2026-07-28 07:00:00 +0800", value: "Core" },
+        { qty: 1, date: "2026-07-28 07:00:00 +0800", value: "Deep" },
+        { qty: 0.5, date: "2026-07-28 07:00:00 +0800", value: "Awake" },
+      ] },
       { name: "unknown_metric", data: [{ qty: 999, date: "2026-07-28" }] },
     ],
   });
@@ -75,6 +80,7 @@ test("health normalization aggregates supported metrics and clamps unsafe values
     exerciseMinutes: 30,
     workoutCount: 0,
     weightKg: 60,
+    sleepMinutes: 270,
     source: "health-auto-export",
   }]);
 

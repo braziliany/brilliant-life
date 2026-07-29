@@ -6,6 +6,7 @@ export type HealthPayload = {
   exerciseMinutes?: number;
   workoutCount?: number;
   weightKg?: number;
+  sleepMinutes?: number;
   source?: string;
   metrics?: HealthMetric[];
   data?: { metrics?: HealthMetric[] };
@@ -14,7 +15,14 @@ export type HealthPayload = {
 type HealthMetric = {
   name?: string;
   units?: string;
-  data?: Array<{ qty?: number; date?: string }>;
+  data?: Array<{
+    qty?: number;
+    date?: string;
+    startDate?: string;
+    endDate?: string;
+    value?: string;
+    sleepStage?: string;
+  }>;
 };
 
 export function validMonth(value: unknown) {
@@ -61,6 +69,24 @@ function weightInKg(value: unknown, units = "kg") {
   return kilograms >= 20 && kilograms <= 400 ? Math.round(kilograms * 1000) / 1000 : null;
 }
 
+function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], units = "min") {
+  const start = Date.parse(point.startDate ?? "");
+  const end = Date.parse(point.endDate ?? "");
+  if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+    return Math.min(1_440, (end - start) / 60_000);
+  }
+
+  const quantity = Number(point.qty);
+  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
+  const normalizedUnits = units.toLowerCase();
+  const minutes = normalizedUnits.startsWith("hr")
+    ? quantity * 60
+    : normalizedUnits.startsWith("sec")
+      ? quantity / 60
+      : quantity;
+  return Math.min(1_440, minutes);
+}
+
 export function normalizeHealthPayload(payload: HealthPayload) {
   const metrics = payload.data?.metrics ?? payload.metrics;
   if (!Array.isArray(metrics)) {
@@ -74,6 +100,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
           exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
           workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
           weightKg: weightInKg(payload.weightKg),
+          sleepMinutes: payload.sleepMinutes == null ? null : numberInRange(payload.sleepMinutes, 0, 1_440),
           source: payload.source?.trim().slice(0, 64) || "apple-health",
         }]
       : [];
@@ -87,18 +114,20 @@ export function normalizeHealthPayload(payload: HealthPayload) {
     exerciseMinutes: number;
     workoutCount: number;
     weightKg: number | null;
+    sleepMinutes: number | null;
     source: string;
   }>();
   const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
   const restingEnergyNames = new Set(["basal_energy", "basal_energy_burned", "resting_energy", "resting_energy_burned"]);
   const weightNames = new Set(["weight", "body_weight", "body_mass", "weight_body_mass"]);
+  const sleepNames = new Set(["sleep", "sleep_analysis", "sleep_asleep", "sleep_core", "sleep_deep", "sleep_rem"]);
 
   for (const metric of metrics) {
     const name = metric.name?.toLowerCase() ?? "";
-    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name)) continue;
+    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name) && !sleepNames.has(name)) continue;
 
     for (const point of metric.data ?? []) {
-      const date = dateOnly(point.date);
+      const date = dateOnly(point.endDate ?? point.date);
       if (!date) continue;
       const day = days.get(date) ?? {
         date,
@@ -108,6 +137,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
         exerciseMinutes: 0,
         workoutCount: 0,
         weightKg: null,
+        sleepMinutes: null,
         source: "health-auto-export",
       };
       const qty = numberInRange(point.qty, 0, 200_000);
@@ -117,6 +147,12 @@ export function normalizeHealthPayload(payload: HealthPayload) {
       if (exerciseNames.has(name)) day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
       if (weightNames.has(name)) {
         day.weightKg = weightInKg(point.qty, metric.units);
+      }
+      if (sleepNames.has(name)) {
+        const stage = (point.sleepStage ?? point.value ?? name).toLowerCase().replaceAll(/[\s_-]/g, "");
+        if (!stage.includes("awake") && !stage.includes("inbed")) {
+          day.sleepMinutes = (day.sleepMinutes ?? 0) + sleepDurationMinutes(point, metric.units);
+        }
       }
       days.set(date, day);
     }

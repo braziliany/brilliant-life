@@ -10,6 +10,7 @@ type HealthDaily = {
   exerciseMinutes: number;
   workoutCount: number;
   weightKg: number | null;
+  sleepMinutes: number | null;
   source: string;
   updatedAt: string;
 };
@@ -123,7 +124,7 @@ export default function Home() {
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
   const [healthLoadStatus, setHealthLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
-  const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg">("steps");
+  const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes">("steps");
   const [showHealthTrend, setShowHealthTrend] = useState(false);
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
@@ -200,18 +201,21 @@ export default function Home() {
     activeEnergyKcal: { label: "活动能量", unit: "千卡", color: "var(--coral)" },
     exerciseMinutes: { label: "锻炼时长", unit: "分钟", color: "#54d6ff" },
     weightKg: { label: "体重", unit: "kg", color: "#c28cff" },
+    sleepMinutes: { label: "睡眠时长", unit: "小时", color: "#768cff" },
   }[healthMetric];
-  const healthMetricHistory = healthMetric === "weightKg"
-    ? visibleHealthHistory.filter((item) => item.weightKg !== null)
+  const healthMetricHistory = healthMetric === "weightKg" || healthMetric === "sleepMinutes"
+    ? visibleHealthHistory.filter((item) => item[healthMetric] !== null)
     : visibleHealthHistory;
-  const healthMetricValue = (item: HealthDaily) => healthMetric === "weightKg"
-    ? item.weightKg ?? 0
-    : item[healthMetric];
+  const healthMetricValue = (item: HealthDaily) => {
+    if (healthMetric === "weightKg") return item.weightKg ?? 0;
+    if (healthMetric === "sleepMinutes") return (item.sleepMinutes ?? 0) / 60;
+    return item[healthMetric];
+  };
   const healthMetricMax = Math.max(1, ...healthMetricHistory.map(healthMetricValue));
   const healthMetricAverage = healthMetricHistory.length
     ? healthMetricHistory.reduce((sum, item) => sum + healthMetricValue(item), 0) / healthMetricHistory.length
     : 0;
-  const healthMetricAverageLabel = healthMetric === "weightKg"
+  const healthMetricAverageLabel = healthMetric === "weightKg" || healthMetric === "sleepMinutes"
     ? healthMetricAverage.toFixed(1)
     : Math.round(healthMetricAverage).toLocaleString("zh-CN");
   const recentWeightValues = recentWeightHistory.map((item) => item.weightKg ?? 0);
@@ -599,14 +603,15 @@ export default function Home() {
                       <button type="button" className={healthMetric === "activeEnergyKcal" ? "active" : ""} onClick={() => setHealthMetric("activeEnergyKcal")}>能量</button>
                       <button type="button" className={healthMetric === "exerciseMinutes" ? "active" : ""} onClick={() => setHealthMetric("exerciseMinutes")}>锻炼</button>
                       <button type="button" className={healthMetric === "weightKg" ? "active" : ""} onClick={() => setHealthMetric("weightKg")}>体重</button>
+                      <button type="button" className={healthMetric === "sleepMinutes" ? "active" : ""} onClick={() => setHealthMetric("sleepMinutes")}>睡眠</button>
                     </div>
                     <div className="healthPeriodTabs"><button type="button" className={healthPeriod === 7 ? "active" : ""} onClick={() => setHealthPeriod(7)}>7天</button><button type="button" className={healthPeriod === 30 ? "active" : ""} onClick={() => setHealthPeriod(30)}>30天</button></div>
                   </div>
-                  <div className="healthTrendSummary"><span>{healthMetric === "weightKg" ? "平均" : "日均"}</span><strong>{healthMetricAverageLabel}</strong><small>{healthMetricConfig.unit}</small>{health && <span className="healthSyncStatus">最近同步 {health.date} · {health.source === "health-auto-export" ? "Apple 健康" : health.source}</span>}</div>
+                  <div className="healthTrendSummary"><span>{healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? "平均" : "日均"}</span><strong>{healthMetricAverageLabel}</strong><small>{healthMetricConfig.unit}</small>{health && <span className="healthSyncStatus">最近同步 {health.date} · {health.source === "health-auto-export" ? "Apple 健康" : health.source}</span>}</div>
                   {healthMetricHistory.length ? (
                     <div className={`healthBars${healthPeriod === 30 ? " compact" : ""}`} aria-label={`最近${healthPeriod}天${healthMetricConfig.label}趋势`}>
                       {healthMetricHistory.map((item) => (
-                        <div className="healthBarDay" key={item.date} title={`${item.date}：${healthMetric === "weightKg" ? healthMetricValue(item).toFixed(1) : Math.round(healthMetricValue(item)).toLocaleString("zh-CN")} ${healthMetricConfig.unit}`}>
+                        <div className="healthBarDay" key={item.date} title={`${item.date}：${healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? healthMetricValue(item).toFixed(1) : Math.round(healthMetricValue(item)).toLocaleString("zh-CN")} ${healthMetricConfig.unit}`}>
                           <i style={{ height: `${Math.max(4, Math.round(healthMetricValue(item) / healthMetricMax * 100))}%`, background: healthMetricConfig.color }} />
                           {(healthPeriod === 7 || item.date.endsWith("-01") || item.date.endsWith("-10") || item.date.endsWith("-20")) && <small>{Number(item.date.slice(-2))}</small>}
                         </div>
