@@ -261,6 +261,45 @@ body{
 button:not(:disabled):hover{filter:brightness(.98)}
 input,textarea{caret-color:#6d8d0e}
 
+@media (min-width:901px){
+  html{background:#e8e4da}
+  body{
+    background:
+      radial-gradient(circle at 10% 5%,rgba(201,244,90,.12),transparent 26rem),
+      radial-gradient(circle at 92% 12%,rgba(87,216,204,.09),transparent 28rem),
+      #e8e4da;
+  }
+  .dashboard{
+    border-color:#fff;
+    background:#faf8f2;
+    box-shadow:0 22px 65px rgba(38,43,36,.16);
+    backdrop-filter:none;
+  }
+  .card{
+    border-color:#d8d6cd;
+    background:#fffefa;
+    box-shadow:0 7px 20px rgba(35,40,34,.08);
+  }
+  .card:hover{box-shadow:0 14px 34px rgba(35,40,34,.13)}
+  .eyebrow,.card .eyebrow{color:#62685f;font-size:11px}
+  .subtitle,.salarySubtitle{color:#555d56}
+  .steps>div>span,.progressRing small{color:#5d655e}
+  .weightEmpty{color:#555d56}
+  .experienceItem{border-color:#d9d7ce;background:#f5f3ec}
+  .experienceContent strong{color:#4d554e;font-size:12px}
+  .experienceContent small,.experienceContent p{color:#5b635c;font-size:11px}
+  .experienceActions button{color:#404740;font-size:10px}
+  .salary{background:radial-gradient(circle at 90% 0,rgba(255,120,108,.08),transparent 24rem),#f5f1e7}
+  .salaryMetrics>div,.salaryTrend,.salaryRecord,.emptySalary{
+    border-color:#dad8cf;
+    box-shadow:0 4px 14px rgba(35,40,34,.06);
+  }
+  .salaryMetrics span{color:#505850;font-size:12px}
+  .salaryMetrics small{color:#5d655e;font-size:11px}
+  .salaryFormula{color:#5b625b}
+  .salaryRecord{color:#555d56}
+}
+
 @media (max-width:900px){
   .pageShell{padding:0}
   .dashboard{min-height:100vh;border-radius:0;padding:20px 22px 30px}
