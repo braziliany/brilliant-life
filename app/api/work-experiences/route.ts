@@ -1,4 +1,4 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { asc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { workExperiences } from "../../../db/schema";
 import { hasDashboardAccess } from "../access";
@@ -20,7 +20,7 @@ function readExperience(value: unknown) {
 export async function GET(request: Request) {
   if (!hasDashboardAccess(request)) return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
   try {
-    const experiences = await getDb().select().from(workExperiences).orderBy(asc(workExperiences.sortOrder), asc(workExperiences.startDate));
+    const experiences = await getDb().select().from(workExperiences).orderBy(asc(workExperiences.startDate), asc(workExperiences.id));
     return Response.json({ experiences }, { headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Work experience database unavailable" }, { status: 500, headers: jsonHeaders });
@@ -32,42 +32,10 @@ export async function POST(request: Request) {
   try {
     const values = readExperience(await request.json());
     if (!values) return Response.json({ error: "company, role and startDate are required" }, { status: 400, headers: jsonHeaders });
-    const db = getDb();
-    const [order] = await db.select({
-      next: sql<number>`coalesce(max(${workExperiences.sortOrder}), -1) + 1`,
-    }).from(workExperiences);
-    const [experience] = await db.insert(workExperiences).values({ ...values, sortOrder: Number(order?.next ?? 0) }).returning();
+    const [experience] = await getDb().insert(workExperiences).values(values).returning();
     return Response.json({ experience }, { status: 201, headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Work experience creation failed" }, { status: 500, headers: jsonHeaders });
-  }
-}
-
-export async function PATCH(request: Request) {
-  if (!hasDashboardAccess(request)) return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
-  try {
-    const payload = await request.json() as { ids?: unknown };
-    if (!Array.isArray(payload.ids) || payload.ids.length > 100) {
-      return Response.json({ error: "ids must be an array" }, { status: 400, headers: jsonHeaders });
-    }
-    const ids = payload.ids.map(Number);
-    if (ids.some((id) => !Number.isInteger(id) || id < 1) || new Set(ids).size !== ids.length) {
-      return Response.json({ error: "ids must contain unique positive integers" }, { status: 400, headers: jsonHeaders });
-    }
-    const db = getDb();
-    const existing = await db.select({ id: workExperiences.id }).from(workExperiences);
-    const existingIds = existing.map(({ id }) => id).sort((a, b) => a - b);
-    const requestedIds = [...ids].sort((a, b) => a - b);
-    if (existingIds.length !== requestedIds.length || existingIds.some((id, index) => id !== requestedIds[index])) {
-      return Response.json({ error: "ids must include every work experience exactly once" }, { status: 400, headers: jsonHeaders });
-    }
-    const updatedAt = new Date().toISOString();
-    for (const [sortOrder, id] of ids.entries()) {
-      await db.update(workExperiences).set({ sortOrder, updatedAt }).where(eq(workExperiences.id, id));
-    }
-    return Response.json({ ids }, { headers: jsonHeaders });
-  } catch {
-    return Response.json({ error: "Work experience reorder failed" }, { status: 500, headers: jsonHeaders });
   }
 }
 
