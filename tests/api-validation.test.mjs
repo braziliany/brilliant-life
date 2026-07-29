@@ -63,6 +63,7 @@ test("health normalization aggregates supported metrics and clamps unsafe values
       { name: "step_count", data: [{ qty: 20, date: "2026-07-28 08:00:00 +0800" }, { qty: 30, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "active_energy", units: "kJ", data: [{ qty: 502.08, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "resting_energy", units: "kJ", data: [{ qty: 836.8, date: "2026-07-28 09:00:00 +0800" }] },
+      { name: "resting_heart_rate", units: "count/min", data: [{ qty: 58.4, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "apple_exercise_time", units: "hr", data: [{ qty: 0.5, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "weight_body_mass", units: "lb", data: [{ qty: 132.277, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "sleep_analysis", units: "hr", data: [
@@ -82,6 +83,7 @@ test("health normalization aggregates supported metrics and clamps unsafe values
     workoutCount: 0,
     weightKg: 60,
     sleepMinutes: 270,
+    restingHeartRateBpm: 58.4,
     source: "health-auto-export",
   }]);
 
@@ -90,6 +92,9 @@ test("health normalization aggregates supported metrics and clamps unsafe values
   assert.equal(normalizeHealthPayload({
     metrics: [{ name: "active_energy", units: "kcal", data: [{ qty: 321, date: "2026-07-29" }] }],
   })[0].activeEnergyKcal, 321);
+  assert.equal(normalizeHealthPayload({
+    metrics: [{ name: "resting_heart_rate", units: "count/min", data: [{ qty: 300, date: "2026-07-29" }] }],
+  })[0].restingHeartRateBpm, null);
   assert.equal(normalizeHealthPayload({
     metrics: [{
       name: "sleep_analysis",

@@ -7,6 +7,7 @@ export type HealthPayload = {
   workoutCount?: number;
   weightKg?: number;
   sleepMinutes?: number;
+  restingHeartRateBpm?: number;
   source?: string;
   metrics?: HealthMetric[];
   data?: { metrics?: HealthMetric[] };
@@ -90,6 +91,13 @@ function energyInKcal(value: unknown, units = "kcal") {
   return numberInRange(Math.round(kilocalories * 1_000_000) / 1_000_000, 0, 20_000);
 }
 
+function heartRateInBpm(value: unknown) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 20 && parsed <= 250
+    ? Math.round(parsed * 10) / 10
+    : null;
+}
+
 function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], units = "min") {
   const unitMultiplier = units.toLowerCase().startsWith("hr")
     ? 60
@@ -132,6 +140,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
           workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
           weightKg: weightInKg(payload.weightKg),
           sleepMinutes: payload.sleepMinutes == null ? null : numberInRange(payload.sleepMinutes, 0, 1_440),
+          restingHeartRateBpm: heartRateInBpm(payload.restingHeartRateBpm),
           source: payload.source?.trim().slice(0, 64) || "apple-health",
         }]
       : [];
@@ -146,16 +155,18 @@ export function normalizeHealthPayload(payload: HealthPayload) {
     workoutCount: number;
     weightKg: number | null;
     sleepMinutes: number | null;
+    restingHeartRateBpm: number | null;
     source: string;
   }>();
   const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
   const restingEnergyNames = new Set(["basal_energy", "basal_energy_burned", "resting_energy", "resting_energy_burned"]);
   const weightNames = new Set(["weight", "body_weight", "body_mass", "weight_body_mass"]);
   const sleepNames = new Set(["sleep", "sleep_analysis", "sleep_asleep", "sleep_core", "sleep_deep", "sleep_rem"]);
+  const restingHeartRateNames = new Set(["resting_heart_rate", "heart_rate_resting", "restingheartrate"]);
 
   for (const metric of metrics) {
     const name = metric.name?.toLowerCase() ?? "";
-    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name) && !sleepNames.has(name)) continue;
+    if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name) && !sleepNames.has(name) && !restingHeartRateNames.has(name)) continue;
 
     for (const point of metric.data ?? []) {
       const date = dateOnly(point.sleepEnd ?? point.endDate ?? point.date);
@@ -169,6 +180,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
         workoutCount: 0,
         weightKg: null,
         sleepMinutes: null,
+        restingHeartRateBpm: null,
         source: "health-auto-export",
       };
       const qty = numberInRange(point.qty, 0, 200_000);
@@ -185,6 +197,9 @@ export function normalizeHealthPayload(payload: HealthPayload) {
           const duration = sleepDurationMinutes(point, metric.units);
           if (duration > 0) day.sleepMinutes = (day.sleepMinutes ?? 0) + duration;
         }
+      }
+      if (restingHeartRateNames.has(name)) {
+        day.restingHeartRateBpm = heartRateInBpm(point.qty);
       }
       days.set(date, day);
     }

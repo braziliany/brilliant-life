@@ -1,0 +1,1 @@
+ALTER TABLE `health_daily` ADD `resting_heart_rate_bpm` real;

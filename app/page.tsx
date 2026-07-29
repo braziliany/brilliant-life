@@ -11,6 +11,7 @@ type HealthDaily = {
   workoutCount: number;
   weightKg: number | null;
   sleepMinutes: number | null;
+  restingHeartRateBpm: number | null;
   source: string;
   updatedAt: string;
 };
@@ -124,7 +125,7 @@ export default function Home() {
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
   const [healthLoadStatus, setHealthLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
-  const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes">("steps");
+  const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes" | "restingHeartRateBpm">("steps");
   const [showHealthTrend, setShowHealthTrend] = useState(false);
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
@@ -202,13 +203,15 @@ export default function Home() {
     exerciseMinutes: { label: "锻炼时长", unit: "分钟", color: "#54d6ff" },
     weightKg: { label: "体重", unit: "kg", color: "#c28cff" },
     sleepMinutes: { label: "睡眠时长", unit: "小时", color: "#768cff" },
+    restingHeartRateBpm: { label: "静息心率", unit: "次/分", color: "#ff7aa2" },
   }[healthMetric];
-  const healthMetricHistory = healthMetric === "weightKg" || healthMetric === "sleepMinutes"
+  const healthMetricHistory = healthMetric === "weightKg" || healthMetric === "sleepMinutes" || healthMetric === "restingHeartRateBpm"
     ? visibleHealthHistory.filter((item) => item[healthMetric] !== null)
     : visibleHealthHistory;
   const healthMetricValue = (item: HealthDaily) => {
     if (healthMetric === "weightKg") return item.weightKg ?? 0;
     if (healthMetric === "sleepMinutes") return (item.sleepMinutes ?? 0) / 60;
+    if (healthMetric === "restingHeartRateBpm") return item.restingHeartRateBpm ?? 0;
     return item[healthMetric];
   };
   const healthMetricMax = Math.max(1, ...healthMetricHistory.map(healthMetricValue));
@@ -604,6 +607,7 @@ export default function Home() {
                       <button type="button" className={healthMetric === "exerciseMinutes" ? "active" : ""} onClick={() => setHealthMetric("exerciseMinutes")}>锻炼</button>
                       <button type="button" className={healthMetric === "weightKg" ? "active" : ""} onClick={() => setHealthMetric("weightKg")}>体重</button>
                       <button type="button" className={healthMetric === "sleepMinutes" ? "active" : ""} onClick={() => setHealthMetric("sleepMinutes")}>睡眠</button>
+                      <button type="button" className={healthMetric === "restingHeartRateBpm" ? "active" : ""} onClick={() => setHealthMetric("restingHeartRateBpm")}>心率</button>
                     </div>
                     <div className="healthPeriodTabs"><button type="button" className={healthPeriod === 7 ? "active" : ""} onClick={() => setHealthPeriod(7)}>7天</button><button type="button" className={healthPeriod === 30 ? "active" : ""} onClick={() => setHealthPeriod(30)}>30天</button></div>
                   </div>
