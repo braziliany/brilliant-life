@@ -160,7 +160,6 @@ export default function Home() {
   const [experienceFormOpen, setExperienceFormOpen] = useState(false);
   const [experienceStatus, setExperienceStatus] = useState<"idle" | "loading" | "saving" | "error">("loading");
   const [experienceDraft, setExperienceDraft] = useState<WorkExperienceDraft>({ company: "", role: "", startDate: "", endDate: null, summary: "" });
-  const [experienceView, setExperienceView] = useState<"list" | "timeline">("list");
   const [expandedExperienceId, setExpandedExperienceId] = useState<number | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = getShanghaiDate();
@@ -810,13 +809,7 @@ export default function Home() {
             <article id="habits" className={`card habits${activeSection === "habits" ? " sectionActive" : ""}`}>
               <div className="cardHead">
                 <div><p className="eyebrow">职业档案</p><h2>工作经历</h2></div>
-                <div className="experienceHeadActions">
-                  <div className="experienceViewSwitch" aria-label="工作经历视图">
-                    <button type="button" className={experienceView === "list" ? "active" : ""} onClick={() => setExperienceView("list")}>列表</button>
-                    <button type="button" className={experienceView === "timeline" ? "active" : ""} onClick={() => setExperienceView("timeline")}>时间线</button>
-                  </div>
-                  <button type="button" className="addButton" onClick={() => openExperienceForm()}>＋ 添加经历</button>
-                </div>
+                <button type="button" className="addButton" onClick={() => openExperienceForm()}>＋ 添加经历</button>
               </div>
               {experienceFormOpen ? (
                 <form className="experienceForm" onSubmit={saveWorkExperience}>
@@ -831,7 +824,7 @@ export default function Home() {
                   <div className="experienceFormActions"><button type="button" onClick={() => setExperienceFormOpen(false)}>取消</button><button type="submit" disabled={experienceStatus === "saving"}>{experienceStatus === "saving" ? "保存中…" : experienceEditingId ? "保存修改" : "添加经历"}</button></div>
                 </form>
               ) : (
-                <div className={`experienceList ${experienceView}`}>
+                <div className="experienceList timeline">
                   {experienceStatus === "loading" && <p className="experienceEmpty">正在读取工作经历…</p>}
                   {experienceStatus === "error" && <div className="moduleState" role="alert"><p>工作经历读取失败。</p><button type="button" onClick={loadWorkExperiences}>重新加载</button></div>}
                   {experienceStatus === "idle" && workExperiences.length === 0 && <button type="button" className="experienceEmpty addExperienceEmpty" onClick={() => openExperienceForm()}>还没有工作经历，点击添加第一条</button>}
