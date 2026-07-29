@@ -77,3 +77,215 @@ h1,h2,p { margin:0; } h1 { font-size:28px; letter-spacing:-1.1px; } h2 { font-si
 @media (max-width:560px){.dataQuickNav{margin-top:-2px;margin-inline:-2px;padding:4px}.dataQuickNav button{flex:0 0 auto;padding:9px 13px;font-size:10px}}
 button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:filter .15s ease,box-shadow .15s ease,background-color .15s ease,color .15s ease}button:not(:disabled):active{filter:brightness(.9)}button:focus-visible{outline:3px solid #b9d936;outline-offset:3px}
 @media (max-width:560px){.homeHero .dailyQuote{font-size:32px;line-height:1.18}.homeHero p.quoteSource{font-size:9px}.homeHero p.quoteSource+p{margin-top:18px}}
+
+/* 1.3 global visual refresh */
+:root{
+  --ink:#18221d;
+  --muted:#6e746d;
+  --paper:#f6f2e8;
+  --panel:#fffdf8;
+  --line:#dfddd3;
+  --lime:#c9f45a;
+  --coral:#ff786c;
+  --cyan:#57d8cc;
+  --violet:#a88af7;
+  --shadow:0 18px 50px rgba(54,57,48,.10);
+}
+html{background:#d7d3c8}
+body{
+  background:
+    radial-gradient(circle at 12% 8%,rgba(201,244,90,.20),transparent 27rem),
+    radial-gradient(circle at 88% 20%,rgba(87,216,204,.15),transparent 30rem),
+    linear-gradient(145deg,#e5e1d7,#cfcbc1);
+}
+.pageShell{padding:32px}
+.dashboard{
+  width:min(1320px,100%);
+  min-height:calc(100vh - 64px);
+  padding:24px 32px 34px;
+  border:1px solid rgba(255,255,255,.82);
+  border-radius:34px;
+  background:rgba(249,247,241,.92);
+  box-shadow:0 32px 100px rgba(43,47,39,.18);
+  backdrop-filter:blur(20px);
+}
+.siteNavigation{
+  height:68px;
+  margin-bottom:24px;
+  border-bottom:1px solid rgba(24,34,29,.09);
+}
+.siteBrand{gap:12px}
+.siteBrand .brandMark{width:40px;height:40px;border-radius:13px;box-shadow:0 8px 22px rgba(27,29,57,.22)}
+.siteBrand b{font-size:17px;letter-spacing:-.7px}
+.siteNavigation nav{gap:8px}
+.siteNavigation nav button{padding:12px 18px;color:#72786f;font-size:12px}
+.siteNavigation nav button.active:after{left:18px;right:18px;bottom:1px;height:4px}
+.siteProfile{gap:10px}
+.siteProfile .avatar{width:40px;height:40px;background:linear-gradient(145deg,#f1d7bb,#d8b997)}
+.siteProfile b{font-size:11px}.siteProfile small{font-size:9px}
+.homePage{min-height:0}
+.homeHero{
+  position:relative;
+  min-height:500px;
+  padding:58px 6%;
+  border:1px solid rgba(24,34,29,.06);
+  border-radius:30px;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(255,255,255,.78),transparent 20rem),
+    linear-gradient(135deg,#f0ecdf 0%,#e7e5d8 52%,#d6ddc4 100%);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.8);
+}
+.homeHero:before{
+  content:"";
+  position:absolute;
+  right:31%;
+  bottom:-90px;
+  width:260px;
+  height:260px;
+  border:1px solid rgba(24,34,29,.08);
+  border-radius:50%;
+}
+.homeHero>div{position:relative;z-index:1}
+.homeHero .eyebrow{color:#66705e;font-size:11px}
+.homeHero .dailyQuote{max-width:680px;font-size:52px;line-height:1.12;letter-spacing:-2.4px}
+.homeHero p.quoteSource{font-size:11px}
+.homeHero>div>p:not(.eyebrow){font-size:14px;line-height:1.8}
+.homeHero>div>button{
+  border-radius:15px;
+  padding:15px 20px;
+  box-shadow:0 12px 24px rgba(24,34,29,.18);
+  font-size:12px;
+}
+.homeSnapshot{
+  min-height:380px;
+  margin-left:8%;
+  padding:28px;
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:28px;
+  background:
+    radial-gradient(circle at 85% 10%,rgba(201,244,90,.13),transparent 16rem),
+    linear-gradient(150deg,#1c2822,#151a18);
+  box-shadow:0 30px 60px rgba(24,34,29,.28);
+}
+.snapshotHead{padding-bottom:20px}.snapshotHead span{font-size:11px}.snapshotHead small{font-size:9px}
+.snapshotPrimary{padding:30px 0 24px}.snapshotPrimary>span{font-size:10px}.snapshotPrimary strong{font-size:44px}.snapshotPrimary small{font-size:9px}
+.snapshotPrimary>div{height:8px;background:#344039}
+.snapshotMetrics{gap:12px}.snapshotMetrics>div{padding:17px;background:rgba(255,255,255,.07)}
+.snapshotMetrics span{font-size:9px}.snapshotMetrics b{font-size:23px}.snapshotMetrics small{font-size:8px}
+.homeSnapshot>button{padding:13px 15px;font-size:10px}
+.homeHighlights{gap:14px;margin-top:16px}
+.homeHighlights button{
+  min-height:104px;
+  border:1px solid rgba(24,34,29,.06);
+  border-radius:20px;
+  background:rgba(255,253,248,.72);
+  padding:18px;
+}
+.homeHighlights button:hover{transform:translateY(-3px);background:#fffdf8;box-shadow:var(--shadow)}
+.homeHighlights i{width:5px;height:48px}.homeHighlights span,.homeHighlights small{font-size:11px}.homeHighlights strong{font-size:20px}
+.topbar{
+  height:auto;
+  min-height:116px;
+  align-items:center;
+  margin:0 -2px 16px;
+  padding:22px 26px;
+  border-radius:24px;
+  background:
+    radial-gradient(circle at 85% 0,rgba(201,244,90,.14),transparent 18rem),
+    var(--ink);
+  color:#fff;
+}
+.topbar .eyebrow{color:var(--lime);font-size:11px}.topbar h1{font-size:32px}.topbar .subtitle{color:#a9b1aa;font-size:13px}
+.search{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.08);color:#fff}
+.search input{color:#fff}.search input::placeholder{color:#929b94}
+.actions>button{background:var(--lime);color:var(--ink)}
+.dataQuickNav{
+  margin:0 0 18px;
+  padding:6px;
+  border:0;
+  border-radius:18px;
+  background:#e9e6dc;
+}
+.dataQuickNav button{padding:11px 16px;font-size:11px}.dataQuickNav button.active{box-shadow:0 7px 18px rgba(24,34,29,.16)}
+.grid{grid-template-columns:1.05fr 1.45fr;gap:18px}
+.card{
+  border:1px solid rgba(24,34,29,.07);
+  border-radius:24px;
+  padding:24px;
+  background:var(--panel);
+  box-shadow:0 8px 28px rgba(49,52,45,.06);
+}
+.card:hover{box-shadow:var(--shadow)}
+.card h2{font-size:21px;letter-spacing:-.7px}.card .eyebrow{font-size:10px}
+.sectionActive.card,.sectionActive .card{box-shadow:0 0 0 2px var(--lime),var(--shadow);transform:none}
+.activity{
+  height:360px;
+  background:
+    radial-gradient(circle at 90% 15%,rgba(201,244,90,.32),transparent 15rem),
+    linear-gradient(145deg,#dfe5d6,#c9d1c3);
+}
+.bubbleStage{inset:76px 22px 32px 142px}
+.bubble{border:1px solid rgba(255,255,255,.35);box-shadow:inset 10px 10px 30px rgba(255,255,255,.45),0 18px 35px rgba(49,59,49,.16)}
+.bubble.yellow{background:linear-gradient(145deg,#f9ed92,#f7d85c)}
+.bubble.coral{background:linear-gradient(145deg,#ff9b8f,#ff756b)}
+.bubble.dark{background:linear-gradient(145deg,#314239,#18221d)}
+.bubble strong{font-size:21px}.bubble small{font-size:11px}
+.legend{font-size:11px}.dot{width:28px;height:6px}
+.healthViewActions{gap:7px}.healthTrendToggle{padding:7px 10px;border-color:#9ca79c;background:rgba(255,255,255,.32);font-size:10px}
+.healthMetricTabs,.healthPeriodTabs{background:rgba(24,34,29,.13)}
+.healthTrendControls button{padding:6px 8px;font-size:9px}.healthTrendSummary span{font-size:10px}.healthTrendSummary strong{font-size:24px}.healthTrendSummary small{font-size:9px}.healthTrendSummary .healthSyncStatus{font-size:8px}
+.healthGuideStatus{background:rgba(24,34,29,.12);font-size:10px}.healthGuide li{background:rgba(255,255,255,.35)}.healthGuide li b{font-size:10px}.healthGuide li span,.healthGuide>p{font-size:8px}
+.calendar{height:360px;background:linear-gradient(145deg,#202b26,#141916);box-shadow:0 16px 38px rgba(24,34,29,.20)}
+.calendar .eyebrow{color:#939d96}.calendarActions button{font-size:10px}
+.monthSwitcher{background:#27332d}.week{font-size:12px}.days>span,.days>button,.days.sixRows>span,.days.sixRows>button{width:35px;height:35px;font-size:13px}.days button .holidayName{font-size:7px}
+.calendarLegend{font-size:10px}
+.annualMonths button,.annualTotal,.calendarNotesForm textarea{background:#26312c}
+.statsColumn{gap:18px}.steps{height:170px}.weight{height:152px}
+.steps strong{font-size:29px}.steps>div>span{font-size:12px}.textButton{font-size:12px}
+.progressRing{width:118px;height:118px}.progressRing:before{width:88px;height:88px;background:var(--panel)}
+.weight .cardHead>strong{font-size:23px}.weightEmpty{background:#f0eee7;font-size:10px}
+.habits{min-height:340px}.habitList,.experienceList{gap:10px}
+.habit,.experienceItem{border:1px solid rgba(24,34,29,.05);background:#f1efe8}
+.experienceContent b{font-size:13px}.experienceContent strong{font-size:11px}.experienceContent small,.experienceContent p{font-size:10px}
+.salary{
+  background:
+    radial-gradient(circle at 90% 0,rgba(255,120,108,.10),transparent 24rem),
+    #f0ede3;
+}
+.salarySubtitle{font-size:13px}.workdayInput{box-shadow:0 7px 20px rgba(49,52,45,.06)}
+.netPay{background:linear-gradient(145deg,#223129,#141a17);box-shadow:0 16px 34px rgba(24,34,29,.18)}
+.salaryMetrics>div,.salaryTrend,.salaryRecord,.emptySalary{border:1px solid rgba(24,34,29,.05);box-shadow:0 5px 18px rgba(49,52,45,.04)}
+.salaryMetrics span{font-size:11px}.salaryMetrics b{font-size:17px}.salaryMetrics small{font-size:10px}
+.salaryRecord{font-size:11px}.salaryRecord b,.salaryRecord strong{font-size:13px}
+button:not(:disabled):hover{filter:brightness(.98)}
+input,textarea{caret-color:#6d8d0e}
+
+@media (max-width:900px){
+  .pageShell{padding:0}
+  .dashboard{min-height:100vh;border-radius:0;padding:20px 22px 30px}
+  .homeHero{min-height:0;padding:44px}
+  .homeSnapshot{margin:34px 0 0}
+  .grid{grid-template-columns:1fr;gap:16px}
+}
+@media (max-width:560px){
+  .dashboard{padding:14px 14px 26px}
+  .siteNavigation{height:62px;margin-bottom:14px}
+  .siteBrand{gap:8px}.siteBrand .brandMark{width:34px;height:34px}.siteBrand b{font-size:13px}
+  .siteNavigation nav{gap:1px}.siteNavigation nav button{padding:10px 9px;font-size:10px}
+  .homeHero{padding:30px 22px 24px;border-radius:24px}
+  .homeHero:before{display:none}
+  .homeHero .dailyQuote{font-size:34px;letter-spacing:-1.4px}
+  .homeHero>div>p:not(.eyebrow){font-size:12px}
+  .homeSnapshot{min-height:320px;padding:22px;border-radius:22px}
+  .homeHighlights{gap:10px}.homeHighlights button{min-height:88px;padding:15px}
+  .topbar{min-height:0;margin-bottom:13px;padding:18px;border-radius:20px}
+  .topbar h1{font-size:25px}.topbar .subtitle{font-size:11px}.actions>button{padding:10px 13px;font-size:10px}
+  .dataQuickNav{margin:0 -2px 14px}.dataQuickNav button{padding:10px 13px}
+  .card{padding:19px;border-radius:21px}.card h2{font-size:19px}
+  .activity,.calendar{height:365px}
+  .healthViewActions{gap:4px}.healthTrendToggle{padding:6px 8px;font-size:9px}
+  .bubbleStage{inset:78px 4px 48px 86px}.bubble.yellow{width:188px;height:188px}.bubble.coral{width:112px;height:112px}
+  .calendarActions{overflow-x:auto;justify-content:flex-start;padding-bottom:2px}
+  .calendar .cardHead{gap:10px}.days>span,.days>button,.days.sixRows>span,.days.sixRows>button{width:31px;height:31px;font-size:12px}
+  .salaryMetrics{gap:7px}.salaryMetrics>div{padding:14px 12px}
+}
