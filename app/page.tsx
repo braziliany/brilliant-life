@@ -127,6 +127,7 @@ export default function Home() {
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
   const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes" | "restingHeartRateBpm">("steps");
   const [showHealthTrend, setShowHealthTrend] = useState(false);
+  const [showHealthGuide, setShowHealthGuide] = useState(false);
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
   const [showCalendarNotes, setShowCalendarNotes] = useState(false);
@@ -597,8 +598,28 @@ export default function Home() {
 
           <div className="grid">
             <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow">今日概览</p><h2>{showHealthTrend ? "健康趋势" : "训练成果"}</h2></div><button type="button" className={`healthTrendToggle${showHealthTrend ? " active" : ""}`} onClick={() => setShowHealthTrend((value) => !value)}>{showHealthTrend ? "今日" : "趋势"}</button></div>
-              {showHealthTrend ? (
+              <div className="cardHead">
+                <div><p className="eyebrow">Apple 健康</p><h2>{showHealthGuide ? "同步指南" : showHealthTrend ? "健康趋势" : "训练成果"}</h2></div>
+                <div className="healthViewActions">
+                  <button type="button" className={`healthTrendToggle${showHealthTrend && !showHealthGuide ? " active" : ""}`} onClick={() => { setShowHealthTrend((value) => !value); setShowHealthGuide(false); }}>{showHealthTrend && !showHealthGuide ? "今日" : "趋势"}</button>
+                  <button type="button" className={`healthTrendToggle${showHealthGuide ? " active" : ""}`} onClick={() => setShowHealthGuide((value) => !value)}>{showHealthGuide ? "返回" : "同步"}</button>
+                </div>
+              </div>
+              {showHealthGuide ? (
+                <div className="healthGuide">
+                  <div className="healthGuideStatus">
+                    <span>当前状态</span>
+                    <strong className={healthLoadStatus === "ready" && health ? "online" : ""}>{healthLoadStatus === "loading" ? "检查中" : healthLoadStatus === "error" ? "读取失败" : health ? `已同步至 ${health.date}` : "等待首次同步"}</strong>
+                  </div>
+                  <ol>
+                    <li><b>选择指标</b><span>步数、活动能量、静息能量、Apple 锻炼时间、睡眠分析、静息心率；有体重秤后再启用体重。</span></li>
+                    <li><b>设置来源</b><span>手表指标选择当前 Apple Watch，体重选择“健康”；旧名称的同一块手表可不选。</span></li>
+                    <li><b>设置导出</b><span>JSON v2、日期范围“今天”、汇总数据开启、时间分组“天”、批量请求关闭。</span></li>
+                    <li><b>检查结果</b><span>成功响应应包含 imported 和最新日期；HTTP 401 检查密钥，HTTP 400 检查所选指标。</span></li>
+                  </ol>
+                  <p>建议每天定时同步一次；修改指标或来源后，手动导出最近 7 天即可补齐记录。</p>
+                </div>
+              ) : showHealthTrend ? (
                 <div className="healthTrend">
                   <div className="healthTrendControls">
                     <div className="healthMetricTabs">
