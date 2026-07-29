@@ -485,6 +485,35 @@ export default function Home() {
     URL.revokeObjectURL(url);
   };
 
+  const exportHealthRecords = () => {
+    if (healthHistory.length === 0) return;
+    const headers = ["日期", "步数", "活动能量(kcal)", "静息能量(kcal)", "总能量(kcal)", "锻炼(分钟)", "睡眠(分钟)", "静息心率(次/分)", "体重(kg)", "来源", "更新时间"];
+    const rows = healthHistory.map((record) => [
+      record.date,
+      record.steps,
+      record.activeEnergyKcal,
+      record.restingEnergyKcal,
+      record.activeEnergyKcal + record.restingEnergyKcal,
+      record.exerciseMinutes,
+      record.sleepMinutes ?? "",
+      record.restingHeartRateBpm ?? "",
+      record.weightKg ?? "",
+      record.source,
+      record.updatedAt,
+    ]);
+    const escapeCsv = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
+    const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
+    const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `璀璨人生-健康数据-${today.year}-${String(today.month + 1).padStart(2, "0")}-${String(today.day).padStart(2, "0")}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
+
   const openExperienceForm = (experience?: WorkExperience) => {
     setExperienceEditingId(experience?.id ?? null);
     setExperienceDraft(experience
@@ -601,6 +630,7 @@ export default function Home() {
               <div className="cardHead">
                 <div><p className="eyebrow">Apple 健康</p><h2>{showHealthGuide ? "同步指南" : showHealthTrend ? "健康趋势" : "训练成果"}</h2></div>
                 <div className="healthViewActions">
+                  <button type="button" className="healthTrendToggle" onClick={exportHealthRecords} disabled={healthHistory.length === 0} aria-label="导出最近30天健康数据">CSV</button>
                   <button type="button" className={`healthTrendToggle${showHealthTrend && !showHealthGuide ? " active" : ""}`} onClick={() => { setShowHealthTrend((value) => !value); setShowHealthGuide(false); }}>{showHealthTrend && !showHealthGuide ? "今日" : "趋势"}</button>
                   <button type="button" className={`healthTrendToggle${showHealthGuide ? " active" : ""}`} onClick={() => setShowHealthGuide((value) => !value)}>{showHealthGuide ? "返回" : "同步"}</button>
                 </div>
