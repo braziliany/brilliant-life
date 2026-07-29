@@ -49,9 +49,10 @@ type WorkExperience = {
   startDate: string;
   endDate: string | null;
   summary: string;
+  sortOrder: number;
 };
 
-type WorkExperienceDraft = Omit<WorkExperience, "id">;
+type WorkExperienceDraft = Omit<WorkExperience, "id" | "sortOrder">;
 
 type CalendarNote = {
   month: string;
@@ -148,6 +149,7 @@ export default function Home() {
   const [experienceEditingId, setExperienceEditingId] = useState<number | null>(null);
   const [experienceFormOpen, setExperienceFormOpen] = useState(false);
   const [experienceStatus, setExperienceStatus] = useState<"idle" | "loading" | "saving" | "error">("loading");
+  const [draggedExperienceId, setDraggedExperienceId] = useState<number | null>(null);
   const [experienceDraft, setExperienceDraft] = useState<WorkExperienceDraft>({ company: "", role: "", startDate: "", endDate: null, summary: "" });
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = getShanghaiDate();
@@ -564,6 +566,46 @@ export default function Home() {
     }
   };
 
+  const saveExperienceOrder = async (items: WorkExperience[]) => {
+    const previous = workExperiences;
+    const ordered = items.map((item, sortOrder) => ({ ...item, sortOrder }));
+    setWorkExperiences(ordered);
+    try {
+      const response = await fetch("/api/work-experiences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: ordered.map(({ id }) => id) }),
+      });
+      if (!response.ok) throw new Error("Reorder failed");
+      setExperienceStatus("idle");
+    } catch {
+      setWorkExperiences(previous);
+      setExperienceStatus("error");
+    }
+  };
+
+  const moveExperience = (id: number, direction: -1 | 1) => {
+    const from = workExperiences.findIndex((item) => item.id === id);
+    const to = from + direction;
+    if (from < 0 || to < 0 || to >= workExperiences.length) return;
+    const reordered = [...workExperiences];
+    const [item] = reordered.splice(from, 1);
+    reordered.splice(to, 0, item);
+    void saveExperienceOrder(reordered);
+  };
+
+  const dropExperienceBefore = (targetId: number) => {
+    if (draggedExperienceId === null || draggedExperienceId === targetId) return;
+    const reordered = [...workExperiences];
+    const from = reordered.findIndex((item) => item.id === draggedExperienceId);
+    const to = reordered.findIndex((item) => item.id === targetId);
+    if (from < 0 || to < 0) return;
+    const [item] = reordered.splice(from, 1);
+    reordered.splice(to, 0, item);
+    setDraggedExperienceId(null);
+    void saveExperienceOrder(reordered);
+  };
+
   return (
     <main className="pageShell">
       <section className="dashboard">
@@ -813,11 +855,39 @@ export default function Home() {
                   {experienceStatus === "loading" && <p className="experienceEmpty">正在读取工作经历…</p>}
                   {experienceStatus === "error" && <div className="moduleState" role="alert"><p>工作经历读取失败。</p><button type="button" onClick={loadWorkExperiences}>重新加载</button></div>}
                   {experienceStatus === "idle" && workExperiences.length === 0 && <button type="button" className="experienceEmpty addExperienceEmpty" onClick={() => openExperienceForm()}>还没有工作经历，点击添加第一条</button>}
-                  {workExperiences.map((experience) => (
-                    <div className="experienceItem" key={experience.id}>
-                      <span className="experienceMark" aria-hidden="true" />
+                  {workExperiences.map((experience, index) => (
+                    <div
+                      className={`experienceItem${draggedExperienceId === experience.id ? " dragging" : ""}`}
+                      key={experience.id}
+                      onDragOver={(event) => {
+                        event.preventDefault();
+                        event.dataTransfer.dropEffect = "move";
+                      }}
+                      onDrop={(event) => {
+                        event.preventDefault();
+                        dropExperienceBefore(experience.id);
+                      }}
+                    >
+                      <button
+                        className="experienceDragHandle"
+                        type="button"
+                        draggable
+                        aria-label={`拖动排列${experience.company}`}
+                        title="拖动排序"
+                        onDragStart={(event) => {
+                          setDraggedExperienceId(experience.id);
+                          event.dataTransfer.effectAllowed = "move";
+                          event.dataTransfer.setData("text/plain", String(experience.id));
+                        }}
+                        onDragEnd={() => setDraggedExperienceId(null)}
+                      >⠿</button>
                       <div className="experienceContent"><b>{experience.role}</b><strong>{experience.company}</strong><small>{experience.startDate} — {experience.endDate ?? "至今"}</small>{experience.summary && <p>{experience.summary}</p>}</div>
-                      <div className="experienceActions"><button type="button" onClick={() => openExperienceForm(experience)}>编辑</button><button type="button" className="deleteExperience" onClick={() => deleteWorkExperience(experience)}>删除</button></div>
+                      <div className="experienceActions">
+                        <button type="button" onClick={() => moveExperience(experience.id, -1)} disabled={index === 0} aria-label={`上移${experience.company}`}>↑</button>
+                        <button type="button" onClick={() => moveExperience(experience.id, 1)} disabled={index === workExperiences.length - 1} aria-label={`下移${experience.company}`}>↓</button>
+                        <button type="button" onClick={() => openExperienceForm(experience)}>编辑</button>
+                        <button type="button" className="deleteExperience" onClick={() => deleteWorkExperience(experience)}>删除</button>
+                      </div>
                     </div>
                   ))}
                 </div>
