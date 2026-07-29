@@ -22,6 +22,15 @@ type HealthMetric = {
     endDate?: string;
     value?: string;
     sleepStage?: string;
+    totalSleep?: number;
+    asleep?: number;
+    core?: number;
+    deep?: number;
+    rem?: number;
+    awake?: number;
+    inBed?: number;
+    sleepStart?: string;
+    sleepEnd?: string;
   }>;
 };
 
@@ -70,6 +79,21 @@ function weightInKg(value: unknown, units = "kg") {
 }
 
 function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], units = "min") {
+  const unitMultiplier = units.toLowerCase().startsWith("hr")
+    ? 60
+    : units.toLowerCase().startsWith("sec")
+      ? 1 / 60
+      : 1;
+  const aggregatedTotal = Number(point.totalSleep ?? point.asleep);
+  if (Number.isFinite(aggregatedTotal) && aggregatedTotal > 0) {
+    return Math.min(1_440, aggregatedTotal * unitMultiplier);
+  }
+  const stageTotal = [point.core, point.deep, point.rem]
+    .map(Number)
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .reduce((sum, value) => sum + value, 0);
+  if (stageTotal > 0) return Math.min(1_440, stageTotal * unitMultiplier);
+
   const start = Date.parse(point.startDate ?? "");
   const end = Date.parse(point.endDate ?? "");
   if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
@@ -78,12 +102,7 @@ function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], 
 
   const quantity = Number(point.qty);
   if (!Number.isFinite(quantity) || quantity <= 0) return 0;
-  const normalizedUnits = units.toLowerCase();
-  const minutes = normalizedUnits.startsWith("hr")
-    ? quantity * 60
-    : normalizedUnits.startsWith("sec")
-      ? quantity / 60
-      : quantity;
+  const minutes = quantity * unitMultiplier;
   return Math.min(1_440, minutes);
 }
 
@@ -127,7 +146,7 @@ export function normalizeHealthPayload(payload: HealthPayload) {
     if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name) && !sleepNames.has(name)) continue;
 
     for (const point of metric.data ?? []) {
-      const date = dateOnly(point.endDate ?? point.date);
+      const date = dateOnly(point.sleepEnd ?? point.endDate ?? point.date);
       if (!date) continue;
       const day = days.get(date) ?? {
         date,
@@ -151,7 +170,8 @@ export function normalizeHealthPayload(payload: HealthPayload) {
       if (sleepNames.has(name)) {
         const stage = (point.sleepStage ?? point.value ?? name).toLowerCase().replaceAll(/[\s_-]/g, "");
         if (!stage.includes("awake") && !stage.includes("inbed")) {
-          day.sleepMinutes = (day.sleepMinutes ?? 0) + sleepDurationMinutes(point, metric.units);
+          const duration = sleepDurationMinutes(point, metric.units);
+          if (duration > 0) day.sleepMinutes = (day.sleepMinutes ?? 0) + duration;
         }
       }
       days.set(date, day);
