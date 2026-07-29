@@ -1,4 +1,4 @@
-const VERSION = "brilliant-life-v2";
+const VERSION = "brilliant-life-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();

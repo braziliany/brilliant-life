@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "璀璨人生",
   description: "集中掌握健康数据、工作日历、工资与生活目标。",
   applicationName: "璀璨人生",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest.webmanifest?v=3",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -32,12 +32,12 @@ export const metadata: Metadata = {
     images: ["https://pulse.sophier.org/og.png"],
   },
   icons: {
-    icon: [{ url: "/pulse-icon.png", type: "image/png", sizes: "512x512" }],
-    shortcut: [{ url: "/pulse-icon.png", type: "image/png", sizes: "512x512" }],
-    apple: [{ url: "/apple-touch-icon-precomposed.png", type: "image/png", sizes: "180x180" }],
+    icon: [{ url: "/pwa-icon-512-v2.png?v=3", type: "image/png", sizes: "512x512" }],
+    shortcut: [{ url: "/pwa-icon-512-v2.png?v=3", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/apple-touch-icon-v2.png?v=3", type: "image/png", sizes: "180x180" }],
     other: [{
       rel: "apple-touch-icon-precomposed",
-      url: "/apple-touch-icon-precomposed.png",
+      url: "/apple-touch-icon-v2.png?v=3",
       type: "image/png",
       sizes: "180x180",
     }],

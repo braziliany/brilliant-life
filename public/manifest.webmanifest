@@ -12,13 +12,13 @@
   "orientation": "any",
   "icons": [
     {
-      "src": "/apple-touch-icon-precomposed.png",
+      "src": "/apple-touch-icon-v2.png?v=3",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/pulse-icon.png",
+      "src": "/pwa-icon-512-v2.png?v=3",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
