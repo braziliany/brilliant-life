@@ -96,5 +96,12 @@ test("health normalization aggregates supported metrics and clamps unsafe values
   assert.equal(normalizeHealthPayload({
     metrics: [{ name: "sleep_analysis", units: "hr", data: [{ date: "2026-07-29", totalSleep: 0, inBed: 8 }] }],
   })[0].sleepMinutes, null);
+  assert.deepEqual(normalizeHealthPayload({
+    metrics: [{ name: "step_count", data: [
+      { qty: 1, date: "2026-07-29" },
+      { qty: 1, date: "2026-07-25" },
+      { qty: 1, date: "2026-07-28" },
+    ] }],
+  }).map((row) => row.date), ["2026-07-25", "2026-07-28", "2026-07-29"]);
   assert.deepEqual(normalizeHealthPayload({ metrics: [{ name: "unsupported", data: [] }] }), []);
 });

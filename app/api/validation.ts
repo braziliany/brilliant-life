@@ -178,5 +178,5 @@ export function normalizeHealthPayload(payload: HealthPayload) {
     }
   }
 
-  return [...days.values()];
+  return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
 }
