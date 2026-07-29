@@ -61,7 +61,8 @@ test("health normalization aggregates supported metrics and clamps unsafe values
   const rows = normalizeHealthPayload({
     metrics: [
       { name: "step_count", data: [{ qty: 20, date: "2026-07-28 08:00:00 +0800" }, { qty: 30, date: "2026-07-28 09:00:00 +0800" }] },
-      { name: "active_energy", data: [{ qty: 120, date: "2026-07-28 09:00:00 +0800" }] },
+      { name: "active_energy", units: "kJ", data: [{ qty: 502.08, date: "2026-07-28 09:00:00 +0800" }] },
+      { name: "resting_energy", units: "kJ", data: [{ qty: 836.8, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "apple_exercise_time", units: "hr", data: [{ qty: 0.5, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "weight_body_mass", units: "lb", data: [{ qty: 132.277, date: "2026-07-28 09:00:00 +0800" }] },
       { name: "sleep_analysis", units: "hr", data: [
@@ -76,7 +77,7 @@ test("health normalization aggregates supported metrics and clamps unsafe values
     date: "2026-07-28",
     steps: 50,
     activeEnergyKcal: 120,
-    restingEnergyKcal: 0,
+    restingEnergyKcal: 200,
     exerciseMinutes: 30,
     workoutCount: 0,
     weightKg: 60,
@@ -86,6 +87,9 @@ test("health normalization aggregates supported metrics and clamps unsafe values
 
   assert.deepEqual(normalizeHealthPayload({ date: "2026-07-28", steps: 999_999 })[0].steps, 200_000);
   assert.equal(normalizeHealthPayload({ date: "2026-07-28", weightKg: 53.2 })[0].weightKg, 53.2);
+  assert.equal(normalizeHealthPayload({
+    metrics: [{ name: "active_energy", units: "kcal", data: [{ qty: 321, date: "2026-07-29" }] }],
+  })[0].activeEnergyKcal, 321);
   assert.equal(normalizeHealthPayload({
     metrics: [{
       name: "sleep_analysis",

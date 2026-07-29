@@ -78,6 +78,18 @@ function weightInKg(value: unknown, units = "kg") {
   return kilograms >= 20 && kilograms <= 400 ? Math.round(kilograms * 1000) / 1000 : null;
 }
 
+function energyInKcal(value: unknown, units = "kcal") {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  const normalizedUnits = units.toLowerCase().replaceAll(/\s/g, "");
+  const kilocalories = normalizedUnits === "kj" || normalizedUnits.startsWith("kilojoule")
+    ? parsed / 4.184
+    : normalizedUnits === "j" || normalizedUnits.startsWith("joule")
+      ? parsed / 4_184
+      : parsed;
+  return numberInRange(Math.round(kilocalories * 1_000_000) / 1_000_000, 0, 20_000);
+}
+
 function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], units = "min") {
   const unitMultiplier = units.toLowerCase().startsWith("hr")
     ? 60
@@ -161,8 +173,8 @@ export function normalizeHealthPayload(payload: HealthPayload) {
       };
       const qty = numberInRange(point.qty, 0, 200_000);
       if (name === "step_count") day.steps += Math.round(qty);
-      if (name === "active_energy") day.activeEnergyKcal += qty;
-      if (restingEnergyNames.has(name)) day.restingEnergyKcal += qty;
+      if (name === "active_energy") day.activeEnergyKcal += energyInKcal(point.qty, metric.units);
+      if (restingEnergyNames.has(name)) day.restingEnergyKcal += energyInKcal(point.qty, metric.units);
       if (exerciseNames.has(name)) day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
       if (weightNames.has(name)) {
         day.weightKg = weightInKg(point.qty, metric.units);
