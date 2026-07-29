@@ -154,9 +154,6 @@ export default function Home() {
   const [salaryRecords, setSalaryRecords] = useState<SalaryRecord[]>([]);
   const [salaryLoadStatus, setSalaryLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [salaryStatus, setSalaryStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
-  const [salaryEditingMonth, setSalaryEditingMonth] = useState<string | null>(null);
-  const [salaryEditingWorkdays, setSalaryEditingWorkdays] = useState(0);
-  const [salaryRecordActionStatus, setSalaryRecordActionStatus] = useState<"idle" | "saving" | "deleting" | "error">("idle");
   const [salaryPolicy, setSalaryPolicy] = useState<SalaryPolicy>({ dailyRate: 275, deductions: 130, taxThreshold: 5000, taxRate: 3, extraIncome: 0, bonus: 0, leaveDeduction: 0 });
   const [workExperiences, setWorkExperiences] = useState<WorkExperience[]>([]);
   const [experienceEditingId, setExperienceEditingId] = useState<number | null>(null);
@@ -196,6 +193,8 @@ export default function Home() {
   const annualWorkdayTotal = annualWorkdays.reduce((sum, count) => sum + count, 0);
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   const calendarMonthKey = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
+  const currentMonthKey = `${today.year}-${String(today.month + 1).padStart(2, "0")}`;
+  const isCurrentCalendarMonth = calendarMonthKey === currentMonthKey;
   const workdays = calendarWorkdays;
   const stepGoal = 8500;
   const steps = health?.steps ?? 0;
@@ -343,7 +342,7 @@ export default function Home() {
   const incomeTax = taxableIncome * taxRate / 100;
   const netSalary = grossSalary - deductions - leaveDeduction - incomeTax;
   const selectedSalaryRecord = salaryRecords.find((record) => record.month === calendarMonthKey);
-  const salaryRecordMismatch = selectedSalaryRecord
+  const salaryRecordMismatch = isCurrentCalendarMonth && selectedSalaryRecord
     ? selectedSalaryRecord.workdays !== workdays || Math.abs(selectedSalaryRecord.netSalary - netSalary) >= 0.01
     : false;
   const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
@@ -456,6 +455,7 @@ export default function Home() {
   };
 
   const saveSalaryRecord = async () => {
+    if (!isCurrentCalendarMonth) return;
     const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
     setSalaryStatus("saving");
     try {
@@ -470,55 +470,6 @@ export default function Home() {
       setSalaryStatus("saved");
     } catch {
       setSalaryStatus("error");
-    }
-  };
-
-  const startSalaryRecordEdit = (record: SalaryRecord) => {
-    setSalaryEditingMonth(record.month);
-    setSalaryEditingWorkdays(record.workdays);
-    setSalaryRecordActionStatus("idle");
-  };
-
-  const saveSalaryRecordCorrection = async () => {
-    if (!salaryEditingMonth || !Number.isInteger(salaryEditingWorkdays) || salaryEditingWorkdays < 0 || salaryEditingWorkdays > 31) {
-      setSalaryRecordActionStatus("error");
-      return;
-    }
-    setSalaryRecordActionStatus("saving");
-    try {
-      const response = await fetch("/api/salary", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: salaryEditingMonth, workdays: salaryEditingWorkdays }),
-      });
-      if (!response.ok) throw new Error("Salary correction failed");
-      const { record } = await response.json() as { record: SalaryRecord };
-      setSalaryRecords((records) => records
-        .map((item) => item.month === record.month ? record : item)
-        .sort((a, b) => b.month.localeCompare(a.month)));
-      setSalaryEditingMonth(null);
-      setSalaryRecordActionStatus("idle");
-    } catch {
-      setSalaryRecordActionStatus("error");
-    }
-  };
-
-  const deleteSalaryRecord = async (record: SalaryRecord) => {
-    const monthLabelForDelete = `${record.month.slice(0, 4)} 年 ${record.month.slice(5)} 月`;
-    if (!window.confirm(`确定删除 ${monthLabelForDelete} 的工资记录吗？\n已保存实发：¥${money(record.netSalary)}\n删除后将从工资历史和趋势中移除。`)) return;
-    setSalaryRecordActionStatus("deleting");
-    try {
-      const response = await fetch("/api/salary", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ month: record.month }),
-      });
-      if (!response.ok) throw new Error("Salary deletion failed");
-      setSalaryRecords((records) => records.filter((item) => item.month !== record.month));
-      if (salaryEditingMonth === record.month) setSalaryEditingMonth(null);
-      setSalaryRecordActionStatus("idle");
-    } catch {
-      setSalaryRecordActionStatus("error");
     }
   };
 
@@ -952,13 +903,12 @@ export default function Home() {
                 <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
                 <div className="salaryHistoryActions">
                   <button type="button" className="exportSalary" onClick={exportSalaryRecords} disabled={salaryRecords.length === 0}>导出 CSV</button>
-                  <button type="button" className="saveSalary" onClick={saveSalaryRecord} disabled={salaryStatus === "saving"}>
-                    {salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}
+                  <button type="button" className="saveSalary" onClick={saveSalaryRecord} disabled={salaryStatus === "saving" || !isCurrentCalendarMonth}>
+                    {!isCurrentCalendarMonth ? "历史已锁定" : salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}
                   </button>
                 </div>
               </div>
               {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}
-              {salaryRecordActionStatus === "error" && <p className="salaryError" role="alert">工资记录操作失败，请检查工作日并重试。</p>}
               {salaryTrend.length > 0 && (
                 <section className="salaryTrend" aria-label="最近六个月工资趋势">
                   <div className="trendLegend">
@@ -989,28 +939,12 @@ export default function Home() {
                   <div className="moduleState" role="alert"><p>工资记录读取失败，固定计算规则仍可使用。</p><button type="button" onClick={loadSalaryData}>重新加载</button></div>
                 ) : salaryRecords.length === 0 ? (
                   <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
-                ) : salaryRecords.map((record) => salaryEditingMonth === record.month ? (
-                  <div className="salaryRecord editing" key={record.month}>
-                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>正在纠正已保存记录</small></div>
-                    <label className="salaryRecordWorkdays"><span>工作日</span><input type="number" min="0" max="31" step="1" value={salaryEditingWorkdays} onChange={(event) => setSalaryEditingWorkdays(Number(event.target.value))} /><b>天</b></label>
-                    <span className="salaryEditHint">保存后按固定工资规则重新计算</span>
-                    <div className="salaryRecordEditActions">
-                      <button type="button" onClick={() => { setSalaryEditingMonth(null); setSalaryRecordActionStatus("idle"); }}>取消</button>
-                      <button type="button" className="confirmSalaryEdit" onClick={saveSalaryRecordCorrection} disabled={salaryRecordActionStatus === "saving"}>{salaryRecordActionStatus === "saving" ? "保存中…" : "保存纠正"}</button>
-                    </div>
-                  </div>
-                ) : (
+                ) : salaryRecords.map((record) => (
                   <div className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
                     <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
                     <span>应发 ¥{money(record.grossSalary)}</span>
                     <span>个税 ¥{money(record.incomeTax)}</span>
-                    <div className="salaryRecordEnd">
-                      <strong>已保存实发 ¥{money(record.netSalary)}</strong>
-                      <div className="salaryRecordActions">
-                        <button type="button" onClick={() => startSalaryRecordEdit(record)}>纠错</button>
-                        <button type="button" className="deleteSalaryRecord" onClick={() => deleteSalaryRecord(record)} disabled={salaryRecordActionStatus === "deleting"}>删除</button>
-                      </div>
-                    </div>
+                    <strong>已保存实发 ¥{money(record.netSalary)}</strong>
                   </div>
                 ))}
               </div>

@@ -53,8 +53,19 @@ export function validSalaryRecord(payload: Record<string, unknown>) {
   );
 }
 
-export function validSalaryRecordDeletion(payload: Record<string, unknown>) {
-  return validMonth(payload.month);
+export function currentShanghaiMonth(value = new Date()) {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+  }).formatToParts(value);
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  return `${year}-${month}`;
+}
+
+export function isCurrentSalaryMonth(month: unknown, value = new Date()) {
+  return validMonth(month) && month === currentShanghaiMonth(value);
 }
 
 export function isValidHealthApiKey(configuredKey: unknown, suppliedKey: unknown) {
