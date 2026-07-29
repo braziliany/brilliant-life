@@ -32,8 +32,15 @@ export const metadata: Metadata = {
     images: ["https://pulse.sophier.org/og.png"],
   },
   icons: {
-    icon: [{ url: "/pulse-icon.png", type: "image/png", sizes: "512x512" }],
-    apple: [{ url: "/apple-touch-icon.png", type: "image/png", sizes: "180x180" }],
+    icon: [{ url: "/pwa-icon-512-v2.png", type: "image/png", sizes: "512x512" }],
+    shortcut: [{ url: "/pwa-icon-512-v2.png", type: "image/png", sizes: "512x512" }],
+    apple: [{ url: "/apple-touch-icon-v2.png", type: "image/png", sizes: "180x180" }],
+    other: [{
+      rel: "apple-touch-icon-precomposed",
+      url: "/apple-touch-icon-precomposed.png",
+      type: "image/png",
+      sizes: "180x180",
+    }],
   },
 };
 
