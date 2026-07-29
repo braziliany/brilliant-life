@@ -10,7 +10,7 @@ export const metadata: Metadata = {
   title: "璀璨人生",
   description: "集中掌握健康数据、工作日历、工资与生活目标。",
   applicationName: "璀璨人生",
-  manifest: "/manifest.webmanifest",
+  manifest: "/manifest-v2.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
