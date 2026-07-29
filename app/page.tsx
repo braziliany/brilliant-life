@@ -118,6 +118,17 @@ const genshinQuotes = [
   { text: "风带来了故事的种子，时间使之发芽。", source: "蒙德古语" },
 ] as const;
 
+const experienceDuration = (startDate: string, endDate: string | null) => {
+  const [startYear, startMonth] = startDate.split("-").map(Number);
+  const current = getShanghaiDate();
+  const effectiveEnd = endDate ?? `${current.year}-${String(current.month + 1).padStart(2, "0")}`;
+  const [endYear, endMonth] = effectiveEnd.split("-").map(Number);
+  const months = Math.max(0, (endYear - startYear) * 12 + endMonth - startMonth + 1);
+  const years = Math.floor(months / 12);
+  const remainingMonths = months % 12;
+  return [years ? `${years} 年` : "", remainingMonths ? `${remainingMonths} 个月` : ""].filter(Boolean).join(" ") || "不足 1 个月";
+};
+
 export default function Home() {
   const [sitePage, setSitePage] = useState<"home" | "dashboard">("home");
   const [activeSection, setActiveSection] = useState("overview");
@@ -149,6 +160,8 @@ export default function Home() {
   const [experienceFormOpen, setExperienceFormOpen] = useState(false);
   const [experienceStatus, setExperienceStatus] = useState<"idle" | "loading" | "saving" | "error">("loading");
   const [experienceDraft, setExperienceDraft] = useState<WorkExperienceDraft>({ company: "", role: "", startDate: "", endDate: null, summary: "" });
+  const [experienceView, setExperienceView] = useState<"list" | "timeline">("list");
+  const [expandedExperienceId, setExpandedExperienceId] = useState<number | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = getShanghaiDate();
     return { year: now.year, month: now.month };
@@ -795,7 +808,16 @@ export default function Home() {
             </div>
 
             <article id="habits" className={`card habits${activeSection === "habits" ? " sectionActive" : ""}`}>
-              <div className="cardHead"><div><p className="eyebrow">职业档案</p><h2>工作经历</h2></div><button type="button" className="addButton" onClick={() => openExperienceForm()}>＋ 添加经历</button></div>
+              <div className="cardHead">
+                <div><p className="eyebrow">职业档案</p><h2>工作经历</h2></div>
+                <div className="experienceHeadActions">
+                  <div className="experienceViewSwitch" aria-label="工作经历视图">
+                    <button type="button" className={experienceView === "list" ? "active" : ""} onClick={() => setExperienceView("list")}>列表</button>
+                    <button type="button" className={experienceView === "timeline" ? "active" : ""} onClick={() => setExperienceView("timeline")}>时间线</button>
+                  </div>
+                  <button type="button" className="addButton" onClick={() => openExperienceForm()}>＋ 添加经历</button>
+                </div>
+              </div>
               {experienceFormOpen ? (
                 <form className="experienceForm" onSubmit={saveWorkExperience}>
                   <div className="experienceFields">
@@ -809,20 +831,27 @@ export default function Home() {
                   <div className="experienceFormActions"><button type="button" onClick={() => setExperienceFormOpen(false)}>取消</button><button type="submit" disabled={experienceStatus === "saving"}>{experienceStatus === "saving" ? "保存中…" : experienceEditingId ? "保存修改" : "添加经历"}</button></div>
                 </form>
               ) : (
-                <div className="experienceList">
+                <div className={`experienceList ${experienceView}`}>
                   {experienceStatus === "loading" && <p className="experienceEmpty">正在读取工作经历…</p>}
                   {experienceStatus === "error" && <div className="moduleState" role="alert"><p>工作经历读取失败。</p><button type="button" onClick={loadWorkExperiences}>重新加载</button></div>}
                   {experienceStatus === "idle" && workExperiences.length === 0 && <button type="button" className="experienceEmpty addExperienceEmpty" onClick={() => openExperienceForm()}>还没有工作经历，点击添加第一条</button>}
-                  {workExperiences.map((experience) => (
-                    <div className="experienceItem" key={experience.id}>
+                  {workExperiences.map((experience) => {
+                    const expanded = expandedExperienceId === experience.id;
+                    return (
+                    <div className={`experienceItem${expanded ? " expanded" : ""}`} key={experience.id}>
                       <span className="experienceMark" aria-hidden="true" />
-                      <div className="experienceContent"><b>{experience.role}</b><strong>{experience.company}</strong><small>{experience.startDate} — {experience.endDate ?? "至今"}</small>{experience.summary && <p>{experience.summary}</p>}</div>
+                      <div className="experienceContent">
+                        <b>{experience.role}</b><strong>{experience.company}</strong>
+                        <small>{experience.startDate} — {experience.endDate ?? "至今"} · {experienceDuration(experience.startDate, experience.endDate)}</small>
+                        {experience.summary && <p>{experience.summary}</p>}
+                      </div>
                       <div className="experienceActions">
+                        <button type="button" onClick={() => setExpandedExperienceId(expanded ? null : experience.id)}>{expanded ? "收起" : "详情"}</button>
                         <button type="button" onClick={() => openExperienceForm(experience)}>编辑</button>
                         <button type="button" className="deleteExperience" onClick={() => deleteWorkExperience(experience)}>删除</button>
                       </div>
                     </div>
-                  ))}
+                  )})}
                 </div>
               )}
             </article>
