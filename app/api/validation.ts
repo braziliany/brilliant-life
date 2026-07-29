@@ -53,6 +53,10 @@ export function validSalaryRecord(payload: Record<string, unknown>) {
   );
 }
 
+export function validSalaryRecordDeletion(payload: Record<string, unknown>) {
+  return validMonth(payload.month);
+}
+
 export function isValidHealthApiKey(configuredKey: unknown, suppliedKey: unknown) {
   return typeof configuredKey === "string" && configuredKey.length > 0 && suppliedKey === configuredKey;
 }

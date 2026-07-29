@@ -6,6 +6,7 @@ import {
   validDate,
   validMonth,
   validSalaryRecord,
+  validSalaryRecordDeletion,
 } from "../app/api/validation.ts";
 import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
 import { hasDashboardAccess } from "../app/api/access.ts";
@@ -33,6 +34,8 @@ test("salary record enforces month and workday boundaries", () => {
   assert.equal(validSalaryRecord({ month: "2026-07", workdays: 23 }), true);
   assert.equal(validSalaryRecord({ month: "2026-07", workdays: 32 }), false);
   assert.equal(validSalaryRecord({ month: "2026-7", workdays: 23 }), false);
+  assert.equal(validSalaryRecordDeletion({ month: "2026-07" }), true);
+  assert.equal(validSalaryRecordDeletion({ month: "2026-7" }), false);
 });
 
 test("salary policy is fixed by the backend algorithm", () => {

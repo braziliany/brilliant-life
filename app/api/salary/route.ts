@@ -1,8 +1,8 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { salaryRecords } from "../../../db/schema";
 import { hasDashboardAccess } from "../access";
-import { validSalaryRecord } from "../validation";
+import { validSalaryRecord, validSalaryRecordDeletion } from "../validation";
 import { calculateSalary, SALARY_POLICY } from "./policy";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
@@ -46,5 +46,28 @@ export async function PUT(request: Request) {
     return Response.json({ record: values }, { headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Salary update failed" }, { status: 500, headers: jsonHeaders });
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!hasDashboardAccess(request)) {
+    return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
+  }
+
+  try {
+    const payload = (await request.json()) as Record<string, unknown>;
+    if (!validSalaryRecordDeletion(payload)) {
+      return Response.json({ error: "Invalid salary month" }, { status: 400, headers: jsonHeaders });
+    }
+    const [deleted] = await getDb()
+      .delete(salaryRecords)
+      .where(eq(salaryRecords.month, payload.month as string))
+      .returning({ month: salaryRecords.month });
+    if (!deleted) {
+      return Response.json({ error: "Salary record not found" }, { status: 404, headers: jsonHeaders });
+    }
+    return Response.json({ deleted: deleted.month }, { headers: jsonHeaders });
+  } catch {
+    return Response.json({ error: "Salary deletion failed" }, { status: 500, headers: jsonHeaders });
   }
 }
