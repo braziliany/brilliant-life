@@ -327,6 +327,10 @@ export default function Home() {
   const taxableIncome = Math.max(0, grossSalary - deductions - leaveDeduction - taxThreshold);
   const incomeTax = taxableIncome * taxRate / 100;
   const netSalary = grossSalary - deductions - leaveDeduction - incomeTax;
+  const selectedSalaryRecord = salaryRecords.find((record) => record.month === calendarMonthKey);
+  const salaryRecordMismatch = selectedSalaryRecord
+    ? selectedSalaryRecord.workdays !== workdays || Math.abs(selectedSalaryRecord.netSalary - netSalary) >= 0.01
+    : false;
   const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
   const salaryTrendMax = Math.max(1, ...salaryTrend.map((record) => record.grossSalary));
   const money = (value: number) =>
@@ -840,9 +844,9 @@ export default function Home() {
 
               <div className="salarySummary">
                 <div className="netPay">
-                  <span>预计实发工资</span>
+                  <span>当前日历预计实发</span>
                   <strong>¥ {money(netSalary)}</strong>
-                  <small>应发工资 − 固定扣除 − 个税</small>
+                  <small>按 {workdays} 个工作日实时计算</small>
                 </div>
                 <div className="salaryMetrics">
                   <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
@@ -856,6 +860,17 @@ export default function Home() {
                 <span>计算公式</span>
                 <code>实发 = 工作日 × 日薪 + 额外收入 + 奖金 − 固定扣除 − 请假扣款 − 个税</code>
               </div>
+              {salaryRecordMismatch && selectedSalaryRecord && (
+                <div className="salaryMismatch" role="status">
+                  <div>
+                    <b>{monthLabel}的日历与已保存工资不一致</b>
+                    <span>当前日历 {workdays} 天，预计实发 ¥{money(netSalary)}；历史记录 {selectedSalaryRecord.workdays} 天，已保存实发 ¥{money(selectedSalaryRecord.netSalary)}。</span>
+                  </div>
+                  <button type="button" onClick={saveSalaryRecord} disabled={salaryStatus === "saving"}>
+                    {salaryStatus === "saving" ? "同步中…" : `同步为 ${workdays} 天`}
+                  </button>
+                </div>
+              )}
               <div className="salaryHistoryHead">
                 <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
                 <div className="salaryHistoryActions">
@@ -897,11 +912,11 @@ export default function Home() {
                 ) : salaryRecords.length === 0 ? (
                   <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
                 ) : salaryRecords.map((record) => (
-                  <div className="salaryRecord" key={record.month}>
-                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}</small></div>
+                  <div className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
+                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
                     <span>应发 ¥{money(record.grossSalary)}</span>
                     <span>个税 ¥{money(record.incomeTax)}</span>
-                    <strong>实发 ¥{money(record.netSalary)}</strong>
+                    <strong>已保存实发 ¥{money(record.netSalary)}</strong>
                   </div>
                 ))}
               </div>
