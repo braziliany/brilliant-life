@@ -139,6 +139,9 @@ export default function Home() {
   const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes" | "restingHeartRateBpm">("steps");
   const [showHealthTrend, setShowHealthTrend] = useState(false);
   const [showHealthGuide, setShowHealthGuide] = useState(false);
+  const [stepGoal, setStepGoal] = useState(8500);
+  const [stepGoalDraft, setStepGoalDraft] = useState("8500");
+  const [editingStepGoal, setEditingStepGoal] = useState(false);
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
   const [showCalendarNotes, setShowCalendarNotes] = useState(false);
@@ -196,7 +199,6 @@ export default function Home() {
   const currentMonthKey = `${today.year}-${String(today.month + 1).padStart(2, "0")}`;
   const isCurrentCalendarMonth = calendarMonthKey === currentMonthKey;
   const workdays = calendarWorkdays;
-  const stepGoal = 8500;
   const steps = health?.steps ?? 0;
   const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
   const activeEnergy = Math.round(health?.activeEnergyKcal ?? 0);
@@ -248,8 +250,8 @@ export default function Home() {
         if (!response.ok) throw new Error("Health data unavailable");
         return response.json() as Promise<{ health: HealthDaily | null; history: HealthDaily[] }>;
       })
-      .then(({ health: latest, history }) => {
-        setHealth(latest);
+      .then(({ history }) => {
+        setHealth(history.find((item) => item.date === todayKey) ?? null);
         setHealthHistory([...history].reverse());
         setHealthLoadStatus("ready");
       })
@@ -262,6 +264,35 @@ export default function Home() {
   useEffect(() => {
     loadHealthData();
   }, []);
+
+  useEffect(() => {
+    const savedGoal = Number(window.localStorage.getItem("brilliant-life-step-goal"));
+    if (Number.isInteger(savedGoal) && savedGoal >= 1000 && savedGoal <= 100000) {
+      setStepGoal(savedGoal);
+      setStepGoalDraft(String(savedGoal));
+    }
+  }, []);
+
+  useEffect(() => {
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") loadHealthData();
+    };
+    window.addEventListener("focus", refreshWhenVisible);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.removeEventListener("focus", refreshWhenVisible);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
+  }, [todayKey]);
+
+  const saveStepGoal = (event: React.FormEvent) => {
+    event.preventDefault();
+    const nextGoal = Number(stepGoalDraft);
+    if (!Number.isInteger(nextGoal) || nextGoal < 1000 || nextGoal > 100000) return;
+    setStepGoal(nextGoal);
+    window.localStorage.setItem("brilliant-life-step-goal", String(nextGoal));
+    setEditingStepGoal(false);
+  };
 
   useEffect(() => {
     setCalendarLoadStatus("loading");
@@ -793,7 +824,30 @@ export default function Home() {
 
             <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
               <article className="card steps">
-                <div><p className="eyebrow">每日目标</p><h2>今日步数</h2><strong>{steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span><button className="textButton">调整目标 →</button></div>
+                <div>
+                  <p className="eyebrow">每日目标</p>
+                  <h2>今日步数</h2>
+                  <strong>{steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span>
+                  {healthLoadStatus === "ready" && !health && <small className="todayHealthPending">等待今日同步</small>}
+                  {editingStepGoal ? (
+                    <form className="stepGoalForm" onSubmit={saveStepGoal}>
+                      <input
+                        type="number"
+                        min="1000"
+                        max="100000"
+                        step="500"
+                        aria-label="每日步数目标"
+                        value={stepGoalDraft}
+                        onChange={(event) => setStepGoalDraft(event.target.value)}
+                        autoFocus
+                      />
+                      <button type="submit">保存</button>
+                      <button type="button" onClick={() => { setStepGoalDraft(String(stepGoal)); setEditingStepGoal(false); }}>取消</button>
+                    </form>
+                  ) : (
+                    <button type="button" className="textButton" onClick={() => setEditingStepGoal(true)}>调整目标 →</button>
+                  )}
+                </div>
                 <div className="progressRing" style={{ background: `conic-gradient(var(--coral) 0 ${stepProgress}%, #eceae5 ${stepProgress}%)` }}><div><b>{stepProgress}%</b><small>已完成</small></div></div>
               </article>
               <article className="card weight">
