@@ -77,6 +77,20 @@ const getShanghaiDate = (value = new Date()) => {
   };
 };
 
+const formatShanghaiDateTime = (value?: string) => {
+  if (!value) return "尚无记录";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "时间未知";
+  return new Intl.DateTimeFormat("zh-CN", {
+    timeZone: "Asia/Shanghai",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(parsed);
+};
+
 const holidayRanges = [
   ["2026-01-01", "2026-01-03", "元旦"],
   ["2026-02-15", "2026-02-23", "春节"],
@@ -242,6 +256,21 @@ export default function Home() {
   const recentWeightMin = Math.min(...recentWeightValues, latestWeight ?? 0);
   const recentWeightMax = Math.max(...recentWeightValues, latestWeight ?? 1);
   const recentWeightRange = Math.max(0.1, recentWeightMax - recentWeightMin);
+  const latestSyncedHealth = healthHistory.at(-1) ?? null;
+  const missingTodayMetrics = health
+    ? [
+        health.weightKg === null ? "体重" : null,
+        health.sleepMinutes === null ? "睡眠" : null,
+        health.restingHeartRateBpm === null ? "静息心率" : null,
+      ].filter((label): label is string => label !== null)
+    : [];
+  const healthFreshness = healthLoadStatus === "loading"
+    ? "正在检查"
+    : healthLoadStatus === "error"
+      ? "读取失败"
+      : health
+        ? "今天已同步"
+        : "今天尚未上传";
 
   const loadHealthData = () => {
     setHealthLoadStatus("loading");
@@ -687,9 +716,18 @@ export default function Home() {
               </div>
               {showHealthGuide ? (
                 <div className="healthGuide">
-                  <div className="healthGuideStatus">
-                    <span>当前状态</span>
-                    <strong className={healthLoadStatus === "ready" && health ? "online" : ""}>{healthLoadStatus === "loading" ? "检查中" : healthLoadStatus === "error" ? "读取失败" : health ? `已同步至 ${health.date}` : "等待首次同步"}</strong>
+                  <div className="healthSyncCenter">
+                    <div className="healthSyncCenterHead">
+                      <div><span className={`healthSyncDot ${health ? "online" : healthLoadStatus === "error" ? "error" : ""}`} /><div><small>同步状态</small><strong>{healthFreshness}</strong></div></div>
+                      <button type="button" onClick={loadHealthData} disabled={healthLoadStatus === "loading"}>{healthLoadStatus === "loading" ? "刷新中…" : "立即刷新"}</button>
+                    </div>
+                    <div className="healthSyncFacts">
+                      <div><span>最近上传</span><b>{formatShanghaiDateTime(latestSyncedHealth?.updatedAt)}</b></div>
+                      <div><span>数据日期</span><b>{latestSyncedHealth?.date ?? "尚无记录"}</b></div>
+                      <div><span>今日指标</span><b>{!health ? "等待上传" : missingTodayMetrics.length ? `缺少 ${missingTodayMetrics.join("、")}` : "主要指标完整"}</b></div>
+                    </div>
+                    {!health && latestSyncedHealth && <p>服务器最后收到的是 {latestSyncedHealth.date} 的数据；请在 Health Auto Export 中手动运行一次“今天”导出。</p>}
+                    {health && missingTodayMetrics.length > 0 && <p>今天的数据已收到，但 {missingTodayMetrics.join("、")} 尚未包含在上传内容中，请检查读取权限后重新导出。</p>}
                   </div>
                   <ol>
                     <li><b>选择指标</b><span>步数、活动能量、静息能量、Apple 锻炼时间、睡眠分析、静息心率；有体重秤后再启用体重。</span></li>
@@ -697,7 +735,7 @@ export default function Home() {
                     <li><b>设置导出</b><span>JSON v2、日期范围“今天”、汇总数据开启、时间分组“天”、批量请求关闭。</span></li>
                     <li><b>检查结果</b><span>成功响应应包含 imported 和最新日期；HTTP 401 检查密钥，HTTP 400 检查所选指标。</span></li>
                   </ol>
-                  <p>建议每天定时同步一次；修改指标或来源后，手动导出最近 7 天即可补齐记录。</p>
+                  <p>修改指标、来源或健康权限后，需要重新运行导出；仅勾选指标不会立即上传数据。</p>
                 </div>
               ) : showHealthTrend ? (
                 <div className="healthTrend">
