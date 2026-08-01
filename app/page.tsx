@@ -7,6 +7,15 @@ import { DataQuickNav } from "./components/shell/DataQuickNav";
 import { SiteNavigation } from "./components/shell/SiteNavigation";
 import { HealthOverviewCard } from "./features/health/HealthOverviewCard";
 import { DailyGoalsColumn } from "./features/health/DailyGoalsColumn";
+import {
+  calculateHealthSummary,
+  calculateHealthTrend,
+  calculateWeightTrend,
+  getHealthMetricValue,
+  getMissingTodayHealthMetrics,
+  selectTodayHealth,
+  toChronologicalHealthHistory,
+} from "./features/health/domain";
 import { WorkCalendarCard } from "./features/calendar/WorkCalendarCard";
 import { WorkExperienceTimeline } from "./features/career/WorkExperienceTimeline";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
@@ -191,21 +200,8 @@ export default function Home() {
   const currentMonthKey = `${today.year}-${String(today.month + 1).padStart(2, "0")}`;
   const isCurrentCalendarMonth = calendarMonthKey === currentMonthKey;
   const workdays = calendarWorkdays;
-  const steps = health?.steps ?? 0;
-  const stepProgress = Math.min(100, Math.round((steps / stepGoal) * 100));
-  const activeEnergy = Math.round(health?.activeEnergyKcal ?? 0);
-  const totalEnergy = health && health.restingEnergyKcal > 0
-    ? Math.round(health.activeEnergyKcal + health.restingEnergyKcal)
-    : null;
-  const exerciseHours = ((health?.exerciseMinutes ?? 0) / 60).toFixed(1);
-  const visibleHealthHistory = healthHistory.slice(-healthPeriod);
-  const weightHistory = healthHistory.filter((item) => item.weightKg !== null);
-  const recentWeightHistory = weightHistory.slice(-14);
-  const latestWeight = weightHistory.at(-1)?.weightKg ?? null;
-  const earliestRecentWeight = recentWeightHistory[0]?.weightKg ?? null;
-  const weightChange = latestWeight !== null && earliestRecentWeight !== null && recentWeightHistory.length > 1
-    ? latestWeight - earliestRecentWeight
-    : null;
+  const { steps, stepProgress, activeEnergy, totalEnergy, exerciseHours } = calculateHealthSummary(health, stepGoal);
+  const { recentWeightHistory, latestWeight, weightChange, recentWeightMin, recentWeightRange } = calculateWeightTrend(healthHistory);
   const healthMetricConfig = {
     steps: { label: "步数", unit: "步", color: "var(--lime)" },
     activeEnergyKcal: { label: "活动能量", unit: "千卡", color: "var(--coral)" },
@@ -214,34 +210,15 @@ export default function Home() {
     sleepMinutes: { label: "睡眠时长", unit: "小时", color: "#768cff" },
     restingHeartRateBpm: { label: "静息心率", unit: "次/分", color: "#ff7aa2" },
   }[healthMetric];
-  const healthMetricHistory = healthMetric === "weightKg" || healthMetric === "sleepMinutes" || healthMetric === "restingHeartRateBpm"
-    ? visibleHealthHistory.filter((item) => item[healthMetric] !== null)
-    : visibleHealthHistory;
-  const healthMetricValue = (item: HealthDaily) => {
-    if (healthMetric === "weightKg") return item.weightKg ?? 0;
-    if (healthMetric === "sleepMinutes") return (item.sleepMinutes ?? 0) / 60;
-    if (healthMetric === "restingHeartRateBpm") return item.restingHeartRateBpm ?? 0;
-    return item[healthMetric];
-  };
-  const healthMetricMax = Math.max(1, ...healthMetricHistory.map(healthMetricValue));
-  const healthMetricAverage = healthMetricHistory.length
-    ? healthMetricHistory.reduce((sum, item) => sum + healthMetricValue(item), 0) / healthMetricHistory.length
-    : 0;
-  const healthMetricAverageLabel = healthMetric === "weightKg" || healthMetric === "sleepMinutes"
-    ? healthMetricAverage.toFixed(1)
-    : Math.round(healthMetricAverage).toLocaleString("zh-CN");
-  const recentWeightValues = recentWeightHistory.map((item) => item.weightKg ?? 0);
-  const recentWeightMin = Math.min(...recentWeightValues, latestWeight ?? 0);
-  const recentWeightMax = Math.max(...recentWeightValues, latestWeight ?? 1);
-  const recentWeightRange = Math.max(0.1, recentWeightMax - recentWeightMin);
+  const { metricHistory: healthMetricHistory, metricMax: healthMetricMax, metricAverageLabel: healthMetricAverageLabel } = calculateHealthTrend(healthHistory, healthPeriod, healthMetric);
+  const healthMetricValue = (item: HealthDaily) => getHealthMetricValue(item, healthMetric);
   const latestSyncedHealth = healthHistory.at(-1) ?? null;
-  const missingTodayMetrics = health
-    ? [
-        health.weightKg === null ? "体重" : null,
-        health.sleepMinutes === null ? "睡眠" : null,
-        health.restingHeartRateBpm === null ? "静息心率" : null,
-      ].filter((label): label is string => label !== null)
-    : [];
+  const missingTodayMetricLabels = {
+    weightKg: "体重",
+    sleepMinutes: "睡眠",
+    restingHeartRateBpm: "静息心率",
+  } as const;
+  const missingTodayMetrics = getMissingTodayHealthMetrics(health).map((metric) => missingTodayMetricLabels[metric]);
   const healthFreshness = healthLoadStatus === "loading"
     ? "正在检查"
     : healthLoadStatus === "error"
@@ -258,8 +235,8 @@ export default function Home() {
         return response.json() as Promise<{ health: HealthDaily | null; history: HealthDaily[] }>;
       })
       .then(({ history }) => {
-        setHealth(history.find((item) => item.date === todayKey) ?? null);
-        setHealthHistory([...history].reverse());
+        setHealth(selectTodayHealth(history, todayKey));
+        setHealthHistory(toChronologicalHealthHistory(history));
         setHealthLoadStatus("ready");
       })
       .catch(() => {
