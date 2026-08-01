@@ -40,3 +40,77 @@ export const shiftCalendarMonth = (current: CalendarMonth, offset: number): Cale
   const next = new Date(current.year, current.month + offset, 1);
   return { year: next.getFullYear(), month: next.getMonth() };
 };
+
+export const resolveCalendarDay = (
+  year: number,
+  month: number,
+  day: number,
+  overrides: CalendarOverrides,
+) => {
+  const date = calendarDateKey(year, month, day);
+  const officialWorkday = isOfficialWorkday(year, month, day);
+  const personalOverride = Object.prototype.hasOwnProperty.call(overrides, date);
+
+  return {
+    date,
+    holiday: getHolidayName(date),
+    makeup: isMakeupWorkday(date),
+    officialWorkday,
+    workday: overrides[date] ?? officialWorkday,
+    personalOverride,
+  };
+};
+
+export const getCalendarMonthShape = (year: number, month: number) => {
+  const firstDayOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const calendarDays: Array<number | null> = [
+    ...Array.from({ length: firstDayOffset }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
+  ];
+
+  return {
+    firstDayOffset,
+    daysInMonth,
+    calendarDays,
+    calendarRows: Math.ceil(calendarDays.length / 7),
+  };
+};
+
+export const countCalendarMonthWorkdays = (
+  year: number,
+  month: number,
+  overrides: CalendarOverrides,
+) => {
+  const { daysInMonth } = getCalendarMonthShape(year, month);
+  return Array.from({ length: daysInMonth }, (_, index) => index + 1)
+    .filter((day) => resolveCalendarDay(year, month, day, overrides).workday)
+    .length;
+};
+
+export const calculateAnnualWorkdays = (year: number, overrides: CalendarOverrides) => {
+  const monthlyWorkdays = Array.from(
+    { length: 12 },
+    (_, month) => countCalendarMonthWorkdays(year, month, overrides),
+  );
+
+  return {
+    monthlyWorkdays,
+    totalWorkdays: monthlyWorkdays.reduce((sum, count) => sum + count, 0),
+  };
+};
+
+export const getWorkdayToggle = (
+  year: number,
+  month: number,
+  day: number,
+  overrides: CalendarOverrides,
+) => {
+  const resolved = resolveCalendarDay(year, month, day, overrides);
+  return {
+    date: resolved.date,
+    hadOverride: resolved.personalOverride,
+    previous: resolved.workday,
+    next: !resolved.workday,
+  };
+};
