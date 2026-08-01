@@ -1,64 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-type HealthDaily = {
-  date: string;
-  steps: number;
-  activeEnergyKcal: number;
-  restingEnergyKcal: number;
-  exerciseMinutes: number;
-  workoutCount: number;
-  weightKg: number | null;
-  sleepMinutes: number | null;
-  restingHeartRateBpm: number | null;
-  source: string;
-  updatedAt: string;
-};
-
-type SalaryRecord = {
-  month: string;
-  workdays: number;
-  dailyRate: number;
-  grossSalary: number;
-  deductions: number;
-  taxThreshold: number;
-  taxRate: number;
-  taxableIncome: number;
-  extraIncome: number;
-  bonus: number;
-  leaveDeduction: number;
-  incomeTax: number;
-  netSalary: number;
-};
-
-type SalaryPolicy = {
-  dailyRate: number;
-  deductions: number;
-  taxThreshold: number;
-  taxRate: number;
-  extraIncome: number;
-  bonus: number;
-  leaveDeduction: number;
-};
-
-type WorkExperience = {
-  id: number;
-  company: string;
-  role: string;
-  startDate: string;
-  endDate: string | null;
-  summary: string;
-};
-
-type WorkExperienceDraft = Omit<WorkExperience, "id">;
-
-type CalendarNote = {
-  month: string;
-  scheduleNote: string;
-  leaveNote: string;
-  overtimeNote: string;
-};
+import { HomePage } from "./components/home/HomePage";
+import { DashboardHeader } from "./components/shell/DashboardHeader";
+import { DataQuickNav } from "./components/shell/DataQuickNav";
+import { SiteNavigation } from "./components/shell/SiteNavigation";
+import { HealthOverviewCard } from "./features/health/HealthOverviewCard";
+import { DailyGoalsColumn } from "./features/health/DailyGoalsColumn";
+import { WorkCalendarCard } from "./features/calendar/WorkCalendarCard";
+import { WorkExperienceTimeline } from "./features/career/WorkExperienceTimeline";
+import { SalaryDashboard } from "./features/salary/SalaryDashboard";
+import type { CalendarDayView, CalendarNote, HealthDaily, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
 const getShanghaiDate = (value = new Date()) => {
   const parts = new Intl.DateTimeFormat("zh-CN", {
@@ -144,13 +96,13 @@ const experienceDuration = (startDate: string, endDate: string | null) => {
 };
 
 export default function Home() {
-  const [sitePage, setSitePage] = useState<"home" | "dashboard">("home");
+  const [sitePage, setSitePage] = useState<SitePage>("home");
   const [activeSection, setActiveSection] = useState("overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
   const [healthLoadStatus, setHealthLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
-  const [healthMetric, setHealthMetric] = useState<"steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes" | "restingHeartRateBpm">("steps");
+  const [healthMetric, setHealthMetric] = useState<HealthMetric>("steps");
   const [showHealthTrend, setShowHealthTrend] = useState(false);
   const [showHealthGuide, setShowHealthGuide] = useState(false);
   const [stepGoal, setStepGoal] = useState(8500);
@@ -193,6 +145,32 @@ export default function Home() {
     ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
   ];
   const calendarRows = Math.ceil(calendarDays.length / 7);
+  const calendarDayViews: CalendarDayView[] = calendarDays.map((day, index) => {
+    if (day === null) return { key: `empty-${index}`, day: null };
+    const key = dateKey(calendarMonth.year, calendarMonth.month, day);
+    const holiday = holidayName(key);
+    const makeup = makeupWorkdays.has(key);
+    const workday = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
+    const personalOverride = Object.prototype.hasOwnProperty.call(calendarOverrides, key);
+    const isToday = key === todayKey;
+    const className = isToday ? "today" : workday && key < todayKey ? "worked" : workday ? "workday" : "weekend";
+    const statusLabel = personalOverride
+      ? `个人设为${workday ? "工作" : "休息"}`
+      : holiday
+        ? `${holiday} · 法定休假`
+        : makeup
+          ? "调休上班"
+          : workday ? "工作日" : "休息日";
+    return {
+      key,
+      day,
+      holiday,
+      className: `${className}${holiday ? " holiday" : ""}${makeup ? " makeup" : ""}${personalOverride ? (workday ? " personalWork" : " personalRest") : ""}${calendarEditing ? " editable" : ""}`,
+      ariaLabel: `${calendarMonth.month + 1}月${day}日，${statusLabel}${calendarEditing ? "，点击切换状态" : ""}`,
+      title: `${statusLabel}${calendarEditing ? " · 点击切换" : ""}`,
+      disabled: !calendarEditing || savingDate === key,
+    };
+  });
   const calendarWorkdays = Array.from(
     { length: daysInMonth },
     (_, index) => index + 1
@@ -642,405 +620,155 @@ export default function Home() {
   return (
     <main className="pageShell">
       <section className="dashboard">
-        <header className="siteNavigation">
-          <button className="siteBrand" type="button" onClick={() => setSitePage("home")} aria-label="璀璨人生首页"><span className="brandMark" aria-hidden="true" /><b>璀璨人生</b></button>
-          <nav aria-label="网站导航">
-            <button type="button" className={sitePage === "home" ? "active" : ""} onClick={() => setSitePage("home")}>首页</button>
-            <button type="button" className={sitePage === "dashboard" ? "active" : ""} onClick={() => setSitePage("dashboard")}>数据中心</button>
-          </nav>
-          <div className="siteProfile"><span className="avatar">AM</span><div><b>Amanda</b><small>生活记录者</small></div></div>
-        </header>
+        <SiteNavigation sitePage={sitePage} onChange={setSitePage} />
         {sitePage === "home" ? (
-          <section className="homePage">
-            <div className="homeHero">
-              <div>
-                <p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p>
-                <h1 className="dailyQuote">“{dailyQuote.text}”</h1>
-                <p className="quoteSource">— {dailyQuote.source} · 《原神》每日一言</p>
-                <p>把健康、工作、收入与职业经历放在同一个地方，清楚看见生活正在如何向前。</p>
-                <button type="button" onClick={() => openDashboard()}>进入数据中心 <span>→</span></button>
-              </div>
-              <div className="homeSnapshot" aria-label="今日生活概览">
-                <div className="snapshotHead"><div><i /><span>今日状态</span></div><small>{today.month + 1}月{today.day}日</small></div>
-                <div className="snapshotPrimary"><span>今日步数</span><strong>{healthLoadStatus === "loading" ? "读取中" : healthLoadStatus === "error" ? "—" : steps.toLocaleString("zh-CN")}</strong><small>{healthLoadStatus === "error" ? "健康数据暂时无法读取" : `目标 ${stepGoal.toLocaleString("zh-CN")} 步`}</small><div><i style={{ width: `${stepProgress}%` }} /></div></div>
-                <div className="snapshotMetrics">
-                  <div><span>活动能量</span><b>{activeEnergy.toLocaleString("zh-CN")}</b><small>千卡</small></div>
-                  <div><span>本月工作</span><b>{workdays}</b><small>天</small></div>
-                </div>
-                <button type="button" onClick={() => openDashboard("overview")}><span>查看完整数据</span><b>↗</b></button>
-              </div>
-            </div>
-            <div className="homeHighlights">
-              <button type="button" onClick={() => openDashboard("overview")}><i className="healthHighlight" /><span>健康趋势</span><strong>{healthHistory.length} 天</strong><small>Apple 健康记录</small></button>
-              <button type="button" onClick={() => openDashboard("calendar")}><i className="calendarHighlight" /><span>本月工作</span><strong>{workdays} 天</strong><small>日历实时统计</small></button>
-              <button type="button" onClick={() => openDashboard("salary")}><i className="salaryHighlight" /><span>预计实发</span><strong>¥{money(netSalary)}</strong><small>按当前工作日计算</small></button>
-              <button type="button" onClick={() => openDashboard("habits")}><i className="careerHighlight" /><span>职业档案</span><strong>{workExperiences.length} 条</strong><small>已保存工作经历</small></button>
-            </div>
-          </section>
+          <HomePage
+            today={today}
+            dailyQuote={dailyQuote}
+            healthLoadStatus={healthLoadStatus}
+            steps={steps}
+            stepGoal={stepGoal}
+            stepProgress={stepProgress}
+            activeEnergy={activeEnergy}
+            workdays={workdays}
+            healthHistoryDays={healthHistory.length}
+            netSalary={netSalary}
+            workExperienceCount={workExperiences.length}
+            money={money}
+            onOpenDashboard={openDashboard}
+          />
         ) : (
         <div className="content">
-          <header className="topbar">
-            <div><p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p><h1>早上好，Amanda!</h1><p className="subtitle">来看看你今天的活动进度吧</p></div>
-            <div className="actions"><label className="search"><span>⌕</span><input aria-label="搜索健康数据" placeholder="搜索健康数据" /></label><button>升级计划</button></div>
-          </header>
-
-          <nav className="dataQuickNav" aria-label="数据中心模块快捷导航">
-            {[
-              ["overview", "健康"],
-              ["calendar", "工作日历"],
-              ["goals", "每日目标"],
-              ["habits", "工作经历"],
-              ["salary", "工资"],
-            ].map(([section, label]) => (
-              <button
-                type="button"
-                key={section}
-                className={activeSection === section ? "active" : ""}
-                aria-current={activeSection === section ? "location" : undefined}
-                onClick={() => openDashboard(section)}
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
+          <DashboardHeader today={today} />
+          <DataQuickNav activeSection={activeSection} onOpen={openDashboard} />
 
           <div className="grid">
-            <article id="overview" className={`card activity${activeSection === "overview" ? " sectionActive" : ""}`}>
-              <div className="cardHead">
-                <div><p className="eyebrow">Apple 健康</p><h2>{showHealthGuide ? "同步指南" : showHealthTrend ? "健康趋势" : "训练成果"}</h2></div>
-                <div className="healthViewActions">
-                  <button type="button" className="healthTrendToggle" onClick={exportHealthRecords} disabled={healthHistory.length === 0} aria-label="导出最近30天健康数据">CSV</button>
-                  <button type="button" className={`healthTrendToggle${showHealthTrend && !showHealthGuide ? " active" : ""}`} onClick={() => { setShowHealthTrend((value) => !value); setShowHealthGuide(false); }}>{showHealthTrend && !showHealthGuide ? "今日" : "趋势"}</button>
-                  <button type="button" className={`healthTrendToggle${showHealthGuide ? " active" : ""}`} onClick={() => setShowHealthGuide((value) => !value)}>{showHealthGuide ? "返回" : "同步"}</button>
-                </div>
-              </div>
-              {showHealthGuide ? (
-                <div className="healthGuide">
-                  <div className="healthSyncCenter">
-                    <div className="healthSyncCenterHead">
-                      <div><span className={`healthSyncDot ${health ? "online" : healthLoadStatus === "error" ? "error" : ""}`} /><div><small>同步状态</small><strong>{healthFreshness}</strong></div></div>
-                      <button type="button" onClick={loadHealthData} disabled={healthLoadStatus === "loading"}>{healthLoadStatus === "loading" ? "刷新中…" : "立即刷新"}</button>
-                    </div>
-                    <div className="healthSyncFacts">
-                      <div><span>最近上传</span><b>{formatShanghaiDateTime(latestSyncedHealth?.updatedAt)}</b></div>
-                      <div><span>数据日期</span><b>{latestSyncedHealth?.date ?? "尚无记录"}</b></div>
-                      <div><span>今日指标</span><b>{!health ? "等待上传" : missingTodayMetrics.length ? `缺少 ${missingTodayMetrics.join("、")}` : "主要指标完整"}</b></div>
-                    </div>
-                    {!health && latestSyncedHealth && <p>服务器最后收到的是 {latestSyncedHealth.date} 的数据；请在 Health Auto Export 中手动运行一次“今天”导出。</p>}
-                    {health && missingTodayMetrics.length > 0 && <p>今天的数据已收到，但 {missingTodayMetrics.join("、")} 尚未包含在上传内容中，请检查读取权限后重新导出。</p>}
-                  </div>
-                  <ol>
-                    <li><b>选择指标</b><span>步数、活动能量、静息能量、Apple 锻炼时间、睡眠分析、静息心率；有体重秤后再启用体重。</span></li>
-                    <li><b>设置来源</b><span>手表指标选择当前 Apple Watch，体重选择“健康”；旧名称的同一块手表可不选。</span></li>
-                    <li><b>设置导出</b><span>JSON v2、日期范围“今天”、汇总数据开启、时间分组“天”、批量请求关闭。</span></li>
-                    <li><b>检查结果</b><span>成功响应应包含 imported 和最新日期；HTTP 401 检查密钥，HTTP 400 检查所选指标。</span></li>
-                  </ol>
-                  <p>修改指标、来源或健康权限后，需要重新运行导出；仅勾选指标不会立即上传数据。</p>
-                </div>
-              ) : showHealthTrend ? (
-                <div className="healthTrend">
-                  <div className="healthTrendControls">
-                    <div className="healthMetricTabs">
-                      <button type="button" className={healthMetric === "steps" ? "active" : ""} onClick={() => setHealthMetric("steps")}>步数</button>
-                      <button type="button" className={healthMetric === "activeEnergyKcal" ? "active" : ""} onClick={() => setHealthMetric("activeEnergyKcal")}>能量</button>
-                      <button type="button" className={healthMetric === "exerciseMinutes" ? "active" : ""} onClick={() => setHealthMetric("exerciseMinutes")}>锻炼</button>
-                      <button type="button" className={healthMetric === "weightKg" ? "active" : ""} onClick={() => setHealthMetric("weightKg")}>体重</button>
-                      <button type="button" className={healthMetric === "sleepMinutes" ? "active" : ""} onClick={() => setHealthMetric("sleepMinutes")}>睡眠</button>
-                      <button type="button" className={healthMetric === "restingHeartRateBpm" ? "active" : ""} onClick={() => setHealthMetric("restingHeartRateBpm")}>心率</button>
-                    </div>
-                    <div className="healthPeriodTabs"><button type="button" className={healthPeriod === 7 ? "active" : ""} onClick={() => setHealthPeriod(7)}>7天</button><button type="button" className={healthPeriod === 30 ? "active" : ""} onClick={() => setHealthPeriod(30)}>30天</button></div>
-                  </div>
-                  <div className="healthTrendSummary"><span>{healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? "平均" : "日均"}</span><strong>{healthMetricAverageLabel}</strong><small>{healthMetricConfig.unit}</small>{health && <span className="healthSyncStatus">最近同步 {health.date} · {health.source === "health-auto-export" ? "Apple 健康" : health.source}</span>}</div>
-                  {healthMetricHistory.length ? (
-                    <div className={`healthBars${healthPeriod === 30 ? " compact" : ""}`} aria-label={`最近${healthPeriod}天${healthMetricConfig.label}趋势`}>
-                      {healthMetricHistory.map((item) => (
-                        <div className="healthBarDay" key={item.date} title={`${item.date}：${healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? healthMetricValue(item).toFixed(1) : Math.round(healthMetricValue(item)).toLocaleString("zh-CN")} ${healthMetricConfig.unit}`}>
-                          <i style={{ height: `${Math.max(4, Math.round(healthMetricValue(item) / healthMetricMax * 100))}%`, background: healthMetricConfig.color }} />
-                          {(healthPeriod === 7 || item.date.endsWith("-01") || item.date.endsWith("-10") || item.date.endsWith("-20")) && <small>{Number(item.date.slice(-2))}</small>}
-                        </div>
-                      ))}
-                    </div>
-                  ) : <div className="healthTrendEmpty"><p>{healthLoadStatus === "loading" ? "正在读取健康数据…" : healthLoadStatus === "error" ? "健康数据读取失败" : "还没有可用于绘制趋势的健康数据"}</p>{healthLoadStatus === "error" && <button type="button" onClick={loadHealthData}>重新加载</button>}</div>}
-                </div>
-              ) : <>
-              <div className="bubbleStage" aria-label={`今日总消耗${totalEnergy ?? "暂无"}千卡，活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
-                <div className="bubble yellow"><strong>{totalEnergy?.toLocaleString("zh-CN") ?? "—"}</strong><small>{totalEnergy === null ? "等待静息能量" : "总千卡消耗"}</small></div>
-                <div className="bubble coral"><strong>{activeEnergy.toLocaleString("zh-CN")}</strong><small>活动千卡</small></div>
-                <div className="bubble dark"><strong>{exerciseHours}</strong><small>小时</small></div>
-              </div>
-              <div className="legend"><span><i className="dot yellowDot" />总消耗</span><span><i className="dot coralDot" />活动消耗</span><span><i className="dot darkDot" />运动时长</span></div>
-              </>}
-            </article>
+            <HealthOverviewCard
+              active={activeSection === "overview"}
+              showHealthGuide={showHealthGuide}
+              showHealthTrend={showHealthTrend}
+              healthHistoryLength={healthHistory.length}
+              health={health}
+              healthLoadStatus={healthLoadStatus}
+              healthFreshness={healthFreshness}
+              latestSyncedHealth={latestSyncedHealth}
+              latestUploadLabel={formatShanghaiDateTime(latestSyncedHealth?.updatedAt)}
+              missingTodayMetrics={missingTodayMetrics}
+              healthMetric={healthMetric}
+              healthPeriod={healthPeriod}
+              healthMetricAverageLabel={healthMetricAverageLabel}
+              healthMetricConfig={healthMetricConfig}
+              healthMetricHistory={healthMetricHistory}
+              healthMetricMax={healthMetricMax}
+              totalEnergy={totalEnergy}
+              activeEnergy={activeEnergy}
+              exerciseHours={exerciseHours}
+              healthMetricValue={healthMetricValue}
+              onExport={exportHealthRecords}
+              onToggleTrend={() => { setShowHealthTrend((value) => !value); setShowHealthGuide(false); }}
+              onToggleGuide={() => setShowHealthGuide((value) => !value)}
+              onReload={loadHealthData}
+              onMetricChange={setHealthMetric}
+              onPeriodChange={setHealthPeriod}
+            />
 
-            <article id="calendar" className={`card calendar${calendarEditing ? " editing" : ""}${activeSection === "calendar" ? " sectionActive" : ""}`}>
-              <div className="cardHead">
-                <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
-                <div className="calendarActions">
-                  <button type="button" className={`annualCalendarButton${showAnnualStats ? " active" : ""}`} onClick={() => { setShowAnnualStats((value) => !value); setShowCalendarNotes(false); setCalendarEditing(false); }}>{showAnnualStats ? "月历" : "全年"}</button>
-                  <button type="button" className={`calendarNotesButton${showCalendarNotes ? " active" : ""}`} onClick={() => { setShowCalendarNotes((value) => !value); setShowAnnualStats(false); setCalendarEditing(false); }}>{showCalendarNotes ? "月历" : "备注"}</button>
-                  <button type="button" className={`editCalendar${calendarEditing ? " active" : ""}`} onClick={() => { setCalendarEditing((value) => !value); setShowAnnualStats(false); setShowCalendarNotes(false); }}>{calendarEditing ? "完成" : "编辑"}</button>
-                  <div className="monthSwitcher" aria-label="切换月份">
-                    <button type="button" onClick={() => changeCalendarMonth(-1)} aria-label="上个月">‹</button>
-                    <span aria-live="polite">{calendarMonth.month + 1}月</span>
-                    <button type="button" onClick={() => changeCalendarMonth(1)} aria-label="下个月">›</button>
-                  </div>
-                </div>
-              </div>
-              {calendarLoadStatus === "loading" ? (
-                <div className="moduleState darkState"><span className="statePulse" /><p>正在读取工作日历…</p></div>
-              ) : calendarLoadStatus === "error" ? (
-                <div className="moduleState darkState" role="alert"><p>工作日历读取失败，当前数据未被覆盖。</p><button type="button" onClick={() => setCalendarReloadKey((value) => value + 1)}>重新加载</button></div>
-              ) : showAnnualStats ? (
-                <div className="annualCalendar">
-                  <div className="annualTotal"><strong>{annualWorkdayTotal}</strong><span>个工作日</span><small>{calendarMonth.year} 年度统计</small></div>
-                  <div className="annualMonths">{annualWorkdays.map((count, month) => (
-                    <button type="button" key={month} onClick={() => { setCalendarMonth({ year: calendarMonth.year, month }); setShowAnnualStats(false); }}>
-                      <span>{month + 1}月</span><strong>{count}</strong><small>天</small>
-                    </button>
-                  ))}</div>
-                </div>
-              ) : showCalendarNotes ? (
-                <form className="calendarNotesForm" onSubmit={saveCalendarNote}>
-                  <p>{monthLabel}工作备注会自动保存在云端</p>
-                  <label><span><i className="scheduleNoteMark" />排班</span><textarea maxLength={500} rows={2} placeholder="例如：本月夜班、外出或临时排班" value={calendarNote.scheduleNote} onChange={(event) => setCalendarNote((note) => ({ ...note, scheduleNote: event.target.value }))} /></label>
-                  <label><span><i className="leaveNoteMark" />请假</span><textarea maxLength={500} rows={2} placeholder="例如：8月12日下午请假" value={calendarNote.leaveNote} onChange={(event) => setCalendarNote((note) => ({ ...note, leaveNote: event.target.value }))} /></label>
-                  <label><span><i className="overtimeNoteMark" />加班</span><textarea maxLength={500} rows={2} placeholder="例如：8月19日加班3小时" value={calendarNote.overtimeNote} onChange={(event) => setCalendarNote((note) => ({ ...note, overtimeNote: event.target.value }))} /></label>
-                  <div className="calendarNotesFooter"><span className={calendarNoteStatus === "error" ? "noteError" : ""}>{calendarNoteStatus === "loading" ? "读取中…" : calendarNoteStatus === "saved" ? "已保存" : calendarNoteStatus === "error" ? "保存失败，请重试" : ""}</span><button type="submit" disabled={calendarNoteStatus === "saving" || calendarNoteStatus === "loading"}>{calendarNoteStatus === "saving" ? "保存中…" : "保存备注"}</button></div>
-                </form>
-              ) : <>
-              {calendarEditing && <div className="calendarEditHint"><span>点击日期切换工作或休息</span><div><button type="button" onClick={undoCalendarChange} disabled={!lastCalendarChange || savingDate !== null}>撤销</button><button type="button" className="resetCalendar" onClick={resetOfficialCalendar} disabled={Object.keys(calendarOverrides).length === 0 || resettingCalendar}>{resettingCalendar ? "恢复中…" : "恢复官方"}</button></div></div>}
-              <div className="week"><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span><span>日</span></div>
-              <div className={`days${calendarRows === 6 ? " sixRows" : ""}`}>
-                {calendarDays.map((day, index) => {
-                  if (day === null) return <span className="emptyDay" aria-hidden="true" key={`empty-${index}`} />;
-                  const key = dateKey(calendarMonth.year, calendarMonth.month, day);
-                  const holiday = holidayName(key);
-                  const makeup = makeupWorkdays.has(key);
-                  const workday = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
-                  const personalOverride = Object.prototype.hasOwnProperty.call(calendarOverrides, key);
-                  const isToday = key === todayKey;
-                  const className = isToday
-                    ? "today"
-                    : workday && key < todayKey
-                      ? "worked"
-                      : workday
-                        ? "workday"
-                        : "weekend";
-                  const statusLabel = personalOverride
-                    ? `个人设为${workday ? "工作" : "休息"}`
-                    : holiday
-                    ? `${holiday} · 法定休假`
-                    : makeup
-                      ? "调休上班"
-                      : workday ? "工作日" : "休息日";
-                  return (
-                    <button
-                      type="button"
-                      key={day}
-                      className={`${className}${holiday ? " holiday" : ""}${makeup ? " makeup" : ""}${personalOverride ? (workday ? " personalWork" : " personalRest") : ""}${calendarEditing ? " editable" : ""}`}
-                      aria-label={`${calendarMonth.month + 1}月${day}日，${statusLabel}${calendarEditing ? "，点击切换状态" : ""}`}
-                      title={`${statusLabel}${calendarEditing ? " · 点击切换" : ""}`}
-                      onClick={() => toggleWorkday(day)}
-                      disabled={!calendarEditing || savingDate === key}
-                    >
-                      <span className="dayNumber">{day}</span>
-                      {holiday && <small className="holidayName">{holiday}</small>}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="calendarLegend">
-                <span><i className="todayLine" />今天</span>
-                <span><i className="workLine" />工作日</span>
-                <span><i className="holidayLine" />法定假日</span>
-                <span><i className="makeupLine" />调休上班</span>
-                <span><i className="weekendLine" />周末</span>
-                <span><i className="personalLine" />个人修改</span>
-              </div>
-              </>}
-            </article>
+            <WorkCalendarCard
+              active={activeSection === "calendar"}
+              calendarEditing={calendarEditing}
+              monthLabel={monthLabel}
+              calendarWorkdays={calendarWorkdays}
+              showAnnualStats={showAnnualStats}
+              showCalendarNotes={showCalendarNotes}
+              calendarMonth={calendarMonth}
+              calendarLoadStatus={calendarLoadStatus}
+              annualWorkdayTotal={annualWorkdayTotal}
+              annualWorkdays={annualWorkdays}
+              calendarNote={calendarNote}
+              calendarNoteStatus={calendarNoteStatus}
+              lastCalendarChange={lastCalendarChange}
+              savingDate={savingDate}
+              calendarOverridesCount={Object.keys(calendarOverrides).length}
+              resettingCalendar={resettingCalendar}
+              calendarRows={calendarRows}
+              calendarDays={calendarDayViews}
+              onToggleAnnual={() => { setShowAnnualStats((value) => !value); setShowCalendarNotes(false); setCalendarEditing(false); }}
+              onToggleNotes={() => { setShowCalendarNotes((value) => !value); setShowAnnualStats(false); setCalendarEditing(false); }}
+              onToggleEditing={() => { setCalendarEditing((value) => !value); setShowAnnualStats(false); setShowCalendarNotes(false); }}
+              onChangeMonth={changeCalendarMonth}
+              onReload={() => setCalendarReloadKey((value) => value + 1)}
+              onSelectAnnualMonth={(month) => { setCalendarMonth({ year: calendarMonth.year, month }); setShowAnnualStats(false); }}
+              onSaveNote={saveCalendarNote}
+              onNoteChange={(field, value) => setCalendarNote((note) => ({ ...note, [field]: value }))}
+              onUndo={undoCalendarChange}
+              onReset={resetOfficialCalendar}
+              onToggleDay={toggleWorkday}
+            />
 
-            <div id="goals" className={`statsColumn${activeSection === "goals" ? " sectionActive" : ""}`}>
-              <article className="card steps">
-                <div>
-                  <p className="eyebrow">每日目标</p>
-                  <h2>今日步数</h2>
-                  <strong>{steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span>
-                  {healthLoadStatus === "ready" && !health && <small className="todayHealthPending">等待今日同步</small>}
-                  {editingStepGoal ? (
-                    <form className="stepGoalForm" onSubmit={saveStepGoal}>
-                      <input
-                        type="number"
-                        min="1000"
-                        max="100000"
-                        step="500"
-                        aria-label="每日步数目标"
-                        value={stepGoalDraft}
-                        onChange={(event) => setStepGoalDraft(event.target.value)}
-                        autoFocus
-                      />
-                      <button type="submit">保存</button>
-                      <button type="button" onClick={() => { setStepGoalDraft(String(stepGoal)); setEditingStepGoal(false); }}>取消</button>
-                    </form>
-                  ) : (
-                    <button type="button" className="textButton" onClick={() => setEditingStepGoal(true)}>调整目标 →</button>
-                  )}
-                </div>
-                <div className="progressRing" style={{ background: `conic-gradient(var(--coral) 0 ${stepProgress}%, #eceae5 ${stepProgress}%)` }}><div><b>{stepProgress}%</b><small>已完成</small></div></div>
-              </article>
-              <article className="card weight">
-                <div className="cardHead"><div><p className="eyebrow">Apple 健康</p><h2>体重趋势</h2></div><strong>{latestWeight === null ? "—" : latestWeight.toFixed(1)}<small>{latestWeight === null ? "等待同步" : " kg"}</small></strong></div>
-                {recentWeightHistory.length ? (
-                  <>
-                    <div className="weightSparkline" aria-label={`最近 ${recentWeightHistory.length} 次体重记录`}>
-                      {recentWeightHistory.map((item) => <i key={item.date} title={`${item.date}：${item.weightKg?.toFixed(1)} kg`} style={{ height: `${24 + ((item.weightKg ?? recentWeightMin) - recentWeightMin) / recentWeightRange * 76}%` }} />)}
-                    </div>
-                    <div className="weightLabels"><span>最近 {recentWeightHistory.length} 次记录</span><b className={weightChange !== null && weightChange > 0 ? "weightUp" : "weightDown"}>{weightChange === null ? "暂无变化" : `${weightChange > 0 ? "+" : ""}${weightChange.toFixed(1)} kg`}</b></div>
-                  </>
-                ) : <div className="weightEmpty">在 Health Auto Export 中选择“体重”后即可显示趋势</div>}
-              </article>
-            </div>
+            <DailyGoalsColumn
+              active={activeSection === "goals"}
+              steps={steps}
+              stepGoal={stepGoal}
+              stepProgress={stepProgress}
+              healthLoadStatus={healthLoadStatus}
+              hasTodayHealth={health !== null}
+              editingStepGoal={editingStepGoal}
+              stepGoalDraft={stepGoalDraft}
+              latestWeight={latestWeight}
+              recentWeightHistory={recentWeightHistory}
+              recentWeightMin={recentWeightMin}
+              recentWeightRange={recentWeightRange}
+              weightChange={weightChange}
+              onStartEditing={() => setEditingStepGoal(true)}
+              onDraftChange={setStepGoalDraft}
+              onSave={saveStepGoal}
+              onCancel={() => { setStepGoalDraft(String(stepGoal)); setEditingStepGoal(false); }}
+            />
 
-            <article id="habits" className={`card habits${activeSection === "habits" ? " sectionActive" : ""}`}>
-              <div className="cardHead">
-                <div><p className="eyebrow">职业档案</p><h2>工作经历</h2></div>
-                <button type="button" className="addButton" onClick={() => openExperienceForm()}>＋ 添加经历</button>
-              </div>
-              {experienceFormOpen ? (
-                <form className="experienceForm" onSubmit={saveWorkExperience}>
-                  <div className="experienceFields">
-                    <label><span>单位</span><input required maxLength={80} value={experienceDraft.company} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, company: event.target.value }))} /></label>
-                    <label><span>职位</span><input required maxLength={80} value={experienceDraft.role} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, role: event.target.value }))} /></label>
-                    <label><span>开始</span><input required type="month" value={experienceDraft.startDate} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, startDate: event.target.value }))} /></label>
-                    <label><span>结束</span><input type="month" value={experienceDraft.endDate ?? ""} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, endDate: event.target.value || null }))} /></label>
-                  </div>
-                  <label className="experienceSummary"><span>工作内容</span><textarea maxLength={300} rows={2} value={experienceDraft.summary} onChange={(event) => setExperienceDraft((draft) => ({ ...draft, summary: event.target.value }))} /></label>
-                  {experienceStatus === "error" && <p className="experienceError" role="alert">保存失败，请稍后重试。</p>}
-                  <div className="experienceFormActions"><button type="button" onClick={() => setExperienceFormOpen(false)}>取消</button><button type="submit" disabled={experienceStatus === "saving"}>{experienceStatus === "saving" ? "保存中…" : experienceEditingId ? "保存修改" : "添加经历"}</button></div>
-                </form>
-              ) : (
-                <div className="experienceList timeline">
-                  {experienceStatus === "loading" && <p className="experienceEmpty">正在读取工作经历…</p>}
-                  {experienceStatus === "error" && <div className="moduleState" role="alert"><p>工作经历读取失败。</p><button type="button" onClick={loadWorkExperiences}>重新加载</button></div>}
-                  {experienceStatus === "idle" && workExperiences.length === 0 && <button type="button" className="experienceEmpty addExperienceEmpty" onClick={() => openExperienceForm()}>还没有工作经历，点击添加第一条</button>}
-                  {workExperiences.map((experience) => {
-                    const expanded = expandedExperienceId === experience.id;
-                    return (
-                    <div className={`experienceItem${expanded ? " expanded" : ""}`} key={experience.id}>
-                      <span className="experienceMark" aria-hidden="true" />
-                      <div className="experienceContent">
-                        <b>{experience.role}</b><strong>{experience.company}</strong>
-                        <small>{experience.startDate} — {experience.endDate ?? "至今"} · {experienceDuration(experience.startDate, experience.endDate)}</small>
-                        {experience.summary && <p>{experience.summary}</p>}
-                      </div>
-                      <div className="experienceActions">
-                        <button type="button" onClick={() => setExpandedExperienceId(expanded ? null : experience.id)}>{expanded ? "收起" : "详情"}</button>
-                        <button type="button" onClick={() => openExperienceForm(experience)}>编辑</button>
-                        <button type="button" className="deleteExperience" onClick={() => deleteWorkExperience(experience)}>删除</button>
-                      </div>
-                    </div>
-                  )})}
-                </div>
-              )}
-            </article>
+            <WorkExperienceTimeline
+              active={activeSection === "habits"}
+              formOpen={experienceFormOpen}
+              editingId={experienceEditingId}
+              status={experienceStatus}
+              draft={experienceDraft}
+              experiences={workExperiences}
+              expandedId={expandedExperienceId}
+              onOpenForm={openExperienceForm}
+              onCloseForm={() => setExperienceFormOpen(false)}
+              onDraftChange={(field, value) => setExperienceDraft((draft) => ({ ...draft, [field]: value }))}
+              onSave={saveWorkExperience}
+              onReload={loadWorkExperiences}
+              onToggleExpanded={setExpandedExperienceId}
+              onDelete={deleteWorkExperience}
+              formatDuration={experienceDuration}
+            />
 
-            <article id="salary" className={`card salary${activeSection === "salary" ? " sectionActive" : ""}`}>
-              <div className="salaryIntro">
-                <div>
-                  <p className="eyebrow">工资助手</p>
-                  <h2>本月工资计算</h2>
-                  <p className="salarySubtitle">日薪 {money(dailyRate)} 元，固定扣除 {money(deductions)} 元，起征点 {money(taxThreshold)} 元，税率 {taxRate}%</p>
-                </div>
-                <label className="workdayInput">
-                  <span>{monthLabel}工作日</span>
-                  <input
-                    type="number"
-                    readOnly
-                    value={workdays}
-                  />
-                  <b>天</b>
-                </label>
-              </div>
-
-              <div className="salarySummary">
-                <div className="netPay">
-                  <span>当前日历预计实发</span>
-                  <strong>¥ {money(netSalary)}</strong>
-                  <small>按 {workdays} 个工作日实时计算</small>
-                </div>
-                <div className="salaryMetrics">
-                  <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
-                  <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除</small></div>
-                  <div><span>计税收入</span><b>¥ {money(taxableIncome)}</b><small>扣除后再减 ¥{money(taxThreshold)}</small></div>
-                  <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × {taxRate}%</small></div>
-                </div>
-              </div>
-
-              <div className="salaryFormula">
-                <span>计算公式</span>
-                <code>实发 = 工作日 × 日薪 + 额外收入 + 奖金 − 固定扣除 − 请假扣款 − 个税</code>
-              </div>
-              {salaryRecordMismatch && selectedSalaryRecord && (
-                <div className="salaryMismatch" role="status">
-                  <div>
-                    <b>{monthLabel}的日历与已保存工资不一致</b>
-                    <span>当前日历 {workdays} 天，预计实发 ¥{money(netSalary)}；历史记录 {selectedSalaryRecord.workdays} 天，已保存实发 ¥{money(selectedSalaryRecord.netSalary)}。</span>
-                  </div>
-                  <button type="button" onClick={saveSalaryRecord} disabled={salaryStatus === "saving"}>
-                    {salaryStatus === "saving" ? "同步中…" : `同步为 ${workdays} 天`}
-                  </button>
-                </div>
-              )}
-              <div className="salaryHistoryHead">
-                <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
-                <div className="salaryHistoryActions">
-                  <button type="button" className="exportSalary" onClick={exportSalaryRecords} disabled={salaryRecords.length === 0}>导出 CSV</button>
-                  <button type="button" className="saveSalary" onClick={saveSalaryRecord} disabled={salaryStatus === "saving" || !isCurrentCalendarMonth}>
-                    {!isCurrentCalendarMonth ? "历史已锁定" : salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}
-                  </button>
-                </div>
-              </div>
-              {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}
-              {salaryTrend.length > 0 && (
-                <section className="salaryTrend" aria-label="最近六个月工资趋势">
-                  <div className="trendLegend">
-                    <span><i className="grossKey" />应发</span>
-                    <span><i className="deductionKey" />扣除</span>
-                    <span><i className="taxKey" />个税</span>
-                    <span><i className="netKey" />实发</span>
-                  </div>
-                  <div className="trendPlot">
-                    {salaryTrend.map((record) => (
-                      <div className="trendMonth" key={record.month}>
-                        <div className="trendBars" aria-label={`${record.month}：应发${money(record.grossSalary)}元，扣除${money(record.deductions)}元，个税${money(record.incomeTax)}元，实发${money(record.netSalary)}元`}>
-                          <i className="grossBar" style={{ height: `${Math.max(4, record.grossSalary / salaryTrendMax * 100)}%` }} />
-                          <i className="deductionBar" style={{ height: `${Math.max(4, record.deductions / salaryTrendMax * 100)}%` }} />
-                          <i className="taxBar" style={{ height: `${Math.max(4, record.incomeTax / salaryTrendMax * 100)}%` }} />
-                          <i className="netBar" style={{ height: `${Math.max(4, record.netSalary / salaryTrendMax * 100)}%` }} />
-                        </div>
-                        <b>{Number(record.month.slice(5))}月</b>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-              <div className="salaryHistory">
-                {salaryLoadStatus === "loading" ? (
-                  <div className="moduleState"><span className="statePulse" /><p>正在读取工资记录…</p></div>
-                ) : salaryLoadStatus === "error" ? (
-                  <div className="moduleState" role="alert"><p>工资记录读取失败，固定计算规则仍可使用。</p><button type="button" onClick={loadSalaryData}>重新加载</button></div>
-                ) : salaryRecords.length === 0 ? (
-                  <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
-                ) : salaryRecords.map((record) => (
-                  <div className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
-                    <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
-                    <span>应发 ¥{money(record.grossSalary)}</span>
-                    <span>个税 ¥{money(record.incomeTax)}</span>
-                    <strong>已保存实发 ¥{money(record.netSalary)}</strong>
-                  </div>
-                ))}
-              </div>
-            </article>
+            <SalaryDashboard
+              active={activeSection === "salary"}
+              monthLabel={monthLabel}
+              calendarMonthKey={calendarMonthKey}
+              workdays={workdays}
+              dailyRate={dailyRate}
+              deductions={deductions}
+              taxThreshold={taxThreshold}
+              taxRate={taxRate}
+              leaveDeduction={leaveDeduction}
+              grossSalary={grossSalary}
+              taxableIncome={taxableIncome}
+              incomeTax={incomeTax}
+              netSalary={netSalary}
+              salaryRecordMismatch={Boolean(salaryRecordMismatch)}
+              selectedSalaryRecord={selectedSalaryRecord}
+              salaryStatus={salaryStatus}
+              salaryRecords={salaryRecords}
+              salaryLoadStatus={salaryLoadStatus}
+              salaryTrend={salaryTrend}
+              salaryTrendMax={salaryTrendMax}
+              isCurrentCalendarMonth={isCurrentCalendarMonth}
+              money={money}
+              onSave={saveSalaryRecord}
+              onExport={exportSalaryRecords}
+              onReload={loadSalaryData}
+            />
           </div>
         </div>
         )}
