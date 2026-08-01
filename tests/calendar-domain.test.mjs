@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { calculateSalary } from "../app/api/salary/policy.ts";
 import {
   calculateAnnualWorkdays,
   calendarDateKey,
@@ -116,6 +117,25 @@ test("countCalendarMonthWorkdays applies official days and personal overrides", 
   }), 23);
   assert.equal(countCalendarMonthWorkdays(2026, 6, { "2026-07-06": false }), 22);
   assert.equal(countCalendarMonthWorkdays(2026, 6, { "2026-07-05": true }), 24);
+});
+
+test("July calendar workdays preserve the complete pre-refactor salary result", () => {
+  const calendarWorkdays = countCalendarMonthWorkdays(2026, 6, {});
+
+  assert.equal(calendarWorkdays, 23);
+  assert.deepEqual(calculateSalary(calendarWorkdays), {
+    dailyRate: 275,
+    deductions: 130,
+    taxThreshold: 5_000,
+    taxRate: 3,
+    extraIncome: 0,
+    bonus: 0,
+    leaveDeduction: 0,
+    grossSalary: 6_325,
+    taxableIncome: 1_195,
+    incomeTax: 35.85,
+    netSalary: 6_159.15,
+  });
 });
 
 test("calculateAnnualWorkdays returns twelve monthly counts and their exact total", () => {
