@@ -17,6 +17,15 @@ import {
   toChronologicalHealthHistory,
 } from "./features/health/domain";
 import { WorkCalendarCard } from "./features/calendar/WorkCalendarCard";
+import {
+  calculateAnnualWorkdays,
+  calendarDateKey,
+  countCalendarMonthWorkdays,
+  getCalendarMonthShape,
+  getWorkdayToggle,
+  resolveCalendarDay,
+  shiftCalendarMonth,
+} from "./features/calendar/domain";
 import { WorkExperienceTimeline } from "./features/career/WorkExperienceTimeline";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
 import type { CalendarDayView, CalendarNote, HealthDaily, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
@@ -50,39 +59,6 @@ const formatShanghaiDateTime = (value?: string) => {
     minute: "2-digit",
     hour12: false,
   }).format(parsed);
-};
-
-const holidayRanges = [
-  ["2026-01-01", "2026-01-03", "元旦"],
-  ["2026-02-15", "2026-02-23", "春节"],
-  ["2026-04-04", "2026-04-06", "清明"],
-  ["2026-05-01", "2026-05-05", "劳动节"],
-  ["2026-06-19", "2026-06-21", "端午"],
-  ["2026-09-25", "2026-09-27", "中秋"],
-  ["2026-10-01", "2026-10-07", "国庆"],
-] as const;
-
-const makeupWorkdays = new Set([
-  "2026-01-04",
-  "2026-02-14",
-  "2026-02-28",
-  "2026-05-09",
-  "2026-09-20",
-  "2026-10-10",
-]);
-
-const dateKey = (year: number, month: number, day: number) =>
-  `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-
-const holidayName = (date: string) =>
-  holidayRanges.find(([start, end]) => date >= start && date <= end)?.[2] ?? null;
-
-const defaultIsWorkday = (year: number, month: number, day: number) => {
-  const key = dateKey(year, month, day);
-  if (makeupWorkdays.has(key)) return true;
-  if (holidayName(key)) return false;
-  const weekday = new Date(year, month, day).getDay();
-  return weekday !== 0 && weekday !== 6;
 };
 
 const genshinQuotes = [
@@ -146,21 +122,11 @@ export default function Home() {
   const today = getShanghaiDate();
   const quoteDay = Math.floor(Date.UTC(today.year, today.month, today.day) / 86_400_000);
   const dailyQuote = genshinQuotes[quoteDay % genshinQuotes.length];
-  const todayKey = dateKey(today.year, today.month, today.day);
-  const firstDayOffset = (new Date(calendarMonth.year, calendarMonth.month, 1).getDay() + 6) % 7;
-  const daysInMonth = new Date(calendarMonth.year, calendarMonth.month + 1, 0).getDate();
-  const calendarDays: Array<number | null> = [
-    ...Array.from({ length: firstDayOffset }, () => null),
-    ...Array.from({ length: daysInMonth }, (_, index) => index + 1),
-  ];
-  const calendarRows = Math.ceil(calendarDays.length / 7);
+  const todayKey = calendarDateKey(today.year, today.month, today.day);
+  const { calendarDays, calendarRows } = getCalendarMonthShape(calendarMonth.year, calendarMonth.month);
   const calendarDayViews: CalendarDayView[] = calendarDays.map((day, index) => {
     if (day === null) return { key: `empty-${index}`, day: null };
-    const key = dateKey(calendarMonth.year, calendarMonth.month, day);
-    const holiday = holidayName(key);
-    const makeup = makeupWorkdays.has(key);
-    const workday = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
-    const personalOverride = Object.prototype.hasOwnProperty.call(calendarOverrides, key);
+    const { date: key, holiday, makeup, workday, personalOverride } = resolveCalendarDay(calendarMonth.year, calendarMonth.month, day, calendarOverrides);
     const isToday = key === todayKey;
     const className = isToday ? "today" : workday && key < todayKey ? "worked" : workday ? "workday" : "weekend";
     const statusLabel = personalOverride
@@ -180,21 +146,8 @@ export default function Home() {
       disabled: !calendarEditing || savingDate === key,
     };
   });
-  const calendarWorkdays = Array.from(
-    { length: daysInMonth },
-    (_, index) => index + 1
-  ).filter((day) => {
-    const key = dateKey(calendarMonth.year, calendarMonth.month, day);
-    return calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
-  }).length;
-  const annualWorkdays = Array.from({ length: 12 }, (_, month) => {
-    const count = new Date(calendarMonth.year, month + 1, 0).getDate();
-    return Array.from({ length: count }, (_, index) => index + 1).filter((day) => {
-      const key = dateKey(calendarMonth.year, month, day);
-      return annualOverrides[key] ?? defaultIsWorkday(calendarMonth.year, month, day);
-    }).length;
-  });
-  const annualWorkdayTotal = annualWorkdays.reduce((sum, count) => sum + count, 0);
+  const calendarWorkdays = countCalendarMonthWorkdays(calendarMonth.year, calendarMonth.month, calendarOverrides);
+  const { monthlyWorkdays: annualWorkdays, totalWorkdays: annualWorkdayTotal } = calculateAnnualWorkdays(calendarMonth.year, annualOverrides);
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   const calendarMonthKey = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
   const currentMonthKey = `${today.year}-${String(today.month + 1).padStart(2, "0")}`;
@@ -376,18 +329,12 @@ export default function Home() {
 
   const changeCalendarMonth = (offset: number) => {
     setLastCalendarChange(null);
-    setCalendarMonth((current) => {
-      const next = new Date(current.year, current.month + offset, 1);
-      return { year: next.getFullYear(), month: next.getMonth() };
-    });
+    setCalendarMonth((current) => shiftCalendarMonth(current, offset));
   };
 
   const toggleWorkday = async (day: number) => {
     if (!calendarEditing) return;
-    const key = dateKey(calendarMonth.year, calendarMonth.month, day);
-    const hadOverride = Object.hasOwn(calendarOverrides, key);
-    const current = calendarOverrides[key] ?? defaultIsWorkday(calendarMonth.year, calendarMonth.month, day);
-    const next = !current;
+    const { date: key, hadOverride, previous: current, next } = getWorkdayToggle(calendarMonth.year, calendarMonth.month, day, calendarOverrides);
     setCalendarOverrides((values) => ({ ...values, [key]: next }));
     setSavingDate(key);
     try {
