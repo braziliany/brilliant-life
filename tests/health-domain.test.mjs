@@ -3,7 +3,10 @@ import test from "node:test";
 
 import {
   calculateHealthSummary,
+  calculateHealthTrend,
+  calculateWeightTrend,
   getHealthMetricValue,
+  getMissingTodayHealthMetrics,
   selectTodayHealth,
   toChronologicalHealthHistory,
 } from "../app/features/health/domain.ts";
@@ -71,4 +74,86 @@ test("getHealthMetricValue preserves nullable metric and sleep conversion behavi
   assert.equal(getHealthMetricValue(healthRecord({ weightKg: null }), "weightKg"), 0);
   assert.equal(getHealthMetricValue(healthRecord({ sleepMinutes: null }), "sleepMinutes"), 0);
   assert.equal(getHealthMetricValue(healthRecord({ restingHeartRateBpm: null }), "restingHeartRateBpm"), 0);
+});
+
+test("calculateHealthTrend preserves period slicing, nullable filtering, and averages", () => {
+  const history = Array.from({ length: 10 }, (_, index) => healthRecord({
+    date: `2026-07-${String(23 + index).padStart(2, "0")}`,
+    steps: (index + 1) * 1_000,
+    weightKg: index === 5 ? null : 60 + index / 10,
+    sleepMinutes: index === 5 ? null : 360 + index * 6,
+    restingHeartRateBpm: index === 5 ? null : 55 + index,
+  }));
+
+  const stepsTrend = calculateHealthTrend(history, 7, "steps");
+  assert.equal(stepsTrend.visibleHistory.length, 7);
+  assert.equal(stepsTrend.visibleHistory[0].steps, 4_000);
+  assert.equal(stepsTrend.metricHistory.length, 7);
+  assert.equal(stepsTrend.metricMax, 10_000);
+  assert.equal(stepsTrend.metricAverage, 7_000);
+  assert.equal(stepsTrend.metricAverageLabel, "7,000");
+
+  const weightTrend = calculateHealthTrend(history, 7, "weightKg");
+  assert.equal(weightTrend.metricHistory.length, 6);
+  assert.equal(weightTrend.metricHistory.some((item) => item.weightKg === null), false);
+  assert.equal(weightTrend.metricAverageLabel, weightTrend.metricAverage.toFixed(1));
+
+  const sleepTrend = calculateHealthTrend(history, 30, "sleepMinutes");
+  assert.equal(sleepTrend.visibleHistory.length, 10);
+  assert.equal(sleepTrend.metricHistory.length, 9);
+  assert.equal(sleepTrend.metricAverageLabel, sleepTrend.metricAverage.toFixed(1));
+
+  const heartTrend = calculateHealthTrend(history, 30, "restingHeartRateBpm");
+  assert.equal(heartTrend.metricHistory.length, 9);
+  assert.equal(heartTrend.metricAverageLabel, Math.round(heartTrend.metricAverage).toLocaleString("zh-CN"));
+
+  const energyTrend = calculateHealthTrend(history, 7, "activeEnergyKcal");
+  assert.equal(energyTrend.metricHistory.length, 7);
+  const exerciseTrend = calculateHealthTrend(history, 7, "exerciseMinutes");
+  assert.equal(exerciseTrend.metricHistory.length, 7);
+
+  assert.deepEqual(calculateHealthTrend([], 7, "steps"), {
+    visibleHistory: [],
+    metricHistory: [],
+    metricMax: 1,
+    metricAverage: 0,
+    metricAverageLabel: "0",
+  });
+});
+
+test("calculateWeightTrend preserves recent-record and chart-range behavior", () => {
+  const history = Array.from({ length: 16 }, (_, index) => healthRecord({
+    date: `2026-07-${String(index + 1).padStart(2, "0")}`,
+    weightKg: index === 1 ? null : 60 + index / 10,
+  }));
+  const trend = calculateWeightTrend(history);
+
+  assert.equal(trend.recentWeightHistory.length, 14);
+  assert.equal(trend.latestWeight, 61.5);
+  assert.equal(trend.recentWeightHistory[0].weightKg, 60.2);
+  assert.ok(Math.abs(trend.weightChange - 1.3) < 1e-9);
+  assert.equal(trend.recentWeightMin, 60.2);
+  assert.ok(Math.abs(trend.recentWeightRange - 1.3) < 1e-9);
+
+  assert.deepEqual(calculateWeightTrend([]), {
+    recentWeightHistory: [],
+    latestWeight: null,
+    weightChange: null,
+    recentWeightMin: 0,
+    recentWeightRange: 1,
+  });
+
+  const oneRecord = calculateWeightTrend([healthRecord({ weightKg: 60 })]);
+  assert.equal(oneRecord.weightChange, null);
+  assert.equal(oneRecord.recentWeightRange, 0.1);
+});
+
+test("getMissingTodayHealthMetrics returns only the current optional metric keys", () => {
+  assert.deepEqual(getMissingTodayHealthMetrics(null), []);
+  assert.deepEqual(getMissingTodayHealthMetrics(healthRecord()), []);
+  assert.deepEqual(getMissingTodayHealthMetrics(healthRecord({
+    weightKg: null,
+    sleepMinutes: null,
+    restingHeartRateBpm: null,
+  })), ["weightKg", "sleepMinutes", "restingHeartRateBpm"]);
 });
