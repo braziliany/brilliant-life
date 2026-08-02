@@ -28,6 +28,7 @@ import {
 } from "./features/calendar/domain";
 import { WorkExperienceTimeline } from "./features/career/WorkExperienceTimeline";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
+import { calculateSalarySummary } from "./features/salary/domain";
 import type { CalendarDayView, CalendarNote, HealthDaily, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
 const getShanghaiDate = (value = new Date()) => {
@@ -305,10 +306,7 @@ export default function Home() {
     loadWorkExperiences();
   }, []);
   const { dailyRate, deductions, taxThreshold, taxRate, extraIncome, bonus, leaveDeduction } = salaryPolicy;
-  const grossSalary = workdays * dailyRate + extraIncome + bonus;
-  const taxableIncome = Math.max(0, grossSalary - deductions - leaveDeduction - taxThreshold);
-  const incomeTax = taxableIncome * taxRate / 100;
-  const netSalary = grossSalary - deductions - leaveDeduction - incomeTax;
+  const { grossSalary, taxableIncome, incomeTax, netSalary } = calculateSalarySummary(workdays, salaryPolicy);
   const selectedSalaryRecord = salaryRecords.find((record) => record.month === calendarMonthKey);
   const salaryRecordMismatch = isCurrentCalendarMonth && selectedSalaryRecord
     ? selectedSalaryRecord.workdays !== workdays || Math.abs(selectedSalaryRecord.netSalary - netSalary) >= 0.01
