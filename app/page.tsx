@@ -27,6 +27,13 @@ import {
   shiftCalendarMonth,
 } from "./features/calendar/domain";
 import { WorkExperienceTimeline } from "./features/career/WorkExperienceTimeline";
+import {
+  createEmptyWorkExperienceDraft,
+  formatWorkExperienceDuration,
+  removeWorkExperience,
+  toWorkExperienceDraft,
+  upsertWorkExperience,
+} from "./features/career/domain";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
 import { calculateSalarySummary } from "./features/salary/domain";
 import type { CalendarDayView, CalendarNote, HealthDaily, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
@@ -70,17 +77,6 @@ const genshinQuotes = [
   { text: "风带来了故事的种子，时间使之发芽。", source: "蒙德古语" },
 ] as const;
 
-const experienceDuration = (startDate: string, endDate: string | null) => {
-  const [startYear, startMonth] = startDate.split("-").map(Number);
-  const current = getShanghaiDate();
-  const effectiveEnd = endDate ?? `${current.year}-${String(current.month + 1).padStart(2, "0")}`;
-  const [endYear, endMonth] = effectiveEnd.split("-").map(Number);
-  const months = Math.max(0, (endYear - startYear) * 12 + endMonth - startMonth + 1);
-  const years = Math.floor(months / 12);
-  const remainingMonths = months % 12;
-  return [years ? `${years} 年` : "", remainingMonths ? `${remainingMonths} 个月` : ""].filter(Boolean).join(" ") || "不足 1 个月";
-};
-
 export default function Home() {
   const [sitePage, setSitePage] = useState<SitePage>("home");
   const [activeSection, setActiveSection] = useState("overview");
@@ -114,7 +110,7 @@ export default function Home() {
   const [experienceEditingId, setExperienceEditingId] = useState<number | null>(null);
   const [experienceFormOpen, setExperienceFormOpen] = useState(false);
   const [experienceStatus, setExperienceStatus] = useState<"idle" | "loading" | "saving" | "error">("loading");
-  const [experienceDraft, setExperienceDraft] = useState<WorkExperienceDraft>({ company: "", role: "", startDate: "", endDate: null, summary: "" });
+  const [experienceDraft, setExperienceDraft] = useState<WorkExperienceDraft>(createEmptyWorkExperienceDraft);
   const [expandedExperienceId, setExpandedExperienceId] = useState<number | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(() => {
     const now = getShanghaiDate();
@@ -495,9 +491,7 @@ export default function Home() {
 
   const openExperienceForm = (experience?: WorkExperience) => {
     setExperienceEditingId(experience?.id ?? null);
-    setExperienceDraft(experience
-      ? { company: experience.company, role: experience.role, startDate: experience.startDate, endDate: experience.endDate, summary: experience.summary }
-      : { company: "", role: "", startDate: "", endDate: null, summary: "" });
+    setExperienceDraft(experience ? toWorkExperienceDraft(experience) : createEmptyWorkExperienceDraft());
     setExperienceStatus("idle");
     setExperienceFormOpen(true);
   };
@@ -513,9 +507,7 @@ export default function Home() {
       });
       if (!response.ok) throw new Error("Save failed");
       const { experience } = await response.json() as { experience: WorkExperience };
-      setWorkExperiences((items) => (experienceEditingId
-        ? items.map((item) => item.id === experience.id ? experience : item)
-        : [...items, experience]).sort((a, b) => a.startDate.localeCompare(b.startDate) || a.id - b.id));
+      setWorkExperiences((items) => upsertWorkExperience(items, experience, experienceEditingId));
       setExperienceFormOpen(false);
       setExperienceEditingId(null);
       setExperienceStatus("idle");
@@ -533,7 +525,7 @@ export default function Home() {
         body: JSON.stringify({ id: experience.id }),
       });
       if (!response.ok) throw new Error("Delete failed");
-      setWorkExperiences((items) => items.filter((item) => item.id !== experience.id));
+      setWorkExperiences((items) => removeWorkExperience(items, experience.id));
     } catch {
       setExperienceStatus("error");
     }
@@ -661,7 +653,7 @@ export default function Home() {
               onReload={loadWorkExperiences}
               onToggleExpanded={setExpandedExperienceId}
               onDelete={deleteWorkExperience}
-              formatDuration={experienceDuration}
+              formatDuration={(startDate, endDate) => formatWorkExperienceDuration(startDate, endDate, currentMonthKey)}
             />
 
             <SalaryDashboard
