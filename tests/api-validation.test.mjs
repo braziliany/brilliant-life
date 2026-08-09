@@ -4,7 +4,9 @@ import {
   currentShanghaiMonth,
   isCurrentSalaryMonth,
   isValidHealthApiKey,
+  normalizeHealthIngestion,
   normalizeHealthPayload,
+  selectHealthUpdateFields,
   validDate,
   validMonth,
   validSalaryRecord,
@@ -119,4 +121,45 @@ test("health normalization aggregates supported metrics and clamps unsafe values
     ] }],
   }).map((row) => row.date), ["2026-07-25", "2026-07-28", "2026-07-29"]);
   assert.deepEqual(normalizeHealthPayload({ metrics: [{ name: "unsupported", data: [] }] }), []);
+});
+
+test("health ingestion distinguishes explicit zero values from omitted metrics", () => {
+  const ingestion = normalizeHealthIngestion({
+    metrics: [
+      { name: "step_count", data: [{ qty: 0, date: "2026-08-09" }] },
+      { name: "sleep_analysis", units: "hr", data: [{ qty: 7, date: "2026-08-09", value: "Core" }] },
+    ],
+  });
+
+  assert.deepEqual(ingestion.coverage["2026-08-09"], ["steps", "sleepMinutes"]);
+  assert.equal(ingestion.rows[0].steps, 0);
+  assert.equal(ingestion.rows[0].activeEnergyKcal, 0);
+  assert.deepEqual(selectHealthUpdateFields(
+    ingestion.rows[0],
+    ingestion.coverage["2026-08-09"],
+  ), {
+    steps: 0,
+    sleepMinutes: 420,
+    source: "health-auto-export",
+  });
+});
+
+test("partial health uploads update only metrics actually included in the request", () => {
+  const ingestion = normalizeHealthIngestion({
+    metrics: [
+      { name: "resting_heart_rate", units: "count/min", data: [{ qty: 61, date: "2026-08-09" }] },
+      { name: "weight_body_mass", units: "kg", data: [{ qty: 0, date: "2026-08-09" }] },
+    ],
+  });
+
+  assert.deepEqual(ingestion.coverage["2026-08-09"], ["restingHeartRateBpm"]);
+  assert.deepEqual(selectHealthUpdateFields(
+    ingestion.rows[0],
+    ingestion.coverage["2026-08-09"],
+  ), {
+    restingHeartRateBpm: 61,
+    source: "health-auto-export",
+  });
+  assert.equal(Object.hasOwn(selectHealthUpdateFields(ingestion.rows[0], ingestion.coverage["2026-08-09"]), "steps"), false);
+  assert.equal(Object.hasOwn(selectHealthUpdateFields(ingestion.rows[0], ingestion.coverage["2026-08-09"]), "activeEnergyKcal"), false);
 });

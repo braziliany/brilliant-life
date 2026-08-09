@@ -1,9 +1,14 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { healthDaily } from "../../../db/schema";
 import { hasDashboardAccess } from "../access";
-import { type HealthPayload, isValidHealthApiKey, normalizeHealthPayload } from "../validation";
+import {
+  type HealthPayload,
+  isValidHealthApiKey,
+  normalizeHealthIngestion,
+  selectHealthUpdateFields,
+} from "../validation";
 
 const jsonHeaders = {
   "Cache-Control": "no-store",
@@ -38,7 +43,7 @@ export async function POST(request: Request) {
 
   try {
     const payload = (await request.json()) as HealthPayload;
-    const rows = normalizeHealthPayload(payload);
+    const { rows, coverage } = normalizeHealthIngestion(payload);
     if (rows.length === 0) {
       return Response.json(
         { error: "No supported health metrics found" },
@@ -49,13 +54,12 @@ export async function POST(request: Request) {
     const db = getDb();
     for (const row of rows) {
       const values = { ...row, updatedAt: new Date().toISOString() };
+      const updateFields = selectHealthUpdateFields(row, coverage[row.date] ?? []);
       await db.insert(healthDaily).values(values).onConflictDoUpdate({
         target: healthDaily.date,
         set: {
-          ...values,
-          weightKg: sql`coalesce(excluded.weight_kg, ${healthDaily.weightKg})`,
-          sleepMinutes: sql`coalesce(excluded.sleep_minutes, ${healthDaily.sleepMinutes})`,
-          restingHeartRateBpm: sql`coalesce(excluded.resting_heart_rate_bpm, ${healthDaily.restingHeartRateBpm})`,
+          ...updateFields,
+          updatedAt: values.updatedAt,
         },
       });
     }

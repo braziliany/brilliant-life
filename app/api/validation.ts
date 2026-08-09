@@ -35,6 +35,34 @@ type HealthMetric = {
   }>;
 };
 
+export type HealthMetricKey =
+  | "steps"
+  | "activeEnergyKcal"
+  | "restingEnergyKcal"
+  | "exerciseMinutes"
+  | "workoutCount"
+  | "weightKg"
+  | "sleepMinutes"
+  | "restingHeartRateBpm";
+
+export type NormalizedHealthRow = {
+  date: string;
+  steps: number;
+  activeEnergyKcal: number;
+  restingEnergyKcal: number;
+  exerciseMinutes: number;
+  workoutCount: number;
+  weightKg: number | null;
+  sleepMinutes: number | null;
+  restingHeartRateBpm: number | null;
+  source: string;
+};
+
+export type NormalizedHealthIngestion = {
+  rows: NormalizedHealthRow[];
+  coverage: Record<string, HealthMetricKey[]>;
+};
+
 export function validMonth(value: unknown) {
   return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
 }
@@ -141,38 +169,58 @@ function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], 
   return Math.min(1_440, minutes);
 }
 
-export function normalizeHealthPayload(payload: HealthPayload) {
+export function selectHealthUpdateFields(
+  row: NormalizedHealthRow,
+  coverage: readonly HealthMetricKey[],
+): Partial<NormalizedHealthRow> {
+  return {
+    ...(coverage.includes("steps") ? { steps: row.steps } : {}),
+    ...(coverage.includes("activeEnergyKcal") ? { activeEnergyKcal: row.activeEnergyKcal } : {}),
+    ...(coverage.includes("restingEnergyKcal") ? { restingEnergyKcal: row.restingEnergyKcal } : {}),
+    ...(coverage.includes("exerciseMinutes") ? { exerciseMinutes: row.exerciseMinutes } : {}),
+    ...(coverage.includes("workoutCount") ? { workoutCount: row.workoutCount } : {}),
+    ...(coverage.includes("weightKg") && row.weightKg !== null ? { weightKg: row.weightKg } : {}),
+    ...(coverage.includes("sleepMinutes") && row.sleepMinutes !== null ? { sleepMinutes: row.sleepMinutes } : {}),
+    ...(coverage.includes("restingHeartRateBpm") && row.restingHeartRateBpm !== null
+      ? { restingHeartRateBpm: row.restingHeartRateBpm }
+      : {}),
+    source: row.source,
+  };
+}
+
+export function normalizeHealthIngestion(payload: HealthPayload): NormalizedHealthIngestion {
   const metrics = payload.data?.metrics ?? payload.metrics;
   if (!Array.isArray(metrics)) {
     const date = dateOnly(payload.date);
-    return date
-      ? [{
-          date,
-          steps: Math.round(numberInRange(payload.steps, 0, 200_000)),
-          activeEnergyKcal: numberInRange(payload.activeEnergyKcal, 0, 20_000),
-          restingEnergyKcal: numberInRange(payload.restingEnergyKcal, 0, 20_000),
-          exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
-          workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
-          weightKg: weightInKg(payload.weightKg),
-          sleepMinutes: payload.sleepMinutes == null ? null : numberInRange(payload.sleepMinutes, 0, 1_440),
-          restingHeartRateBpm: heartRateInBpm(payload.restingHeartRateBpm),
-          source: payload.source?.trim().slice(0, 64) || "apple-health",
-        }]
-      : [];
+    if (!date) return { rows: [], coverage: {} };
+
+    const row = {
+      date,
+      steps: Math.round(numberInRange(payload.steps, 0, 200_000)),
+      activeEnergyKcal: numberInRange(payload.activeEnergyKcal, 0, 20_000),
+      restingEnergyKcal: numberInRange(payload.restingEnergyKcal, 0, 20_000),
+      exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
+      workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
+      weightKg: weightInKg(payload.weightKg),
+      sleepMinutes: payload.sleepMinutes == null ? null : numberInRange(payload.sleepMinutes, 0, 1_440),
+      restingHeartRateBpm: heartRateInBpm(payload.restingHeartRateBpm),
+      source: payload.source?.trim().slice(0, 64) || "apple-health",
+    } satisfies NormalizedHealthRow;
+    const coverage: HealthMetricKey[] = [
+      Number.isFinite(payload.steps) ? "steps" : null,
+      Number.isFinite(payload.activeEnergyKcal) ? "activeEnergyKcal" : null,
+      Number.isFinite(payload.restingEnergyKcal) ? "restingEnergyKcal" : null,
+      Number.isFinite(payload.exerciseMinutes) ? "exerciseMinutes" : null,
+      Number.isFinite(payload.workoutCount) ? "workoutCount" : null,
+      row.weightKg !== null ? "weightKg" : null,
+      payload.sleepMinutes != null && Number.isFinite(Number(payload.sleepMinutes)) ? "sleepMinutes" : null,
+      row.restingHeartRateBpm !== null ? "restingHeartRateBpm" : null,
+    ].filter((key): key is HealthMetricKey => key !== null);
+    return { rows: [row], coverage: { [date]: coverage } };
   }
 
-  const days = new Map<string, {
-    date: string;
-    steps: number;
-    activeEnergyKcal: number;
-    restingEnergyKcal: number;
-    exerciseMinutes: number;
-    workoutCount: number;
-    weightKg: number | null;
-    sleepMinutes: number | null;
-    restingHeartRateBpm: number | null;
-    source: string;
-  }>();
+  const days = new Map<string, NormalizedHealthRow>();
+  const coverage = new Map<string, Set<HealthMetricKey>>();
   const exerciseNames = new Set(["apple_exercise_time", "exercise_time", "apple_exercise_minutes"]);
   const restingEnergyNames = new Set(["basal_energy", "basal_energy_burned", "resting_energy", "resting_energy_burned"]);
   const weightNames = new Set(["weight", "body_weight", "body_mass", "weight_body_mass"]);
@@ -198,27 +246,61 @@ export function normalizeHealthPayload(payload: HealthPayload) {
         restingHeartRateBpm: null,
         source: "health-auto-export",
       };
+      const dayCoverage = coverage.get(date) ?? new Set<HealthMetricKey>();
       const qty = numberInRange(point.qty, 0, 200_000);
-      if (name === "step_count") day.steps += Math.round(qty);
-      if (name === "active_energy") day.activeEnergyKcal += energyInKcal(point.qty, metric.units);
-      if (restingEnergyNames.has(name)) day.restingEnergyKcal += energyInKcal(point.qty, metric.units);
-      if (exerciseNames.has(name)) day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
+      const hasNumericQuantity = Number.isFinite(Number(point.qty));
+      if (name === "step_count" && hasNumericQuantity) {
+        day.steps += Math.round(qty);
+        dayCoverage.add("steps");
+      }
+      if (name === "active_energy" && hasNumericQuantity) {
+        day.activeEnergyKcal += energyInKcal(point.qty, metric.units);
+        dayCoverage.add("activeEnergyKcal");
+      }
+      if (restingEnergyNames.has(name) && hasNumericQuantity) {
+        day.restingEnergyKcal += energyInKcal(point.qty, metric.units);
+        dayCoverage.add("restingEnergyKcal");
+      }
+      if (exerciseNames.has(name) && hasNumericQuantity) {
+        day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
+        dayCoverage.add("exerciseMinutes");
+      }
       if (weightNames.has(name)) {
-        day.weightKg = weightInKg(point.qty, metric.units);
+        const weight = weightInKg(point.qty, metric.units);
+        if (weight !== null) {
+          day.weightKg = weight;
+          dayCoverage.add("weightKg");
+        }
       }
       if (sleepNames.has(name)) {
         const stage = (point.sleepStage ?? point.value ?? name).toLowerCase().replaceAll(/[\s_-]/g, "");
         if (!stage.includes("awake") && !stage.includes("inbed")) {
           const duration = sleepDurationMinutes(point, metric.units);
-          if (duration > 0) day.sleepMinutes = (day.sleepMinutes ?? 0) + duration;
+          if (duration > 0) {
+            day.sleepMinutes = (day.sleepMinutes ?? 0) + duration;
+            dayCoverage.add("sleepMinutes");
+          }
         }
       }
       if (restingHeartRateNames.has(name)) {
-        day.restingHeartRateBpm = heartRateInBpm(point.qty);
+        const restingHeartRate = heartRateInBpm(point.qty);
+        if (restingHeartRate !== null) {
+          day.restingHeartRateBpm = restingHeartRate;
+          dayCoverage.add("restingHeartRateBpm");
+        }
       }
       days.set(date, day);
+      coverage.set(date, dayCoverage);
     }
   }
 
-  return [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
+  const rows = [...days.values()].sort((a, b) => a.date.localeCompare(b.date));
+  return {
+    rows,
+    coverage: Object.fromEntries(rows.map((row) => [row.date, [...(coverage.get(row.date) ?? [])]])),
+  };
+}
+
+export function normalizeHealthPayload(payload: HealthPayload) {
+  return normalizeHealthIngestion(payload).rows;
 }
