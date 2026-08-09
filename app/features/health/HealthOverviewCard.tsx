@@ -12,6 +12,8 @@ type Props = {
   healthFreshness: string;
   latestSyncedHealth: HealthDaily | null;
   latestUploadLabel: string;
+  ingestionContinuityLabel: string;
+  todayUploadSummary: string;
   missingTodayMetrics: string[];
   healthMetric: HealthMetric;
   healthPeriod: 7 | 30;
@@ -31,7 +33,7 @@ type Props = {
   onPeriodChange: (period: 7 | 30) => void;
 };
 
-export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, health, healthLoadStatus, healthFreshness, latestSyncedHealth, latestUploadLabel, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
+export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, health, healthLoadStatus, healthFreshness, latestSyncedHealth, latestUploadLabel, ingestionContinuityLabel, todayUploadSummary, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
   return (
     <article id="overview" className={`card activity${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
@@ -54,6 +56,7 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
               <div><span>数据日期</span><b>{latestSyncedHealth?.date ?? "尚无记录"}</b></div>
               <div><span>今日指标</span><b>{!health ? "等待上传" : missingTodayMetrics.length ? `缺少 ${missingTodayMetrics.join("、")}` : "主要指标完整"}</b></div>
             </div>
+            <p>{ingestionContinuityLabel}；{todayUploadSummary}</p>
             {!health && latestSyncedHealth && <p>服务器最后收到的是 {latestSyncedHealth.date} 的数据；请在 Health Auto Export 中手动运行一次“今天”导出。</p>}
             {health && missingTodayMetrics.length > 0 && <p>今天的数据已收到，但 {missingTodayMetrics.join("、")} 尚未包含在上传内容中，请检查读取权限后重新导出。</p>}
           </div>

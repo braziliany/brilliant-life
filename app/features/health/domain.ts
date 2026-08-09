@@ -1,4 +1,4 @@
-import type { HealthDaily, HealthMetric } from "../../page-view.types";
+import type { HealthDaily, HealthIngestionRun, HealthMetric } from "../../page-view.types";
 
 export const selectTodayHealth = (history: HealthDaily[], todayKey: string) =>
   history.find((item) => item.date === todayKey) ?? null;
@@ -87,3 +87,55 @@ export const getMissingTodayHealthMetrics = (health: HealthDaily | null): Missin
     health.restingHeartRateBpm === null ? "restingHeartRateBpm" : null,
   ].filter((metric): metric is MissingTodayHealthMetric => metric !== null);
 };
+
+export const healthIngestionShanghaiDate = (receivedAt: string) => {
+  const date = new Date(receivedAt);
+  if (Number.isNaN(date.getTime())) return null;
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+};
+
+export const getRecentHealthDateKeys = (todayKey: string, days = 7) => {
+  const [year, month, day] = todayKey.split("-").map(Number);
+  if (!year || !month || !day || days <= 0) return [];
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(Date.UTC(year, month - 1, day - (days - index - 1)));
+    return date.toISOString().slice(0, 10);
+  });
+};
+
+export const calculateHealthIngestionContinuity = (
+  ingestions: HealthIngestionRun[],
+  todayKey: string,
+  days = 7,
+) => {
+  const dateKeys = getRecentHealthDateKeys(todayKey, days);
+  const receivedDates = new Set<string>();
+  const successfulDates = new Set<string>();
+  const failedDates = new Set<string>();
+
+  for (const ingestion of ingestions) {
+    const receivedDate = healthIngestionShanghaiDate(ingestion.receivedAt);
+    if (!receivedDate || !dateKeys.includes(receivedDate)) continue;
+    receivedDates.add(receivedDate);
+    if (ingestion.status === "success") successfulDates.add(receivedDate);
+    else failedDates.add(receivedDate);
+  }
+
+  return {
+    dateKeys,
+    receivedDateKeys: dateKeys.filter((date) => receivedDates.has(date)),
+    successfulDateKeys: dateKeys.filter((date) => successfulDates.has(date)),
+    failedDateKeys: dateKeys.filter((date) => failedDates.has(date)),
+    missingDateKeys: dateKeys.filter((date) => !receivedDates.has(date)),
+  };
+};
+
+export const findLatestSuccessfulIngestionForDate = (
+  ingestions: HealthIngestionRun[],
+  date: string,
+) => ingestions.find((ingestion) => ingestion.status === "success" && ingestion.coveredDates.includes(date)) ?? null;

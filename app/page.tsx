@@ -10,6 +10,8 @@ import { DailyGoalsColumn } from "./features/health/DailyGoalsColumn";
 import {
   calculateHealthSummary,
   calculateHealthTrend,
+  calculateHealthIngestionContinuity,
+  findLatestSuccessfulIngestionForDate,
   calculateWeightTrend,
   getHealthMetricValue,
   getMissingTodayHealthMetrics,
@@ -36,7 +38,7 @@ import {
 } from "./features/career/domain";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
 import { calculateSalarySummary } from "./features/salary/domain";
-import type { CalendarDayView, CalendarNote, HealthDaily, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
+import type { CalendarDayView, CalendarNote, HealthDaily, HealthIngestionRun, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
 const getShanghaiDate = (value = new Date()) => {
   const parts = new Intl.DateTimeFormat("zh-CN", {
@@ -82,6 +84,7 @@ export default function Home() {
   const [activeSection, setActiveSection] = useState("overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
+  const [healthIngestions, setHealthIngestions] = useState<HealthIngestionRun[]>([]);
   const [healthLoadStatus, setHealthLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
   const [healthMetric, setHealthMetric] = useState<HealthMetric>("steps");
@@ -163,6 +166,25 @@ export default function Home() {
   const { metricHistory: healthMetricHistory, metricMax: healthMetricMax, metricAverageLabel: healthMetricAverageLabel } = calculateHealthTrend(healthHistory, healthPeriod, healthMetric);
   const healthMetricValue = (item: HealthDaily) => getHealthMetricValue(item, healthMetric);
   const latestSyncedHealth = healthHistory.at(-1) ?? null;
+  const latestHealthIngestion = healthIngestions[0] ?? null;
+  const latestTodayIngestion = findLatestSuccessfulIngestionForDate(healthIngestions, todayKey);
+  const ingestionContinuity = calculateHealthIngestionContinuity(healthIngestions, todayKey);
+  const ingestionMetricLabels: Record<string, string> = {
+    steps: "步数",
+    activeEnergyKcal: "活动能量",
+    restingEnergyKcal: "静息能量",
+    exerciseMinutes: "锻炼时间",
+    workoutCount: "训练次数",
+    weightKg: "体重",
+    sleepMinutes: "睡眠",
+    restingHeartRateBpm: "静息心率",
+  };
+  const ingestionContinuityLabel = healthIngestions.length === 0
+    ? "上传连续性将在下一次同步后开始记录"
+    : `近7天成功上传 ${ingestionContinuity.successfulDateKeys.length}/7 天${ingestionContinuity.missingDateKeys.length ? `，未收到 ${ingestionContinuity.missingDateKeys.join("、")}` : ""}${ingestionContinuity.failedDateKeys.length ? `，异常 ${ingestionContinuity.failedDateKeys.join("、")}` : ""}`;
+  const todayUploadSummary = latestTodayIngestion
+    ? `今天最近一次包含 ${latestTodayIngestion.metricKeys.map((key) => ingestionMetricLabels[key] ?? key).join("、") || "无支持指标"}`
+    : "今天尚无成功上传事件";
   const missingTodayMetricLabels = {
     weightKg: "体重",
     sleepMinutes: "睡眠",
@@ -182,16 +204,18 @@ export default function Home() {
     fetch("/api/health?days=30", { cache: "no-store" })
       .then(async (response) => {
         if (!response.ok) throw new Error("Health data unavailable");
-        return response.json() as Promise<{ health: HealthDaily | null; history: HealthDaily[] }>;
+        return response.json() as Promise<{ health: HealthDaily | null; history: HealthDaily[]; ingestions?: HealthIngestionRun[] }>;
       })
-      .then(({ history }) => {
+      .then(({ history, ingestions = [] }) => {
         setHealth(selectTodayHealth(history, todayKey));
         setHealthHistory(toChronologicalHealthHistory(history));
+        setHealthIngestions(ingestions);
         setHealthLoadStatus("ready");
       })
       .catch(() => {
         setHealth(null);
         setHealthHistory([]);
+        setHealthIngestions([]);
         setHealthLoadStatus("error");
       });
   };
@@ -566,7 +590,9 @@ export default function Home() {
               healthLoadStatus={healthLoadStatus}
               healthFreshness={healthFreshness}
               latestSyncedHealth={latestSyncedHealth}
-              latestUploadLabel={formatShanghaiDateTime(latestSyncedHealth?.updatedAt)}
+              latestUploadLabel={formatShanghaiDateTime(latestHealthIngestion?.receivedAt ?? latestSyncedHealth?.updatedAt)}
+              ingestionContinuityLabel={ingestionContinuityLabel}
+              todayUploadSummary={todayUploadSummary}
               missingTodayMetrics={missingTodayMetrics}
               healthMetric={healthMetric}
               healthPeriod={healthPeriod}

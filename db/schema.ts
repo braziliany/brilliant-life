@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const healthDaily = sqliteTable(
   "health_daily",
@@ -18,6 +18,22 @@ export const healthDaily = sqliteTable(
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [uniqueIndex("health_daily_date_unique").on(table.date)]
+);
+
+export const healthIngestionRuns = sqliteTable(
+  "health_ingestion_runs",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    receivedAt: text("received_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    coveredDates: text("covered_dates").notNull().default("[]"),
+    metricKeys: text("metric_keys").notNull().default("[]"),
+    importedDays: integer("imported_days").notNull().default(0),
+    status: text("status", {
+      enum: ["success", "no_supported_metrics", "invalid_payload"],
+    }).notNull(),
+    source: text("source"),
+  },
+  (table) => [index("health_ingestion_runs_received_at_idx").on(table.receivedAt)]
 );
 
 export const calendarOverrides = sqliteTable(

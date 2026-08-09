@@ -12,6 +12,18 @@ export type HealthDaily = {
   updatedAt: string;
 };
 
+export type HealthIngestionStatus = "success" | "no_supported_metrics" | "invalid_payload";
+
+export type HealthIngestionRun = {
+  id: number;
+  receivedAt: string;
+  coveredDates: string[];
+  metricKeys: string[];
+  importedDays: number;
+  status: HealthIngestionStatus;
+  source: string | null;
+};
+
 export type SalaryRecord = {
   month: string;
   workdays: number;

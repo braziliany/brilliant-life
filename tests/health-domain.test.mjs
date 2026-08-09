@@ -2,11 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  calculateHealthIngestionContinuity,
   calculateHealthSummary,
   calculateHealthTrend,
   calculateWeightTrend,
+  findLatestSuccessfulIngestionForDate,
   getHealthMetricValue,
   getMissingTodayHealthMetrics,
+  getRecentHealthDateKeys,
+  healthIngestionShanghaiDate,
   selectTodayHealth,
   toChronologicalHealthHistory,
 } from "../app/features/health/domain.ts";
@@ -156,4 +160,34 @@ test("getMissingTodayHealthMetrics returns only the current optional metric keys
     sleepMinutes: null,
     restingHeartRateBpm: null,
   })), ["weightKg", "sleepMinutes", "restingHeartRateBpm"]);
+});
+
+test("health ingestion dates preserve Shanghai timezone and seven-day boundaries", () => {
+  assert.equal(healthIngestionShanghaiDate("2026-08-08T16:30:00.000Z"), "2026-08-09");
+  assert.equal(healthIngestionShanghaiDate("invalid"), null);
+  assert.deepEqual(getRecentHealthDateKeys("2026-08-09"), [
+    "2026-08-03",
+    "2026-08-04",
+    "2026-08-05",
+    "2026-08-06",
+    "2026-08-07",
+    "2026-08-08",
+    "2026-08-09",
+  ]);
+});
+
+test("health ingestion continuity distinguishes success, failure, and no request", () => {
+  const ingestions = [
+    { id: 4, receivedAt: "2026-08-09T01:00:00.000Z", coveredDates: ["2026-08-09"], metricKeys: ["steps"], importedDays: 1, status: "success", source: "health-auto-export" },
+    { id: 3, receivedAt: "2026-08-08T01:00:00.000Z", coveredDates: [], metricKeys: [], importedDays: 0, status: "invalid_payload", source: null },
+    { id: 2, receivedAt: "2026-08-07T01:00:00.000Z", coveredDates: ["2026-08-06", "2026-08-07"], metricKeys: ["sleepMinutes"], importedDays: 2, status: "success", source: "health-auto-export" },
+  ];
+  const result = calculateHealthIngestionContinuity(ingestions, "2026-08-09");
+
+  assert.deepEqual(result.receivedDateKeys, ["2026-08-07", "2026-08-08", "2026-08-09"]);
+  assert.deepEqual(result.successfulDateKeys, ["2026-08-07", "2026-08-09"]);
+  assert.deepEqual(result.failedDateKeys, ["2026-08-08"]);
+  assert.deepEqual(result.missingDateKeys, ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]);
+  assert.equal(findLatestSuccessfulIngestionForDate(ingestions, "2026-08-09"), ingestions[0]);
+  assert.equal(findLatestSuccessfulIngestionForDate(ingestions, "2026-08-08"), null);
 });
