@@ -24,6 +24,7 @@ import {
   calendarDateKey,
   countCalendarMonthWorkdays,
   getCalendarMonthShape,
+  getHolidayCalendar,
   getWorkdayToggle,
   resolveCalendarDay,
   shiftCalendarMonth,
@@ -147,6 +148,7 @@ export default function Home() {
     };
   });
   const calendarWorkdays = countCalendarMonthWorkdays(calendarMonth.year, calendarMonth.month, calendarOverrides);
+  const holidayCalendarConfigured = getHolidayCalendar(calendarMonth.year).status === "configured";
   const { monthlyWorkdays: annualWorkdays, totalWorkdays: annualWorkdayTotal } = calculateAnnualWorkdays(calendarMonth.year, annualOverrides);
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   const calendarMonthKey = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
@@ -328,7 +330,7 @@ export default function Home() {
   const { dailyRate, deductions, taxThreshold, taxRate, extraIncome, bonus, leaveDeduction } = salaryPolicy;
   const { grossSalary, taxableIncome, incomeTax, netSalary } = calculateSalarySummary(workdays, salaryPolicy);
   const selectedSalaryRecord = salaryRecords.find((record) => record.month === calendarMonthKey);
-  const salaryRecordMismatch = isCurrentCalendarMonth && selectedSalaryRecord
+  const salaryRecordMismatch = holidayCalendarConfigured && isCurrentCalendarMonth && selectedSalaryRecord
     ? selectedSalaryRecord.workdays !== workdays || Math.abs(selectedSalaryRecord.netSalary - netSalary) >= 0.01
     : false;
   const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
@@ -435,7 +437,7 @@ export default function Home() {
   };
 
   const saveSalaryRecord = async () => {
-    if (!isCurrentCalendarMonth) return;
+    if (!isCurrentCalendarMonth || !holidayCalendarConfigured) return;
     const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
     setSalaryStatus("saving");
     try {
@@ -617,6 +619,7 @@ export default function Home() {
               calendarEditing={calendarEditing}
               monthLabel={monthLabel}
               calendarWorkdays={calendarWorkdays}
+              holidayCalendarConfigured={holidayCalendarConfigured}
               showAnnualStats={showAnnualStats}
               showCalendarNotes={showCalendarNotes}
               calendarMonth={calendarMonth}
@@ -704,6 +707,7 @@ export default function Home() {
               salaryTrend={salaryTrend}
               salaryTrendMax={salaryTrendMax}
               isCurrentCalendarMonth={isCurrentCalendarMonth}
+              holidayCalendarConfigured={holidayCalendarConfigured}
               money={money}
               onSave={saveSalaryRecord}
               onExport={exportSalaryRecords}

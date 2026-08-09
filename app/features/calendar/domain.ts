@@ -1,32 +1,43 @@
+import { holidayCalendar2026 } from "./holiday-data/2026.ts";
+
 export type CalendarMonth = { year: number; month: number };
 export type CalendarOverrides = Record<string, boolean>;
 
-const holidayRanges = [
-  ["2026-01-01", "2026-01-03", "元旦"],
-  ["2026-02-15", "2026-02-23", "春节"],
-  ["2026-04-04", "2026-04-06", "清明"],
-  ["2026-05-01", "2026-05-05", "劳动节"],
-  ["2026-06-19", "2026-06-21", "端午"],
-  ["2026-09-25", "2026-09-27", "中秋"],
-  ["2026-10-01", "2026-10-07", "国庆"],
-] as const;
+type HolidayRange = readonly [start: string, end: string, name: string];
+type ConfiguredHolidayCalendar = {
+  status: "configured";
+  year: number;
+  holidayRanges: readonly HolidayRange[];
+  makeupWorkdays: ReadonlySet<string>;
+};
+type UnconfiguredHolidayCalendar = { status: "unconfigured"; year: number };
+export type HolidayCalendar = ConfiguredHolidayCalendar | UnconfiguredHolidayCalendar;
 
-const makeupWorkdays = new Set([
-  "2026-01-04",
-  "2026-02-14",
-  "2026-02-28",
-  "2026-05-09",
-  "2026-09-20",
-  "2026-10-10",
+const holidayCalendars = new Map<number, ConfiguredHolidayCalendar>([
+  [holidayCalendar2026.year, {
+    status: "configured",
+    year: holidayCalendar2026.year,
+    holidayRanges: holidayCalendar2026.holidayRanges,
+    makeupWorkdays: new Set(holidayCalendar2026.makeupWorkdays),
+  }],
 ]);
+
+export const getHolidayCalendar = (year: number): HolidayCalendar =>
+  holidayCalendars.get(year) ?? { status: "unconfigured", year };
 
 export const calendarDateKey = (year: number, month: number, day: number) =>
   `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
-export const getHolidayName = (date: string) =>
-  holidayRanges.find(([start, end]) => date >= start && date <= end)?.[2] ?? null;
+export const getHolidayName = (date: string) => {
+  const calendar = getHolidayCalendar(Number(date.slice(0, 4)));
+  if (calendar.status === "unconfigured") return null;
+  return calendar.holidayRanges.find(([start, end]) => date >= start && date <= end)?.[2] ?? null;
+};
 
-export const isMakeupWorkday = (date: string) => makeupWorkdays.has(date);
+export const isMakeupWorkday = (date: string) => {
+  const calendar = getHolidayCalendar(Number(date.slice(0, 4)));
+  return calendar.status === "configured" && calendar.makeupWorkdays.has(date);
+};
 
 export const isOfficialWorkday = (year: number, month: number, day: number) => {
   const key = calendarDateKey(year, month, day);

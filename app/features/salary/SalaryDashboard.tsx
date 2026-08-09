@@ -22,13 +22,14 @@ type Props = {
   salaryTrend: SalaryRecord[];
   salaryTrendMax: number;
   isCurrentCalendarMonth: boolean;
+  holidayCalendarConfigured: boolean;
   money: (value: number) => string;
   onSave: () => void;
   onExport: () => void;
   onReload: () => void;
 };
 
-export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays, dailyRate, deductions, taxThreshold, taxRate, leaveDeduction, grossSalary, taxableIncome, incomeTax, netSalary, salaryRecordMismatch, selectedSalaryRecord, salaryStatus, salaryRecords, salaryLoadStatus, salaryTrend, salaryTrendMax, isCurrentCalendarMonth, money, onSave, onExport, onReload }: Props) {
+export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays, dailyRate, deductions, taxThreshold, taxRate, leaveDeduction, grossSalary, taxableIncome, incomeTax, netSalary, salaryRecordMismatch, selectedSalaryRecord, salaryStatus, salaryRecords, salaryLoadStatus, salaryTrend, salaryTrendMax, isCurrentCalendarMonth, holidayCalendarConfigured, money, onSave, onExport, onReload }: Props) {
   return (
     <article id="salary" className={`card salary${active ? " sectionActive" : ""}`}>
       <div className="salaryIntro">
@@ -40,7 +41,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         <label className="workdayInput"><span>{monthLabel}工作日</span><input type="number" readOnly value={workdays} /><b>天</b></label>
       </div>
       <div className="salarySummary">
-        <div className="netPay"><span>当前日历预计实发</span><strong>¥ {money(netSalary)}</strong><small>按 {workdays} 个工作日实时计算</small></div>
+        <div className="netPay"><span>{holidayCalendarConfigured ? "当前日历预计实发" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按 {workdays} 个工作日实时计算</small></div>
         <div className="salaryMetrics">
           <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
           <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除</small></div>
@@ -59,7 +60,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
         <div className="salaryHistoryActions">
           <button type="button" className="exportSalary" onClick={onExport} disabled={salaryRecords.length === 0}>导出 CSV</button>
-          <button type="button" className="saveSalary" onClick={onSave} disabled={salaryStatus === "saving" || !isCurrentCalendarMonth}>{!isCurrentCalendarMonth ? "历史已锁定" : salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}</button>
+          <button type="button" className="saveSalary" onClick={onSave} disabled={salaryStatus === "saving" || !isCurrentCalendarMonth || !holidayCalendarConfigured}>{!holidayCalendarConfigured ? "等待官方日历" : !isCurrentCalendarMonth ? "历史已锁定" : salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}</button>
         </div>
       </div>
       {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}

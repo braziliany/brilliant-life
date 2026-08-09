@@ -7,6 +7,7 @@ import {
   calendarDateKey,
   countCalendarMonthWorkdays,
   getHolidayName,
+  getHolidayCalendar,
   getCalendarMonthShape,
   getWorkdayToggle,
   isMakeupWorkday,
@@ -19,6 +20,17 @@ test("calendarDateKey preserves zero-based month input and canonical output", ()
   assert.equal(calendarDateKey(2026, 0, 1), "2026-01-01");
   assert.equal(calendarDateKey(2026, 6, 9), "2026-07-09");
   assert.equal(calendarDateKey(2026, 11, 31), "2026-12-31");
+});
+
+test("holiday calendars are explicitly versioned and unconfigured years never masquerade as official", () => {
+  const configured = getHolidayCalendar(2026);
+  assert.equal(configured.status, "configured");
+  assert.equal(configured.year, 2026);
+  assert.equal(configured.holidayRanges.length, 7);
+  assert.equal(configured.makeupWorkdays.size, 6);
+  assert.deepEqual(getHolidayCalendar(2027), { status: "unconfigured", year: 2027 });
+  assert.equal(getHolidayName("2027-01-01"), null);
+  assert.equal(isMakeupWorkday("2027-01-03"), false);
 });
 
 test("getHolidayName preserves every 2026 statutory holiday boundary", () => {

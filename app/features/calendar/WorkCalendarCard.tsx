@@ -5,6 +5,7 @@ type Props = {
   calendarEditing: boolean;
   monthLabel: string;
   calendarWorkdays: number;
+  holidayCalendarConfigured: boolean;
   showAnnualStats: boolean;
   showCalendarNotes: boolean;
   calendarMonth: { year: number; month: number };
@@ -32,7 +33,7 @@ type Props = {
   onToggleDay: (day: number) => void;
 };
 
-export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendarWorkdays, showAnnualStats, showCalendarNotes, calendarMonth, calendarLoadStatus, annualWorkdayTotal, annualWorkdays, calendarNote, calendarNoteStatus, lastCalendarChange, savingDate, calendarOverridesCount, resettingCalendar, calendarRows, calendarDays, onToggleAnnual, onToggleNotes, onToggleEditing, onChangeMonth, onReload, onSelectAnnualMonth, onSaveNote, onNoteChange, onUndo, onReset, onToggleDay }: Props) {
+export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendarWorkdays, holidayCalendarConfigured, showAnnualStats, showCalendarNotes, calendarMonth, calendarLoadStatus, annualWorkdayTotal, annualWorkdays, calendarNote, calendarNoteStatus, lastCalendarChange, savingDate, calendarOverridesCount, resettingCalendar, calendarRows, calendarDays, onToggleAnnual, onToggleNotes, onToggleEditing, onChangeMonth, onReload, onSelectAnnualMonth, onSaveNote, onNoteChange, onUndo, onReset, onToggleDay }: Props) {
   return (
     <article id="calendar" className={`card calendar${calendarEditing ? " editing" : ""}${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
@@ -48,6 +49,7 @@ export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendar
           </div>
         </div>
       </div>
+      {!holidayCalendarConfigured && <div className="calendarEditHint" role="status"><span>{calendarMonth.year} 年官方节假日尚未配置，当前仅显示星期规则和个人修改，不能用于保存工资。</span></div>}
       {calendarLoadStatus === "loading" ? (
         <div className="moduleState darkState"><span className="statePulse" /><p>正在读取工作日历…</p></div>
       ) : calendarLoadStatus === "error" ? (
