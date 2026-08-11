@@ -97,6 +97,7 @@ test("renders the current Brilliant Life dashboard in the local Workers runtime"
   assert.match(html, /璀璨人生/);
   assert.match(html, /网站导航/);
   assert.match(html, /数据中心/);
+  assert.match(html, /年度档案/);
   assert.match(html, /今日状态/);
   assert.match(html, /今日步数/);
   assert.match(html, /健康趋势/);

@@ -12,6 +12,7 @@ export function SiteNavigation({ sitePage, onChange }: Props) {
       <nav aria-label="网站导航">
         <button type="button" className={sitePage === "home" ? "active" : ""} onClick={() => onChange("home")}>首页</button>
         <button type="button" className={sitePage === "dashboard" ? "active" : ""} onClick={() => onChange("dashboard")}>数据中心</button>
+        <button type="button" className={sitePage === "annual" ? "active" : ""} onClick={() => onChange("annual")}>年度档案</button>
       </nav>
       <div className="siteProfile"><span className="avatar">AM</span><div><b>Amanda</b><small>生活记录者</small></div></div>
     </header>

@@ -108,6 +108,11 @@ test("summarizeHealthYear preserves partial data, optional nulls, and metric fac
 
   assert.equal(summary.coverage.availableDays, 2);
   assert.equal(summary.facts.totalSteps, 10000);
+  assert.equal(summary.facts.months[0].availableDays, 1);
+  assert.equal(summary.facts.months[0].totalSteps, 0);
+  assert.equal(summary.facts.months[1].availableDays, 0);
+  assert.equal(summary.facts.months[1].averageSleepMinutes, null);
+  assert.equal(summary.facts.months[11].totalSteps, 10000);
   assert.equal(summary.facts.averageSteps, 5000);
   assert.equal(summary.facts.exerciseDays, 1);
   assert.deepEqual(summary.facts.sleep, {
@@ -148,6 +153,9 @@ test("summarizeCalendarYear preserves the configured 2026 official facts", () =>
   assert.equal(summary.facts.holidayDays, 33);
   assert.equal(summary.facts.makeupWorkdays, 6);
   assert.equal(summary.facts.weekendDays, 104);
+  assert.equal(summary.facts.months.length, 12);
+  assert.equal(summary.facts.months[6].workdays, 23);
+  assert.equal(summary.facts.months[6].restDays, 8);
   assert.deepEqual(summary.warnings, []);
 });
 
@@ -193,6 +201,8 @@ test("summarizeSalaryYear aggregates saved snapshots and never recomputes July 2
   ]);
 
   assert.deepEqual(summary.facts.savedMonths, ["2026-07", "2026-08"]);
+  assert.deepEqual(summary.facts.months.map((month) => month.month), ["2026-07", "2026-08"]);
+  assert.equal(summary.facts.months[0].netSalary, 6159.15);
   assert.equal(summary.facts.totalGrossSalary, 7325.1);
   assert.equal(summary.facts.totalIncomeTax, 45.9);
   assert.equal(summary.facts.totalNetSalary, 7059.2);
@@ -273,6 +283,8 @@ test("generateAnnualSummaryDraft composes four factual domains with caller time"
   assert.equal(draft.generatedAt, input.generatedAt);
   assert.equal(draft.calculationVersion, "annual-summary-v1");
   assert.equal(draft.status, "draft");
+  assert.equal(draft.asOfDate, "2027-01-01");
+  assert.equal(draft.periodStatus, "complete");
   assert.equal(draft.health.facts.totalSteps, 17381);
   assert.equal(draft.time.facts.officialWorkdays, 248);
   assert.equal(draft.finance.facts.totalNetSalary, 6159.15);
@@ -285,6 +297,19 @@ test("generateAnnualSummaryDraft composes four factual domains with caller time"
     "work_experiences",
   ]);
   assert.deepEqual(input, before);
+});
+
+test("annual draft marks an unfinished current year without using system time", () => {
+  const draft = generateAnnualSummaryDraft(2026, {
+    generatedAt: "2026-08-09T02:00:00.000Z",
+    asOfDate: "2026-08-09",
+    healthRecords: [],
+    calendarData: { overrides: {} },
+    salaryRecords: [],
+    experiences: [],
+  });
+  assert.equal(draft.periodStatus, "in-progress");
+  assert.equal(draft.asOfDate, "2026-08-09");
 });
 
 test("coverage states distinguish unconfigured, no records, partial records, and complete zero facts", () => {

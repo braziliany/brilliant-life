@@ -39,6 +39,7 @@ import {
 } from "./features/career/domain";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
 import { calculateSalarySummary } from "./features/salary/domain";
+import { AnnualReportPage } from "./features/annual/AnnualReportPage";
 import type { CalendarDayView, CalendarNote, HealthDaily, HealthIngestionRun, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
 const getShanghaiDate = (value = new Date()) => {
@@ -577,6 +578,8 @@ export default function Home() {
             money={money}
             onOpenDashboard={openDashboard}
           />
+        ) : sitePage === "annual" ? (
+          <AnnualReportPage initialYear={today.year} />
         ) : (
         <div className="content">
           <DashboardHeader today={today} />

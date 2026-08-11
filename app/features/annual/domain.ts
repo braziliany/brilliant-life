@@ -43,6 +43,7 @@ type CalendarYearData = {
 
 type AnnualSummaryInput = {
   generatedAt: string;
+  asOfDate?: string;
   healthRecords: HealthDaily[];
   calendarData: CalendarYearData;
   salaryRecords: SalaryRecord[];
@@ -100,6 +101,25 @@ export function summarizeHealthYear(
   );
   const expectedDays = daysInYear(year);
   const availableDays = records.length;
+  const months = Array.from({ length: 12 }, (_, monthIndex) => {
+    const month = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
+    const monthRecords = records.filter((record) => record.date.startsWith(month));
+    const monthSleep = monthRecords.flatMap((record) =>
+      record.sleepMinutes === null ? [] : [record.sleepMinutes],
+    );
+    return {
+      month,
+      availableDays: monthRecords.length,
+      totalSteps: monthRecords.reduce((total, record) => total + record.steps, 0),
+      activeEnergyKcal: round(
+        monthRecords.reduce((total, record) => total + record.activeEnergyKcal, 0),
+      ),
+      exerciseMinutes: round(
+        monthRecords.reduce((total, record) => total + record.exerciseMinutes, 0),
+      ),
+      averageSleepMinutes: average(monthSleep),
+    };
+  });
   const warnings: string[] = [];
 
   if (availableDays < expectedDays) warnings.push("missing-health-days");
@@ -111,6 +131,7 @@ export function summarizeHealthYear(
   return {
     facts: {
       availableDays,
+      months,
       totalSteps: records.reduce((total, record) => total + record.steps, 0),
       averageSteps: average(records.map((record) => record.steps)),
       totalActiveEnergyKcal: round(
@@ -174,9 +195,25 @@ export function summarizeCalendarYear(
   let makeupWorkdays = 0;
   let personalWorkdays = 0;
   let personalRestDays = 0;
+  const months: Array<{
+    month: string;
+    workdays: number;
+    restDays: number;
+    holidayDays: number;
+    makeupWorkdays: number;
+    personalAdjustments: number;
+  }> = [];
 
   for (let monthIndex = 0; monthIndex < 12; monthIndex += 1) {
     const { daysInMonth } = getCalendarMonthShape(year, monthIndex);
+    const monthFacts = {
+      month: `${year}-${String(monthIndex + 1).padStart(2, "0")}`,
+      workdays: 0,
+      restDays: 0,
+      holidayDays: 0,
+      makeupWorkdays: 0,
+      personalAdjustments: 0,
+    };
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(Date.UTC(year, monthIndex, day));
       const resolved = resolveCalendarDay(year, monthIndex, day, overrides);
@@ -188,13 +225,20 @@ export function summarizeCalendarYear(
       if (resolved.makeup) makeupWorkdays += 1;
       if (resolved.officialWorkday) officialWorkdays += 1;
       if (resolved.workday) actualWorkdays += 1;
+      if (resolved.workday) monthFacts.workdays += 1;
+      else monthFacts.restDays += 1;
+      if (resolved.holiday) monthFacts.holidayDays += 1;
+      if (resolved.makeup) monthFacts.makeupWorkdays += 1;
+      if (resolved.personalOverride) monthFacts.personalAdjustments += 1;
       if (resolved.personalOverride && overrides[dateKey]) personalWorkdays += 1;
       if (resolved.personalOverride && !overrides[dateKey]) personalRestDays += 1;
     }
+    months.push(monthFacts);
   }
 
   return {
     facts: {
+      months,
       officialWorkdays,
       actualWorkdays,
       weekendDays,
@@ -232,6 +276,13 @@ export function summarizeSalaryYear(
     facts: {
       savedMonths,
       savedMonthCount: records.length,
+      months: records.map((record) => ({
+        month: record.month,
+        workdays: record.workdays,
+        grossSalary: record.grossSalary,
+        incomeTax: record.incomeTax,
+        netSalary: record.netSalary,
+      })),
       totalGrossSalary: round(
         records.reduce((total, record) => total + record.grossSalary, 0),
       ),
@@ -325,12 +376,20 @@ export function generateAnnualSummaryDraft(
   const finance = summarizeSalaryYear(year, data.salaryRecords);
   const career = summarizeCareerYear(year, data.experiences);
   const summaries = [health, time, finance, career];
+  const asOfDate = data.asOfDate ?? data.generatedAt.slice(0, 10);
 
   return {
     year,
     generatedAt: data.generatedAt,
+    asOfDate,
     calculationVersion: ANNUAL_SUMMARY_VERSION,
     status: "draft" as const,
+    periodStatus:
+      asOfDate < `${year}-01-01`
+        ? "not-started" as const
+        : asOfDate <= `${year}-12-31`
+          ? "in-progress" as const
+          : "complete" as const,
     completeness: {
       healthDaysRatio: health.coverage.ratio,
       calendarDaysRatio: time.coverage.ratio,

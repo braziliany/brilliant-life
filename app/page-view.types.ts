@@ -75,7 +75,7 @@ export type ShanghaiDate = {
   weekday: string;
 };
 
-export type SitePage = "home" | "dashboard";
+export type SitePage = "home" | "dashboard" | "annual";
 export type HealthLoadStatus = "loading" | "ready" | "error";
 export type HealthMetric = "steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes" | "restingHeartRateBpm";
 
