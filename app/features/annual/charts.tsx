@@ -71,7 +71,7 @@ export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft })
           );
         })}
       </svg>
-      <div className="annualChartFacts" aria-label="年度健康事实">
+      <div className="annualChartFacts" aria-label="年度健康记录">
         <span>活动能量 <b>{available.length ? `${Math.round(summary.health.facts.totalActiveEnergyKcal).toLocaleString("zh-CN")} kcal` : "—"}</b></span>
         <span>锻炼 <b>{available.length ? `${Math.round(summary.health.facts.totalExerciseMinutes).toLocaleString("zh-CN")} 分钟` : "—"}</b></span>
         <span>睡眠覆盖 <b>{summary.health.facts.sleep.availableDays} 天</b></span>
@@ -93,7 +93,7 @@ export function TimeTickDonutChart({ summary }: { summary: AnnualSummaryDraft })
   return (
     <ChartFrame
       title={summary.time.coverage.officialCalendarConfigured ? "工作与休息构成全年时间表盘" : "官方日历未配置，暂不绘制结构"}
-      subtitle={summary.time.coverage.includesFutureDates ? "全年已配置范围，包含截至日期之后的未来日历 · 假日与调休另列事实" : "全年已完成日历 · 工作与休息互斥 · 假日与调休另列事实"}
+      subtitle={summary.time.coverage.includesFutureDates ? "全年日历已配置，包含截至日期之后的日期 · 假日与调休分别列出" : "全年日历已结束 · 工作与休息分别统计 · 假日与调休分别列出"}
     >
       {summary.time.coverage.officialCalendarConfigured ? (
         <>
@@ -117,7 +117,7 @@ export function TimeTickDonutChart({ summary }: { summary: AnnualSummaryDraft })
           <text x="45" y="285" fill={porcelain.data} fontSize="13" fontWeight="800">工作 {workdays} 天</text>
           <text x="355" y="285" textAnchor="end" fill={porcelain.data2} fontSize="13" fontWeight="800">休息 {expected - workdays} 天</text>
         </svg>
-        <div className="annualChartFacts" aria-label="年度日历事实">
+        <div className="annualChartFacts" aria-label="年度工作时间">
           <span>法定假日 <b>{summary.time.facts.holidayDays} 天</b></span>
           <span>调休上班 <b>{summary.time.facts.makeupWorkdays} 天</b></span>
           <span>个人调整 <b>{summary.time.facts.personalAdjustments} 天</b></span>
@@ -165,7 +165,7 @@ export function FinanceHairlineChart({ summary }: { summary: AnnualSummaryDraft 
           </g>
         ))}
       </svg>
-      <div className="annualChartFacts" aria-label="年度工资事实">
+      <div className="annualChartFacts" aria-label="年度工资记录">
         <span>应发合计 <b>{months.length ? `¥${summary.finance.facts.totalGrossSalary.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</b></span>
         <span>个税合计 <b>{months.length ? `¥${summary.finance.facts.totalIncomeTax.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</b></span>
         <span>截至当前覆盖 <b>{summary.finance.coverage.availableMonths} / {summary.finance.coverage.expectedMonths} 月</b></span>
@@ -184,7 +184,7 @@ export function CompletenessBallotChart({ summary }: { summary: AnnualSummaryDra
   ] as const;
   return (
     <ChartFrame
-      title="四个领域的资料完整度各自有据可查"
+      title="四类资料的记录完整度"
       subtitle="每一刻度代表 1 个百分点 · 深蓝为已有覆盖 · 各领域独立计算"
     >
       <svg viewBox="0 0 400 320" role="img" aria-label="健康时间财务职业四领域完整度">

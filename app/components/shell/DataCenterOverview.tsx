@@ -21,7 +21,7 @@ export function DataCenterOverview({ active, hasTodayHealth, healthLoadStatus, s
   return (
     <section id="data-overview" className={`dataCenterOverview${active ? " sectionActive" : ""}`} aria-labelledby="data-overview-title">
       <div className="dataOverviewHead">
-        <div><p className="eyebrow">当前的生活事实</p><h2 id="data-overview-title">数据总览</h2></div>
+        <div><p className="eyebrow">最近记录</p><h2 id="data-overview-title">数据总览</h2></div>
         <p>今天 · 本月 · 今年</p>
       </div>
       <div className="dataOverviewFacts">

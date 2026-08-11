@@ -37,7 +37,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
     <article id="finance" className={`card salary${active ? " sectionActive" : ""}`}>
       <div className="salaryIntro">
         <div>
-          <p className="eyebrow">FINANCE · 工资事实</p>
+          <p className="eyebrow">FINANCE · 工资记录</p>
           <h2>{monthLabel}工资</h2>
           <p className="salarySubtitle">日薪 {money(dailyRate)} 元，固定扣除 {money(deductions)} 元，起征点 {money(taxThreshold)} 元，税率 {taxRate}%</p>
         </div>

@@ -12,6 +12,8 @@ const health = read("app/features/health/HealthOverviewCard.tsx");
 const calendar = read("app/features/calendar/WorkCalendarCard.tsx");
 const career = read("app/features/career/WorkExperienceTimeline.tsx");
 const salary = read("app/features/salary/SalaryDashboard.tsx");
+const annualPage = read("app/features/annual/AnnualReportPage.tsx");
+const annualCharts = read("app/features/annual/charts.tsx");
 const styles = read("app/globals.css");
 
 test("data center exposes overview and four life domains", () => {
@@ -30,6 +32,14 @@ test("overview uses existing facts and domain summaries without extra requests",
   assert.match(page, /selectCurrentCareerStage/);
   assert.match(overview, /今天[\s\S]*本月[\s\S]*今年/);
   assert.doesNotMatch(overview, /fetch\(|calculateSalary|resolveCalendarDay/);
+});
+
+test("production UI keeps internal fact terminology out of personal archive copy", () => {
+  const productionCopy = [overview, health, calendar, career, salary, annualPage, annualCharts].join("\n");
+  assert.doesNotMatch(productionCopy, /事实层|事实摘要|生活事实|工资事实|健康事实|日历事实/);
+  assert.match(overview, /最近记录/);
+  assert.match(health, /今日健康|健康趋势/);
+  assert.match(salary, /工资记录/);
 });
 
 test("all existing tools remain reachable with lower visual priority", () => {

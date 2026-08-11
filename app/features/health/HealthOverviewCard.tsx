@@ -37,7 +37,7 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
   return (
     <article id="health" className={`card activity${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow">HEALTH · 健康档案</p><h2>{showHealthGuide ? "同步与数据工具" : showHealthTrend ? "健康趋势" : "今日健康事实"}</h2></div>
+        <div><p className="eyebrow">HEALTH · 健康档案</p><h2>{showHealthGuide ? "同步与数据工具" : showHealthTrend ? "健康趋势" : "今日健康"}</h2></div>
         <div className="healthViewActions">
           <button type="button" className={`healthTrendToggle${showHealthTrend && !showHealthGuide ? " active" : ""}`} onClick={onToggleTrend}>{showHealthTrend && !showHealthGuide ? "今日" : "趋势"}</button>
           <details className="moduleTools"><summary>工具</summary><div><button type="button" onClick={onExport} disabled={healthHistoryLength === 0} aria-label="导出最近30天健康数据">导出 CSV</button><button type="button" onClick={onToggleGuide}>{showHealthGuide ? "返回健康数据" : "同步与状态"}</button></div></details>
