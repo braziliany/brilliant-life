@@ -59,6 +59,44 @@ function daysInYear(year: number) {
   return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0 ? 366 : 365;
 }
 
+function reportingPeriod(year: number, asOfDate: string) {
+  const start = `${year}-01-01`;
+  const end = `${year}-12-31`;
+  const periodStatus =
+    asOfDate < start
+      ? "not-started" as const
+      : asOfDate <= end
+        ? "in-progress" as const
+        : "complete" as const;
+  const factThroughDate =
+    periodStatus === "not-started"
+      ? null
+      : periodStatus === "complete"
+        ? end
+        : asOfDate;
+  const factThroughMonth = factThroughDate?.slice(0, 7) ?? null;
+  const expectedDays = factThroughDate
+    ? Math.floor(
+        (Date.parse(`${factThroughDate}T00:00:00Z`) -
+          Date.parse(`${start}T00:00:00Z`)) /
+          86_400_000,
+      ) + 1
+    : 0;
+  const expectedMonths = factThroughMonth
+    ? Number(factThroughMonth.slice(5, 7))
+    : 0;
+  return {
+    periodStatus,
+    asOfDate,
+    factThroughDate,
+    factThroughMonth,
+    fullYearStart: start,
+    fullYearEnd: end,
+    expectedDays,
+    expectedMonths,
+  };
+}
+
 function isDateInYear(date: string, year: number) {
   return date.startsWith(`${year}-`);
 }
@@ -371,12 +409,97 @@ export function generateAnnualSummaryDraft(
   year: number,
   data: AnnualSummaryInput,
 ) {
-  const health = summarizeHealthYear(year, data.healthRecords);
-  const time = summarizeCalendarYear(year, data.calendarData);
-  const finance = summarizeSalaryYear(year, data.salaryRecords);
-  const career = summarizeCareerYear(year, data.experiences);
-  const summaries = [health, time, finance, career];
   const asOfDate = data.asOfDate ?? data.generatedAt.slice(0, 10);
+  const reporting = reportingPeriod(year, asOfDate);
+  const healthBase = summarizeHealthYear(
+    year,
+    reporting.factThroughDate
+      ? data.healthRecords.filter((record) => record.date <= reporting.factThroughDate!)
+      : [],
+  );
+  const health = {
+    ...healthBase,
+    coverage: {
+      ...healthBase.coverage,
+      expectedDays: reporting.expectedDays,
+      fullYearExpectedDays: daysInYear(year),
+      ratio: reporting.expectedDays
+        ? round(healthBase.coverage.availableDays / reporting.expectedDays, 4)
+        : 0,
+      scope: reporting.periodStatus === "complete" ? "full-year" as const : "year-to-date" as const,
+      asOfDate: reporting.factThroughDate,
+    },
+    warnings: [
+      ...(healthBase.coverage.availableDays < reporting.expectedDays
+        ? ["missing-health-days"]
+        : []),
+      ...healthBase.warnings.filter((warning) => warning !== "missing-health-days"),
+    ],
+  };
+  const timeBase = summarizeCalendarYear(year, data.calendarData);
+  const time = {
+    ...timeBase,
+    coverage: {
+      ...timeBase.coverage,
+      fullYearExpectedDays: daysInYear(year),
+      scope: "full-year-configured" as const,
+      asOfDate: reporting.factThroughDate,
+      includesFutureDates: reporting.periodStatus !== "complete",
+    },
+  };
+  const financeBase = summarizeSalaryYear(
+    year,
+    reporting.factThroughMonth
+      ? data.salaryRecords.filter((record) => record.month <= reporting.factThroughMonth!)
+      : [],
+  );
+  const finance = {
+    ...financeBase,
+    coverage: {
+      ...financeBase.coverage,
+      expectedMonths: reporting.expectedMonths,
+      fullYearExpectedMonths: 12,
+      ratio: reporting.expectedMonths
+        ? round(financeBase.coverage.availableMonths / reporting.expectedMonths, 4)
+        : 0,
+      scope: reporting.periodStatus === "complete" ? "full-year" as const : "year-to-date" as const,
+      asOfMonth: reporting.factThroughMonth,
+    },
+    warnings: [
+      ...(financeBase.coverage.availableMonths < reporting.expectedMonths
+        ? ["missing-salary-months"]
+        : []),
+    ],
+  };
+  const careerInput = reporting.factThroughMonth
+    ? data.experiences.map((experience) => ({
+        ...experience,
+        endDate:
+          experience.endDate && experience.endDate < reporting.factThroughMonth!
+            ? experience.endDate
+            : reporting.factThroughMonth,
+      }))
+    : [];
+  const careerBase = summarizeCareerYear(year, careerInput);
+  const career = {
+    ...careerBase,
+    coverage: {
+      ...careerBase.coverage,
+      expectedMonths: reporting.expectedMonths,
+      fullYearExpectedMonths: 12,
+      ratio: reporting.expectedMonths
+        ? round(careerBase.coverage.availableMonths / reporting.expectedMonths, 4)
+        : 0,
+      scope: reporting.periodStatus === "complete" ? "full-year" as const : "year-to-date" as const,
+      asOfMonth: reporting.factThroughMonth,
+    },
+    warnings: careerBase.facts.stages.length === 0
+      ? ["no-career-records"]
+      : careerBase.coverage.availableMonths < reporting.expectedMonths
+        ? ["partial-career-year"]
+        : [],
+  };
+  const summaries = [health, time, finance, career];
 
   return {
     year,
@@ -384,12 +507,8 @@ export function generateAnnualSummaryDraft(
     asOfDate,
     calculationVersion: ANNUAL_SUMMARY_VERSION,
     status: "draft" as const,
-    periodStatus:
-      asOfDate < `${year}-01-01`
-        ? "not-started" as const
-        : asOfDate <= `${year}-12-31`
-          ? "in-progress" as const
-          : "complete" as const,
+    periodStatus: reporting.periodStatus,
+    reportingPeriod: reporting,
     completeness: {
       healthDaysRatio: health.coverage.ratio,
       calendarDaysRatio: time.coverage.ratio,
@@ -410,12 +529,12 @@ export type AnnualSummaryDraft = ReturnType<typeof generateAnnualSummaryDraft>;
 type AnnualDomain = AnnualSummaryDraft["health"];
 
 const warningExplanations: Record<string, string> = {
-  "missing-health-days": "该年度健康日记录不完整。",
+  "missing-health-days": "截至统计日期，健康日记录尚未完整覆盖已发生日期。",
   "missing-sleep-data": "该年度没有可用的睡眠记录。",
   "missing-weight-data": "该年度没有可用的体重记录。",
   "missing-resting-heart-rate-data": "该年度没有可用的静息心率记录。",
   "unconfigured-holiday-calendar": "该年度尚未配置官方节假日与调休规则。",
-  "missing-salary-months": "该年度已保存的工资月份不足十二个月。",
+  "missing-salary-months": "截至统计月份，已保存工资记录尚未覆盖全部已到月份。",
   "no-career-records": "该年度没有与之重叠的职业经历记录。",
   "partial-career-year": "该年度职业经历记录未覆盖全部月份。",
 };
@@ -534,6 +653,10 @@ export function compareAnnualMetric(
   if (current.year === baseline.year) reasons.push("same-year");
   if (currentState !== "complete") reasons.push("current-year-incomplete");
   if (baselineState !== "complete") reasons.push("baseline-year-incomplete");
+  if (currentState === "complete" && current.periodStatus !== "complete")
+    reasons.push("current-period-in-progress");
+  if (baselineState === "complete" && baseline.periodStatus !== "complete")
+    reasons.push("baseline-period-in-progress");
   if (currentValue === null) reasons.push("current-value-missing");
   if (baselineValue === null) reasons.push("baseline-value-missing");
 

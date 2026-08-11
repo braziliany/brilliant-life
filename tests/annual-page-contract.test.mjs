@@ -9,6 +9,7 @@ const page = read("app/features/annual/AnnualReportPage.tsx");
 const charts = read("app/features/annual/charts.tsx");
 const styles = read("app/globals.css");
 const annualApi = read("app/api/annual/route.ts");
+const implementationRecord = read("docs/v1.5-Sprint-10-年度报告页面实施记录.md");
 
 test("annual page declares AnnualSummaryDraft as its only factual payload", () => {
   assert.match(page, /data-annual-summary-source="AnnualSummaryDraft"/);
@@ -28,11 +29,20 @@ test("annual page preserves in-progress, missing finance, and empty career state
 test("annual report uses exactly four audited Lieflat templates in porcelain", () => {
   assert.match(page, /data-chart-count="4"/);
   assert.match(page, /data-color-system="porcelain"/);
-  assert.match(charts, /L3 BARCODE LOLLIPOP/);
-  assert.match(charts, /F4 TICK DONUT/);
-  assert.match(charts, /F2 HAIRLINE LINE/);
-  assert.match(charts, /L15 BALLOT TALLY/);
+  assert.match(implementationRecord, /模板编号：L3/);
+  assert.match(implementationRecord, /模板编号：F4/);
+  assert.match(implementationRecord, /模板编号：F2/);
+  assert.match(implementationRecord, /模板编号：L15/);
+  assert.doesNotMatch(charts, /L3 BARCODE|F4 TICK|F2 HAIRLINE|L15 BALLOT|PORCELAIN ·/);
   assert.doesNotMatch(charts, /Chart\.js|echarts|Math\.random/);
+});
+
+test("annual UI consumes domain-defined YTD and full-year calendar semantics", () => {
+  assert.match(page, /summary\.health\.coverage\.expectedDays/);
+  assert.match(page, /summary\.health\.coverage\.fullYearExpectedDays/);
+  assert.match(page + charts, /summary\.time\.coverage\.includesFutureDates/);
+  assert.match(page, /summary\.finance\.coverage\.expectedMonths/);
+  assert.doesNotMatch(page + charts, /new Date|Date\.parse|daysInYear|monthIndex/);
 });
 
 test("annual responsive contract keeps mobile charts readable and honors reduced motion", () => {

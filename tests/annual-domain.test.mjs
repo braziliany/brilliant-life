@@ -310,6 +310,49 @@ test("annual draft marks an unfinished current year without using system time", 
   });
   assert.equal(draft.periodStatus, "in-progress");
   assert.equal(draft.asOfDate, "2026-08-09");
+  assert.equal(draft.reportingPeriod.factThroughDate, "2026-08-09");
+  assert.equal(draft.reportingPeriod.expectedDays, 221);
+  assert.equal(draft.reportingPeriod.expectedMonths, 8);
+  assert.deepEqual(draft.health.coverage, {
+    expectedDays: 221,
+    availableDays: 0,
+    ratio: 0,
+    fullYearExpectedDays: 365,
+    scope: "year-to-date",
+    asOfDate: "2026-08-09",
+  });
+  assert.equal(draft.finance.coverage.expectedMonths, 8);
+  assert.equal(draft.finance.coverage.fullYearExpectedMonths, 12);
+  assert.equal(draft.finance.coverage.scope, "year-to-date");
+  assert.equal(draft.time.coverage.scope, "full-year-configured");
+  assert.equal(draft.time.coverage.includesFutureDates, true);
+  assert.equal(draft.time.coverage.expectedDays, 365);
+  assert.equal(draft.completeness.healthDaysRatio, 0);
+  assert.equal(draft.completeness.salaryMonthsRatio, 0);
+});
+
+test("current-year facts exclude records after asOf while calendar retains the configured full year", () => {
+  const draft = generateAnnualSummaryDraft(2026, {
+    generatedAt: "2026-08-09T02:00:00.000Z",
+    asOfDate: "2026-08-09",
+    healthRecords: [
+      healthRecord("2026-08-09", { steps: 100 }),
+      healthRecord("2026-08-10", { steps: 900 }),
+    ],
+    calendarData: { overrides: {} },
+    salaryRecords: [
+      salaryRecord("2026-08", { netSalary: 1000 }),
+      salaryRecord("2026-09", { netSalary: 9000 }),
+    ],
+    experiences: [],
+  });
+
+  assert.equal(draft.health.facts.totalSteps, 100);
+  assert.equal(draft.health.coverage.availableDays, 1);
+  assert.equal(draft.finance.facts.totalNetSalary, 1000);
+  assert.deepEqual(draft.finance.facts.savedMonths, ["2026-08"]);
+  assert.equal(draft.time.facts.officialWorkdays, 248);
+  assert.equal(draft.time.coverage.includesFutureDates, true);
 });
 
 test("coverage states distinguish unconfigured, no records, partial records, and complete zero facts", () => {
@@ -351,7 +394,7 @@ test("trust explanations preserve stable source and warning codes", () => {
   );
   assert.equal(
     explainAnnualWarning("missing-salary-months"),
-    "该年度已保存的工资月份不足十二个月。",
+    "截至统计月份，已保存工资记录尚未覆盖全部已到月份。",
   );
 
   const explanation = explainAnnualDomain(summarizeSalaryYear(2026, []));
@@ -431,4 +474,22 @@ test("annual comparisons refuse partial coverage and same-year comparisons", () 
   );
   assert.equal(sameYear.comparable, false);
   assert.deepEqual(sameYear.reasons, ["same-year"]);
+});
+
+test("complete YTD coverage does not masquerade as a comparable completed year", () => {
+  const baseline = completeAnnualDraft(2025, { steps: 10 });
+  const ytdDates = yearDates(2026).filter((date) => date <= "2026-08-09");
+  const current = generateAnnualSummaryDraft(2026, {
+    generatedAt: "2026-08-09T00:00:00.000Z",
+    asOfDate: "2026-08-09",
+    healthRecords: ytdDates.map((date) => healthRecord(date, { steps: 10 })),
+    calendarData: { overrides: {} },
+    salaryRecords: [],
+    experiences: [],
+  });
+
+  assert.equal(getAnnualCoverageState(current.health.coverage), "complete");
+  const comparison = compareAnnualMetric("health.totalSteps", current, baseline);
+  assert.equal(comparison.comparable, false);
+  assert.deepEqual(comparison.reasons, ["current-period-in-progress"]);
 });

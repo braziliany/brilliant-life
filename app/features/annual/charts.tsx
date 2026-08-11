@@ -16,19 +16,16 @@ const monthLabel = (month: string) => `${Number(month.slice(5))}月`;
 type ChartFrameProps = {
   title: string;
   subtitle: string;
-  source: string;
-  template: string;
   wide?: boolean;
   children: React.ReactNode;
 };
 
-function ChartFrame({ title, subtitle, source, template, wide, children }: ChartFrameProps) {
+function ChartFrame({ title, subtitle, wide, children }: ChartFrameProps) {
   return (
     <article className={`annualChartCard${wide ? " wide" : ""}`}>
       <h3>{title}</h3>
       <p>{subtitle}</p>
       <div className="annualChartCanvas">{children}</div>
-      <small>{template} · PORCELAIN · {source}</small>
     </article>
   );
 }
@@ -47,8 +44,6 @@ export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft })
       wide
       title={available.length ? "有记录的月份，活动留下了年度纹理" : "健康月份尚未形成可读纹理"}
       subtitle="每根发丝代表一个月份 · 实心点为已有记录 · 空月份不补零"
-      source="HEALTH DAILY"
-      template="L3 BARCODE LOLLIPOP"
     >
       <svg viewBox="0 0 800 300" role="img" aria-label="年度每月步数与健康记录覆盖">
         {months.map((month, index) => {
@@ -98,9 +93,7 @@ export function TimeTickDonutChart({ summary }: { summary: AnnualSummaryDraft })
   return (
     <ChartFrame
       title={summary.time.coverage.officialCalendarConfigured ? "工作与休息构成全年时间表盘" : "官方日历未配置，暂不绘制结构"}
-      subtitle="一格约为全年 1% · 工作与休息互斥 · 假日与调休另列事实"
-      source={`HOLIDAY CALENDAR ${summary.year}`}
-      template="F4 TICK DONUT"
+      subtitle={summary.time.coverage.includesFutureDates ? "全年已配置范围，包含截至日期之后的未来日历 · 假日与调休另列事实" : "全年已完成日历 · 工作与休息互斥 · 假日与调休另列事实"}
     >
       {summary.time.coverage.officialCalendarConfigured ? (
         <>
@@ -155,8 +148,6 @@ export function FinanceHairlineChart({ summary }: { summary: AnnualSummaryDraft 
     <ChartFrame
       title={months.length ? "实发工资只沿已保存月份延伸" : "这一年尚无已保存工资月份"}
       subtitle="每个点是一份已保存月度快照 · 缺失月份断开且不补 ¥0"
-      source="SALARY RECORDS"
-      template="F2 HAIRLINE LINE"
     >
       <svg viewBox="0 0 400 320" role="img" aria-label="年度已保存月度实发工资">
         <line x1="24" y1="245" x2="376" y2="245" stroke={porcelain.grid} strokeWidth="1.4" />
@@ -177,7 +168,8 @@ export function FinanceHairlineChart({ summary }: { summary: AnnualSummaryDraft 
       <div className="annualChartFacts" aria-label="年度工资事实">
         <span>应发合计 <b>{months.length ? `¥${summary.finance.facts.totalGrossSalary.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</b></span>
         <span>个税合计 <b>{months.length ? `¥${summary.finance.facts.totalIncomeTax.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</b></span>
-        <span>覆盖 <b>{summary.finance.coverage.availableMonths} / 12 月</b></span>
+        <span>截至当前覆盖 <b>{summary.finance.coverage.availableMonths} / {summary.finance.coverage.expectedMonths} 月</b></span>
+        <span>全年范围 <b>{summary.finance.coverage.fullYearExpectedMonths} 月</b></span>
       </div>
     </ChartFrame>
   );
@@ -194,8 +186,6 @@ export function CompletenessBallotChart({ summary }: { summary: AnnualSummaryDra
     <ChartFrame
       title="四个领域的资料完整度各自有据可查"
       subtitle="每一刻度代表 1 个百分点 · 深蓝为已有覆盖 · 各领域独立计算"
-      source="ANNUAL SUMMARY COVERAGE"
-      template="L15 BALLOT TALLY"
     >
       <svg viewBox="0 0 400 320" role="img" aria-label="健康时间财务职业四领域完整度">
         {rows.map(([label, ratio], rowIndex) => {
