@@ -22,10 +22,10 @@ type Props = {
 
 export function DailyGoalsColumn({ active, steps, stepGoal, stepProgress, healthLoadStatus, hasTodayHealth, editingStepGoal, stepGoalDraft, latestWeight, recentWeightHistory, recentWeightMin, recentWeightRange, weightChange, onStartEditing, onDraftChange, onSave, onCancel }: Props) {
   return (
-    <div id="goals" className={`statsColumn${active ? " sectionActive" : ""}`}>
+    <div id="health-goals" className={`statsColumn${active ? " sectionActive" : ""}`}>
       <article className="card steps">
         <div>
-          <p className="eyebrow">每日目标</p>
+          <p className="eyebrow">HEALTH · 个人基线</p>
           <h2>今日步数</h2>
           <strong>{steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span>
           {healthLoadStatus === "ready" && !hasTodayHealth && <small className="todayHealthPending">等待今日同步</small>}

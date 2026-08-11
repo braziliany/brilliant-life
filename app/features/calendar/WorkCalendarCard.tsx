@@ -5,6 +5,11 @@ type Props = {
   calendarEditing: boolean;
   monthLabel: string;
   calendarWorkdays: number;
+  elapsedWorkdays: number;
+  remainingWorkdays: number;
+  holidayDays: number;
+  makeupWorkdays: number;
+  personalAdjustments: number;
   holidayCalendarConfigured: boolean;
   showAnnualStats: boolean;
   showCalendarNotes: boolean;
@@ -33,22 +38,21 @@ type Props = {
   onToggleDay: (day: number) => void;
 };
 
-export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendarWorkdays, holidayCalendarConfigured, showAnnualStats, showCalendarNotes, calendarMonth, calendarLoadStatus, annualWorkdayTotal, annualWorkdays, calendarNote, calendarNoteStatus, lastCalendarChange, savingDate, calendarOverridesCount, resettingCalendar, calendarRows, calendarDays, onToggleAnnual, onToggleNotes, onToggleEditing, onChangeMonth, onReload, onSelectAnnualMonth, onSaveNote, onNoteChange, onUndo, onReset, onToggleDay }: Props) {
+export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendarWorkdays, elapsedWorkdays, remainingWorkdays, holidayDays, makeupWorkdays, personalAdjustments, holidayCalendarConfigured, showAnnualStats, showCalendarNotes, calendarMonth, calendarLoadStatus, annualWorkdayTotal, annualWorkdays, calendarNote, calendarNoteStatus, lastCalendarChange, savingDate, calendarOverridesCount, resettingCalendar, calendarRows, calendarDays, onToggleAnnual, onToggleNotes, onToggleEditing, onChangeMonth, onReload, onSelectAnnualMonth, onSaveNote, onNoteChange, onUndo, onReset, onToggleDay }: Props) {
   return (
-    <article id="calendar" className={`card calendar${calendarEditing ? " editing" : ""}${active ? " sectionActive" : ""}`}>
+    <article id="time" className={`card calendar${calendarEditing ? " editing" : ""}${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow light">{monthLabel} · {calendarWorkdays} 个工作日</p><h2>工作日历</h2></div>
+        <div><p className="eyebrow light">TIME · 时间档案</p><h2>{monthLabel}</h2></div>
         <div className="calendarActions">
-          <button type="button" className={`annualCalendarButton${showAnnualStats ? " active" : ""}`} onClick={onToggleAnnual}>{showAnnualStats ? "月历" : "全年"}</button>
-          <button type="button" className={`calendarNotesButton${showCalendarNotes ? " active" : ""}`} onClick={onToggleNotes}>{showCalendarNotes ? "月历" : "备注"}</button>
-          <button type="button" className={`editCalendar${calendarEditing ? " active" : ""}`} onClick={onToggleEditing}>{calendarEditing ? "完成" : "编辑"}</button>
           <div className="monthSwitcher" aria-label="切换月份">
             <button type="button" onClick={() => onChangeMonth(-1)} aria-label="上个月">‹</button>
             <span aria-live="polite">{calendarMonth.month + 1}月</span>
             <button type="button" onClick={() => onChangeMonth(1)} aria-label="下个月">›</button>
           </div>
+          <details className="moduleTools darkTools"><summary>工具</summary><div><button type="button" onClick={onToggleAnnual}>{showAnnualStats ? "返回月历" : "全年配置"}</button><button type="button" onClick={onToggleNotes}>{showCalendarNotes ? "返回月历" : "备注"}</button><button type="button" onClick={onToggleEditing}>{calendarEditing ? "完成编辑" : "编辑日期"}</button></div></details>
         </div>
       </div>
+      <div className="calendarFacts"><span><b>{calendarWorkdays}</b> 工作日</span><span><b>{elapsedWorkdays}</b> 已过去</span><span><b>{remainingWorkdays}</b> 剩余</span><small>法定假日 {holidayDays} · 调休 {makeupWorkdays} · 个人调整 {personalAdjustments}</small></div>
       {!holidayCalendarConfigured && <div className="calendarEditHint" role="status"><span>{calendarMonth.year} 年官方节假日尚未配置，当前仅显示星期规则和个人修改，不能用于保存工资。</span></div>}
       {calendarLoadStatus === "loading" ? (
         <div className="moduleState darkState"><span className="statePulse" /><p>正在读取工作日历…</p></div>

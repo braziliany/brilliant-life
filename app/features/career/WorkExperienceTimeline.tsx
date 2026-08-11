@@ -7,6 +7,7 @@ type Props = {
   status: "idle" | "loading" | "saving" | "error";
   draft: WorkExperienceDraft;
   experiences: WorkExperience[];
+  currentExperience: WorkExperience | null;
   expandedId: number | null;
   onOpenForm: (experience?: WorkExperience) => void;
   onCloseForm: () => void;
@@ -18,13 +19,14 @@ type Props = {
   formatDuration: (startDate: string, endDate: string | null) => string;
 };
 
-export function WorkExperienceTimeline({ active, formOpen, editingId, status, draft, experiences, expandedId, onOpenForm, onCloseForm, onDraftChange, onSave, onReload, onToggleExpanded, onDelete, formatDuration }: Props) {
+export function WorkExperienceTimeline({ active, formOpen, editingId, status, draft, experiences, currentExperience, expandedId, onOpenForm, onCloseForm, onDraftChange, onSave, onReload, onToggleExpanded, onDelete, formatDuration }: Props) {
   return (
-    <article id="habits" className={`card habits${active ? " sectionActive" : ""}`}>
+    <article id="career" className={`card habits${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow">职业档案</p><h2>工作经历</h2></div>
-        <button type="button" className="addButton" onClick={() => onOpenForm()}>＋ 添加经历</button>
+        <div><p className="eyebrow">CAREER · 职业档案</p><h2>职业经历</h2></div>
+        <button type="button" className="addButton secondaryAction" onClick={() => onOpenForm()}>＋ 新增</button>
       </div>
+      {!formOpen && currentExperience && <div className="careerCurrent"><span>当前 / 最近职业阶段</span><strong>{currentExperience.role}</strong><b>{currentExperience.company}</b><small>{currentExperience.startDate} — {currentExperience.endDate ?? "至今"} · {formatDuration(currentExperience.startDate, currentExperience.endDate)}</small></div>}
       {formOpen ? (
         <form className="experienceForm" onSubmit={onSave}>
           <div className="experienceFields">

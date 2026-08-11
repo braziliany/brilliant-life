@@ -30,6 +30,17 @@ export const upsertWorkExperience = (
 export const removeWorkExperience = (experiences: WorkExperience[], experienceId: number) =>
   experiences.filter((experience) => experience.id !== experienceId);
 
+export const selectCurrentCareerStage = (
+  experiences: WorkExperience[],
+  currentMonth: string,
+) => {
+  const ordered = sortWorkExperiences(experiences);
+  return [...ordered].reverse().find((experience) =>
+    experience.startDate <= currentMonth &&
+    (experience.endDate === null || experience.endDate >= currentMonth),
+  ) ?? [...ordered].reverse().find((experience) => experience.startDate <= currentMonth) ?? null;
+};
+
 export const formatWorkExperienceDuration = (
   startDate: string,
   endDate: string | null,

@@ -38,14 +38,14 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
             <div><span>活动能量</span><b>{activeEnergy.toLocaleString("zh-CN")}</b><small>千卡</small></div>
             <div><span>本月工作</span><b>{workdays}</b><small>天</small></div>
           </div>
-          <button type="button" onClick={() => onOpenDashboard("overview")}><span>查看完整数据</span><b>↗</b></button>
+          <button type="button" onClick={() => onOpenDashboard("health")}><span>查看完整数据</span><b>↗</b></button>
         </div>
       </div>
       <div className="homeHighlights">
-        <button type="button" onClick={() => onOpenDashboard("overview")}><i className="healthHighlight" /><span>健康趋势</span><strong>{healthHistoryDays} 天</strong><small>Apple 健康记录</small></button>
-        <button type="button" onClick={() => onOpenDashboard("calendar")}><i className="calendarHighlight" /><span>本月工作</span><strong>{workdays} 天</strong><small>日历实时统计</small></button>
-        <button type="button" onClick={() => onOpenDashboard("salary")}><i className="salaryHighlight" /><span>预计实发</span><strong>¥{money(netSalary)}</strong><small>按当前工作日计算</small></button>
-        <button type="button" onClick={() => onOpenDashboard("habits")}><i className="careerHighlight" /><span>职业档案</span><strong>{workExperienceCount} 条</strong><small>已保存工作经历</small></button>
+        <button type="button" onClick={() => onOpenDashboard("health")}><i className="healthHighlight" /><span>健康趋势</span><strong>{healthHistoryDays} 天</strong><small>Apple 健康记录</small></button>
+        <button type="button" onClick={() => onOpenDashboard("time")}><i className="calendarHighlight" /><span>本月工作</span><strong>{workdays} 天</strong><small>日历实时统计</small></button>
+        <button type="button" onClick={() => onOpenDashboard("finance")}><i className="salaryHighlight" /><span>预计实发</span><strong>¥{money(netSalary)}</strong><small>按当前工作日计算</small></button>
+        <button type="button" onClick={() => onOpenDashboard("career")}><i className="careerHighlight" /><span>职业档案</span><strong>{workExperienceCount} 条</strong><small>已保存工作经历</small></button>
       </div>
     </section>
   );

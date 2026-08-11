@@ -5,6 +5,7 @@ import {
   createEmptyWorkExperienceDraft,
   formatWorkExperienceDuration,
   removeWorkExperience,
+  selectCurrentCareerStage,
   sortWorkExperiences,
   toWorkExperienceDraft,
   upsertWorkExperience,
@@ -24,6 +25,12 @@ test("empty work experience draft preserves the current form defaults", () => {
     endDate: null,
     summary: "",
   });
+});
+
+test("current career stage prefers an active record then the latest past fact", () => {
+  assert.equal(selectCurrentCareerStage(experiences, "2026-08")?.id, 8);
+  assert.equal(selectCurrentCareerStage(experiences.slice(1), "2026-08")?.id, 3);
+  assert.equal(selectCurrentCareerStage([], "2026-08"), null);
 });
 
 test("editing draft copies every editable field without id or mutation", () => {

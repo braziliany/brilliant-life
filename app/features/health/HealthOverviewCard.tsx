@@ -35,13 +35,12 @@ type Props = {
 
 export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, health, healthLoadStatus, healthFreshness, latestSyncedHealth, latestUploadLabel, ingestionContinuityLabel, todayUploadSummary, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
   return (
-    <article id="overview" className={`card activity${active ? " sectionActive" : ""}`}>
+    <article id="health" className={`card activity${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow">Apple 健康</p><h2>{showHealthGuide ? "同步指南" : showHealthTrend ? "健康趋势" : "训练成果"}</h2></div>
+        <div><p className="eyebrow">HEALTH · 健康档案</p><h2>{showHealthGuide ? "同步与数据工具" : showHealthTrend ? "健康趋势" : "今日健康事实"}</h2></div>
         <div className="healthViewActions">
-          <button type="button" className="healthTrendToggle" onClick={onExport} disabled={healthHistoryLength === 0} aria-label="导出最近30天健康数据">CSV</button>
           <button type="button" className={`healthTrendToggle${showHealthTrend && !showHealthGuide ? " active" : ""}`} onClick={onToggleTrend}>{showHealthTrend && !showHealthGuide ? "今日" : "趋势"}</button>
-          <button type="button" className={`healthTrendToggle${showHealthGuide ? " active" : ""}`} onClick={onToggleGuide}>{showHealthGuide ? "返回" : "同步"}</button>
+          <details className="moduleTools"><summary>工具</summary><div><button type="button" onClick={onExport} disabled={healthHistoryLength === 0} aria-label="导出最近30天健康数据">导出 CSV</button><button type="button" onClick={onToggleGuide}>{showHealthGuide ? "返回健康数据" : "同步与状态"}</button></div></details>
         </div>
       </div>
       {showHealthGuide ? (

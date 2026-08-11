@@ -7,11 +7,11 @@ export function DataQuickNav({ activeSection, onOpen }: Props) {
   return (
     <nav className="dataQuickNav" aria-label="数据中心模块快捷导航">
       {[
-        ["overview", "健康"],
-        ["calendar", "工作日历"],
-        ["goals", "每日目标"],
-        ["habits", "工作经历"],
-        ["salary", "工资"],
+        ["data-overview", "总览"],
+        ["health", "健康"],
+        ["time", "时间"],
+        ["career", "职业"],
+        ["finance", "财务"],
       ].map(([section, label]) => (
         <button
           type="button"

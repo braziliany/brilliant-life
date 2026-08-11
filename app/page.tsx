@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { HomePage } from "./components/home/HomePage";
 import { DashboardHeader } from "./components/shell/DashboardHeader";
 import { DataQuickNav } from "./components/shell/DataQuickNav";
+import { DataCenterOverview } from "./components/shell/DataCenterOverview";
 import { SiteNavigation } from "./components/shell/SiteNavigation";
 import { HealthOverviewCard } from "./features/health/HealthOverviewCard";
 import { DailyGoalsColumn } from "./features/health/DailyGoalsColumn";
@@ -28,17 +29,19 @@ import {
   getWorkdayToggle,
   resolveCalendarDay,
   shiftCalendarMonth,
+  summarizeCalendarMonthProgress,
 } from "./features/calendar/domain";
 import { WorkExperienceTimeline } from "./features/career/WorkExperienceTimeline";
 import {
   createEmptyWorkExperienceDraft,
   formatWorkExperienceDuration,
   removeWorkExperience,
+  selectCurrentCareerStage,
   toWorkExperienceDraft,
   upsertWorkExperience,
 } from "./features/career/domain";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
-import { calculateSalarySummary } from "./features/salary/domain";
+import { calculateSalarySummary, summarizeSavedSalaryYear } from "./features/salary/domain";
 import { AnnualReportPage } from "./features/annual/AnnualReportPage";
 import type { CalendarDayView, CalendarNote, HealthDaily, HealthIngestionRun, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
@@ -83,7 +86,7 @@ const genshinQuotes = [
 
 export default function Home() {
   const [sitePage, setSitePage] = useState<SitePage>("home");
-  const [activeSection, setActiveSection] = useState("overview");
+  const [activeSection, setActiveSection] = useState("data-overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
   const [healthIngestions, setHealthIngestions] = useState<HealthIngestionRun[]>([]);
@@ -156,6 +159,7 @@ export default function Home() {
   const currentMonthKey = `${today.year}-${String(today.month + 1).padStart(2, "0")}`;
   const isCurrentCalendarMonth = calendarMonthKey === currentMonthKey;
   const workdays = calendarWorkdays;
+  const calendarProgress = summarizeCalendarMonthProgress(calendarMonth.year, calendarMonth.month, todayKey, calendarOverrides);
   const { steps, stepProgress, activeEnergy, totalEnergy, exerciseHours } = calculateHealthSummary(health, stepGoal);
   const { recentWeightHistory, latestWeight, weightChange, recentWeightMin, recentWeightRange } = calculateWeightTrend(healthHistory);
   const healthMetricConfig = {
@@ -336,13 +340,15 @@ export default function Home() {
     : false;
   const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
   const salaryTrendMax = Math.max(1, ...salaryTrend.map((record) => record.grossSalary));
+  const salaryYearFacts = summarizeSavedSalaryYear(salaryRecords, today.year);
+  const currentCareer = selectCurrentCareerStage(workExperiences, currentMonthKey);
   const money = (value: number) =>
     new Intl.NumberFormat("zh-CN", {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(value);
 
-  const openDashboard = (section = "overview") => {
+  const openDashboard = (section = "data-overview") => {
     setSitePage("dashboard");
     setActiveSection(section);
     window.setTimeout(() => document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
@@ -586,9 +592,26 @@ export default function Home() {
           <DashboardHeader today={today} />
           <DataQuickNav activeSection={activeSection} onOpen={openDashboard} />
 
+          <DataCenterOverview
+            active={activeSection === "data-overview"}
+            hasTodayHealth={health !== null}
+            healthLoadStatus={healthLoadStatus}
+            steps={steps}
+            monthLabel={monthLabel}
+            elapsedWorkdays={calendarProgress.elapsedWorkdays}
+            remainingWorkdays={calendarProgress.remainingWorkdays}
+            calendarReady={calendarLoadStatus === "ready"}
+            savedSalaryMonths={salaryYearFacts.savedMonths}
+            totalNetSalary={salaryYearFacts.totalNetSalary}
+            salaryReady={salaryLoadStatus === "ready"}
+            currentCareer={currentCareer}
+            money={money}
+            onOpen={openDashboard}
+          />
+
           <div className="grid">
             <HealthOverviewCard
-              active={activeSection === "overview"}
+              active={activeSection === "health"}
               showHealthGuide={showHealthGuide}
               showHealthTrend={showHealthTrend}
               healthHistoryLength={healthHistory.length}
@@ -619,10 +642,15 @@ export default function Home() {
             />
 
             <WorkCalendarCard
-              active={activeSection === "calendar"}
+              active={activeSection === "time"}
               calendarEditing={calendarEditing}
               monthLabel={monthLabel}
               calendarWorkdays={calendarWorkdays}
+              elapsedWorkdays={calendarProgress.elapsedWorkdays}
+              remainingWorkdays={calendarProgress.remainingWorkdays}
+              holidayDays={calendarProgress.holidayDays}
+              makeupWorkdays={calendarProgress.makeupWorkdays}
+              personalAdjustments={calendarProgress.personalAdjustments}
               holidayCalendarConfigured={holidayCalendarConfigured}
               showAnnualStats={showAnnualStats}
               showCalendarNotes={showCalendarNotes}
@@ -652,7 +680,7 @@ export default function Home() {
             />
 
             <DailyGoalsColumn
-              active={activeSection === "goals"}
+              active={activeSection === "health"}
               steps={steps}
               stepGoal={stepGoal}
               stepProgress={stepProgress}
@@ -672,12 +700,13 @@ export default function Home() {
             />
 
             <WorkExperienceTimeline
-              active={activeSection === "habits"}
+              active={activeSection === "career"}
               formOpen={experienceFormOpen}
               editingId={experienceEditingId}
               status={experienceStatus}
               draft={experienceDraft}
               experiences={workExperiences}
+              currentExperience={currentCareer}
               expandedId={expandedExperienceId}
               onOpenForm={openExperienceForm}
               onCloseForm={() => setExperienceFormOpen(false)}
@@ -690,7 +719,7 @@ export default function Home() {
             />
 
             <SalaryDashboard
-              active={activeSection === "salary"}
+              active={activeSection === "finance"}
               monthLabel={monthLabel}
               calendarMonthKey={calendarMonthKey}
               workdays={workdays}
@@ -707,6 +736,9 @@ export default function Home() {
               selectedSalaryRecord={selectedSalaryRecord}
               salaryStatus={salaryStatus}
               salaryRecords={salaryRecords}
+              yearSavedMonths={salaryYearFacts.savedMonths}
+              yearTotalNetSalary={salaryYearFacts.totalNetSalary}
+              yearTotalIncomeTax={salaryYearFacts.totalIncomeTax}
               salaryLoadStatus={salaryLoadStatus}
               salaryTrend={salaryTrend}
               salaryTrendMax={salaryTrendMax}

@@ -99,6 +99,34 @@ export const countCalendarMonthWorkdays = (
     .length;
 };
 
+export const summarizeCalendarMonthProgress = (
+  year: number,
+  month: number,
+  asOfDate: string,
+  overrides: CalendarOverrides,
+) => {
+  const { daysInMonth } = getCalendarMonthShape(year, month);
+  const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
+  const asOfMonth = asOfDate.slice(0, 7);
+  const cutoff = monthKey < asOfMonth
+    ? daysInMonth
+    : monthKey > asOfMonth
+      ? 0
+      : Math.max(0, Math.min(Number(asOfDate.slice(-2)), daysInMonth));
+  const resolved = Array.from({ length: daysInMonth }, (_, index) =>
+    resolveCalendarDay(year, month, index + 1, overrides),
+  );
+  const workdays = resolved.filter((day) => day.workday);
+  return {
+    totalWorkdays: workdays.length,
+    elapsedWorkdays: workdays.filter((day) => Number(day.date.slice(-2)) <= cutoff).length,
+    remainingWorkdays: workdays.filter((day) => Number(day.date.slice(-2)) > cutoff).length,
+    holidayDays: resolved.filter((day) => day.holiday !== null).length,
+    makeupWorkdays: resolved.filter((day) => day.makeup).length,
+    personalAdjustments: resolved.filter((day) => day.personalOverride).length,
+  };
+};
+
 export const calculateAnnualWorkdays = (year: number, overrides: CalendarOverrides) => {
   const monthlyWorkdays = Array.from(
     { length: 12 },

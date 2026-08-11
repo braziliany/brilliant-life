@@ -14,12 +14,23 @@ import {
   isOfficialWorkday,
   resolveCalendarDay,
   shiftCalendarMonth,
+  summarizeCalendarMonthProgress,
 } from "../app/features/calendar/domain.ts";
 
 test("calendarDateKey preserves zero-based month input and canonical output", () => {
   assert.equal(calendarDateKey(2026, 0, 1), "2026-01-01");
   assert.equal(calendarDateKey(2026, 6, 9), "2026-07-09");
   assert.equal(calendarDateKey(2026, 11, 31), "2026-12-31");
+});
+
+test("month progress keeps elapsed and future workdays inside the calendar domain", () => {
+  const progress = summarizeCalendarMonthProgress(2026, 7, "2026-08-11", {});
+  assert.equal(progress.totalWorkdays, countCalendarMonthWorkdays(2026, 7, {}));
+  assert.equal(progress.elapsedWorkdays + progress.remainingWorkdays, progress.totalWorkdays);
+  assert.ok(progress.elapsedWorkdays > 0);
+  assert.ok(progress.remainingWorkdays > 0);
+  assert.equal(summarizeCalendarMonthProgress(2026, 6, "2026-08-11", {}).remainingWorkdays, 0);
+  assert.equal(summarizeCalendarMonthProgress(2026, 8, "2026-08-11", {}).elapsedWorkdays, 0);
 });
 
 test("holiday calendars are explicitly versioned and unconfigured years never masquerade as official", () => {

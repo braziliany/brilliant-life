@@ -9,6 +9,7 @@ import {
   calculateNetSalary,
   calculateSalarySummary,
   calculateTaxableIncome,
+  summarizeSavedSalaryYear,
 } from "../app/features/salary/domain.ts";
 
 const policy = {
@@ -27,6 +28,19 @@ test("2026-07 salary snapshot remains exactly unchanged", () => {
     taxableIncome: 1_195,
     incomeTax: 35.85,
     netSalary: 6_159.15,
+  });
+});
+
+test("saved salary year summary uses snapshots without recalculation", () => {
+  const records = [
+    { month: "2026-07", netSalary: 6159.15, incomeTax: 35.85 },
+    { month: "2026-08", netSalary: 6000, incomeTax: 30 },
+    { month: "2025-12", netSalary: 5000, incomeTax: 20 },
+  ];
+  assert.deepEqual(summarizeSavedSalaryYear(records, 2026), {
+    savedMonths: 2,
+    totalNetSalary: 12159.15,
+    totalIncomeTax: 65.85,
   });
 });
 
