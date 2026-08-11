@@ -412,3 +412,11 @@ input,textarea{caret-color:#6d8d0e}
 @media (max-width:560px){.siteNavigation nav button{padding:9px 6px;font-size:9px}.siteNavigation nav button.active:after{left:6px;right:6px}.annualReport{gap:12px}.annualHero{min-height:220px;align-items:flex-start;flex-direction:column;padding:28px 24px;border-radius:22px}.annualHero h1{font-size:42px;letter-spacing:-2px}.annualYearSwitcher{align-self:stretch;justify-content:space-between}.annualFacts{gap:7px}.annualFacts article{min-height:100px;padding:15px}.annualFacts strong{font-size:19px}.annualChartCard{min-height:390px;padding:20px;border-radius:20px}.annualChartCard.wide{min-height:400px}.annualChartCard h3{font-size:18px}.annualChartCanvas{min-height:270px;overflow-x:auto}.annualChartCanvas svg,.annualChartCard.wide .annualChartCanvas svg{width:520px;max-width:none;height:280px}.annualChartCard:not(.wide) .annualChartCanvas svg{width:390px}.annualCareer,.annualTrust{padding:22px;border-radius:20px}.annualTrustGrid{grid-template-columns:1fr}.annualTrustGrid article{min-height:145px}}
 @media (max-width:560px){.annualChartFacts{justify-content:flex-start;margin-top:-6px}}
 @media (prefers-reduced-motion:reduce){.lieflatReveal,.lieflatDraw{opacity:1;animation:none;stroke-dashoffset:0}.annualReport *{scroll-behavior:auto!important}}
+
+/* Sprint 10 UI polish · brand-only shell and personal archive actions */
+.siteNavigation{display:flex;align-items:center;justify-content:flex-start}
+.homeHeroActions{display:flex;flex-wrap:wrap;gap:9px;margin-top:25px}
+.homeHeroActions button{border:1px solid var(--ink);border-radius:20px;background:var(--ink);padding:13px 18px;color:#fff;font-size:11px;font-weight:800}
+.homeHeroActions button+button{background:transparent;color:var(--ink)}
+.homeHeroActions button span{margin-left:18px;color:var(--lime)}
+@media (max-width:560px){.homeHeroActions{align-items:stretch;flex-direction:column}.homeHeroActions button{width:100%}}

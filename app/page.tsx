@@ -561,7 +561,7 @@ export default function Home() {
   return (
     <main className="pageShell">
       <section className="dashboard">
-        <SiteNavigation sitePage={sitePage} onChange={setSitePage} />
+        <SiteNavigation onChange={setSitePage} />
         {sitePage === "home" ? (
           <HomePage
             today={today}
@@ -577,6 +577,7 @@ export default function Home() {
             workExperienceCount={workExperiences.length}
             money={money}
             onOpenDashboard={openDashboard}
+            onOpenAnnual={() => setSitePage("annual")}
           />
         ) : sitePage === "annual" ? (
           <AnnualReportPage initialYear={today.year} />

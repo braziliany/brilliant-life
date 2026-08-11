@@ -14,9 +14,10 @@ type Props = {
   workExperienceCount: number;
   money: (value: number) => string;
   onOpenDashboard: (section?: string) => void;
+  onOpenAnnual: () => void;
 };
 
-export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal, stepProgress, activeEnergy, workdays, healthHistoryDays, netSalary, workExperienceCount, money, onOpenDashboard }: Props) {
+export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal, stepProgress, activeEnergy, workdays, healthHistoryDays, netSalary, workExperienceCount, money, onOpenDashboard, onOpenAnnual }: Props) {
   return (
     <section className="homePage">
       <div className="homeHero">
@@ -25,7 +26,10 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
           <h1 className="dailyQuote">“{dailyQuote.text}”</h1>
           <p className="quoteSource">— {dailyQuote.source} · 《原神》每日一言</p>
           <p>把健康、工作、收入与职业经历放在同一个地方，清楚看见生活正在如何向前。</p>
-          <button type="button" onClick={() => onOpenDashboard()}>进入数据中心 <span>→</span></button>
+          <div className="homeHeroActions">
+            <button type="button" onClick={() => onOpenDashboard()}>进入数据中心 <span>→</span></button>
+            <button type="button" onClick={onOpenAnnual}>查看年度档案 <span>→</span></button>
+          </div>
         </div>
         <div className="homeSnapshot" aria-label="今日生活概览">
           <div className="snapshotHead"><div><i /><span>今日状态</span></div><small>{today.month + 1}月{today.day}日</small></div>
