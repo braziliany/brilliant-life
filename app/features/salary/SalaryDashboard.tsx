@@ -43,9 +43,9 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         </div>
         <label className="workdayInput"><span>{monthLabel}工作日</span><input type="number" readOnly value={workdays} /><b>天</b></label>
       </div>
-      <div className="salaryYearFacts"><div><span>今年已保存</span><strong>{yearSavedMonths}</strong><small>个月</small></div><div><span>累计实发</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalNetSalary)}` : "—"}</strong><small>仅工资快照</small></div><div><span>累计个税</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalIncomeTax)}` : "—"}</strong><small>仅工资快照</small></div></div>
+      <div className="salaryYearFacts"><div><span>今年已保存</span><strong>{yearSavedMonths}</strong><small>个月</small></div><div><span>累计实发</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalNetSalary)}` : "—"}</strong><small>来自已保存记录</small></div><div><span>累计个税</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalIncomeTax)}` : "—"}</strong><small>来自已保存记录</small></div></div>
       <div className="salarySummary">
-        <div className="netPay"><span>{holidayCalendarConfigured ? "当前日历预计实发" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按 {workdays} 个工作日实时计算</small></div>
+        <div className="netPay"><span>{holidayCalendarConfigured ? "当前日历预计实发" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按 {workdays} 个工作日计算</small></div>
         <div className="salaryMetrics">
           <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
           <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除</small></div>
@@ -56,7 +56,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
       <div className="salaryFormula"><span>计算公式</span><code>实发 = 工作日 × 日薪 + 额外收入 + 奖金 − 固定扣除 − 请假扣款 − 个税</code></div>
       {salaryRecordMismatch && selectedSalaryRecord && (
         <div className="salaryMismatch" role="status">
-          <div><b>{monthLabel}的日历与已保存工资不一致</b><span>当前日历 {workdays} 天，预计实发 ¥{money(netSalary)}；历史记录 {selectedSalaryRecord.workdays} 天，已保存实发 ¥{money(selectedSalaryRecord.netSalary)}。</span></div>
+          <div><b>{monthLabel}的日历与已保存工资不一致</b><span>当前日历 {workdays} 天，预计实发 ¥{money(netSalary)}；历史记录 {selectedSalaryRecord.workdays} 天，实发 ¥{money(selectedSalaryRecord.netSalary)}。</span></div>
           <button type="button" onClick={onSave} disabled={salaryStatus === "saving"}>{salaryStatus === "saving" ? "同步中…" : `同步为 ${workdays} 天`}</button>
         </div>
       )}
@@ -94,10 +94,20 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         ) : salaryRecords.length === 0 ? (
           <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条记录。</p>
         ) : salaryRecords.map((record) => (
-          <div className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
-            <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
-            <span>应发 ¥{money(record.grossSalary)}</span><span>个税 ¥{money(record.incomeTax)}</span><strong>已保存实发 ¥{money(record.netSalary)}</strong>
-          </div>
+          <details className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
+            <summary>
+              <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 额外收入 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
+              <span>实发</span><strong>¥{money(record.netSalary)}</strong>
+            </summary>
+            <div className="salaryRecordDetails" aria-label={`${record.month} 工资详情`}>
+              <span>应发<b>¥{money(record.grossSalary)}</b></span>
+              <span>固定扣除<b>− ¥{money(record.deductions)}</b></span>
+              <span>请假扣款<b>− ¥{money(record.leaveDeduction)}</b></span>
+              <span>个税<b>− ¥{money(record.incomeTax)}</b></span>
+              <span>额外收入<b>¥{money(record.extraIncome)}</b></span>
+              <span>奖金<b>¥{money(record.bonus)}</b></span>
+            </div>
+          </details>
         ))}
       </div>
     </article>

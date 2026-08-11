@@ -66,9 +66,8 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
     <section className="annualReport" data-annual-summary-source="AnnualSummaryDraft">
       <header className="annualHero">
         <div>
-          <p className="annualKicker">我的年度记录 · {periodLabel}</p>
           <h1>我的 {summary.year}</h1>
-          <p>{summary.year} 年记录<br />截至 {summary.asOfDate}</p>
+          <p>{summary.year} 年度档案 · {periodLabel}<br />截至 {summary.asOfDate}</p>
         </div>
         <div className="annualYearSwitcher" aria-label="切换年度">
           <button type="button" onClick={() => setYear((value) => value - 1)} aria-label="上一年">‹</button>
@@ -103,7 +102,7 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
       </section>
 
       <section className="annualTrust" aria-labelledby="annual-trust-title">
-        <div className="annualSectionHead"><div><span>TRUST</span><h2 id="annual-trust-title">数据完整度与说明</h2></div><b>{summary.calculationVersion}</b></div>
+        <div className="annualSectionHead"><div><span>记录说明</span><h2 id="annual-trust-title">今年记录得怎么样</h2></div><b>截至 {summary.asOfDate}</b></div>
         <div className="annualTrustGrid">
           {trustRows.map(([label, trust]) => (
             <article key={label}>
