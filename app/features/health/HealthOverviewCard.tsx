@@ -37,7 +37,7 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
   return (
     <article id="health" className={`card activity${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow">HEALTH · 健康档案</p><h2>{showHealthGuide ? "同步与数据工具" : showHealthTrend ? "健康趋势" : "今日健康"}</h2></div>
+        <div><p className="eyebrow">HEALTH · 健康记录</p><h2>{showHealthGuide ? "同步与数据工具" : showHealthTrend ? "健康趋势" : "今日健康"}</h2></div>
         <div className="healthViewActions">
           <button type="button" className={`healthTrendToggle${showHealthTrend && !showHealthGuide ? " active" : ""}`} onClick={onToggleTrend}>{showHealthTrend && !showHealthGuide ? "今日" : "趋势"}</button>
           <details className="moduleTools"><summary>工具</summary><div><button type="button" onClick={onExport} disabled={healthHistoryLength === 0} aria-label="导出最近30天健康数据">导出 CSV</button><button type="button" onClick={onToggleGuide}>{showHealthGuide ? "返回健康数据" : "同步与状态"}</button></div></details>
@@ -62,7 +62,7 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
           <ol>
             <li><b>选择指标</b><span>步数、活动能量、静息能量、Apple 锻炼时间、睡眠分析、静息心率；有体重秤后再启用体重。</span></li>
             <li><b>设置来源</b><span>手表指标选择当前 Apple Watch，体重选择“健康”；旧名称的同一块手表可不选。</span></li>
-            <li><b>设置导出</b><span>JSON v2、日期范围“今天”、汇总数据开启、时间分组“天”、批量请求关闭。</span></li>
+            <li><b>设置导出</b><span>JSON v2、日期范围“今天”、按天合并开启、时间分组“天”、批量请求关闭。</span></li>
             <li><b>检查结果</b><span>成功响应应包含 imported 和最新日期；HTTP 401 检查密钥，HTTP 400 检查所选指标。</span></li>
           </ol>
           <p>修改指标、来源或健康权限后，需要重新运行导出；仅勾选指标不会立即上传数据。</p>

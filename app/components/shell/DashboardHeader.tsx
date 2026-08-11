@@ -16,7 +16,7 @@ export function DashboardHeader({ today }: { today: ShanghaiDate }) {
 
   return (
     <header className="topbar">
-      <div><p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p><h1>{greeting}好，Amanda!</h1><p className="subtitle">健康、工作、财务与职业档案的当前记录</p></div>
+      <div><p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p><h1>{greeting}好，Amanda!</h1><p className="subtitle">健康、工作、工资与职业的最近记录</p></div>
     </header>
   );
 }

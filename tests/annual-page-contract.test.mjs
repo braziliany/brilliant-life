@@ -19,7 +19,7 @@ test("annual page declares AnnualSummaryDraft as its only factual payload", () =
 });
 
 test("annual page preserves in-progress, missing finance, and empty career states", () => {
-  assert.match(page, /年度档案 · \{periodLabel\}/);
+  assert.match(page, /\{summary\.year\} 年记录/);
   assert.match(page, /summary\.finance\.coverage\.availableMonths \? money/);
   assert.match(charts, /缺失月份断开且不补 ¥0/);
   assert.match(page, /这一年没有与之重叠的职业经历记录/);

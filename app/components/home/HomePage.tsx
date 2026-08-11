@@ -28,7 +28,7 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
           <p>把健康、工作、收入与职业经历放在同一个地方，清楚看见生活正在如何向前。</p>
           <div className="homeHeroActions">
             <button type="button" onClick={() => onOpenDashboard()}>进入数据中心 <span>→</span></button>
-            <button type="button" onClick={onOpenAnnual}>查看年度档案 <span>→</span></button>
+            <button type="button" onClick={onOpenAnnual}>查看今年 <span>→</span></button>
           </div>
         </div>
         <div className="homeSnapshot" aria-label="今日生活概览">
@@ -45,7 +45,7 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
         <button type="button" onClick={() => onOpenDashboard("health")}><i className="healthHighlight" /><span>健康趋势</span><strong>{healthHistoryDays} 天</strong><small>Apple 健康记录</small></button>
         <button type="button" onClick={() => onOpenDashboard("time")}><i className="calendarHighlight" /><span>本月工作</span><strong>{workdays} 天</strong><small>日历实时统计</small></button>
         <button type="button" onClick={() => onOpenDashboard("finance")}><i className="salaryHighlight" /><span>预计实发</span><strong>¥{money(netSalary)}</strong><small>按当前工作日计算</small></button>
-        <button type="button" onClick={() => onOpenDashboard("career")}><i className="careerHighlight" /><span>职业档案</span><strong>{workExperienceCount} 条</strong><small>已保存工作经历</small></button>
+        <button type="button" onClick={() => onOpenDashboard("career")}><i className="careerHighlight" /><span>职业经历</span><strong>{workExperienceCount} 条</strong><small>已保存工作经历</small></button>
       </div>
     </section>
   );

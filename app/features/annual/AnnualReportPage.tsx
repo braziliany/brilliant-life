@@ -44,10 +44,10 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
   }, [year, reloadKey]);
 
   if (status === "loading") {
-    return <section className="annualReport annualLoading" aria-live="polite"><span className="statePulse" />正在整理 {year} 年度档案…</section>;
+    return <section className="annualReport annualLoading" aria-live="polite"><span className="statePulse" />正在整理 {year} 年记录…</section>;
   }
   if (status === "error" || !summary) {
-    return <section className="annualReport annualLoading" aria-live="polite"><p>年度档案读取失败。</p><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button></section>;
+    return <section className="annualReport annualLoading" aria-live="polite"><p>年度记录读取失败。</p><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button></section>;
   }
 
   const healthTrust = explainAnnualDomain(summary.health);
@@ -66,9 +66,9 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
     <section className="annualReport" data-annual-summary-source="AnnualSummaryDraft">
       <header className="annualHero">
         <div>
-          <p className="annualKicker">个人数字生命档案 · 实时草稿</p>
+          <p className="annualKicker">我的年度记录 · {periodLabel}</p>
           <h1>我的 {summary.year}</h1>
-          <p>{summary.year} 年度档案 · {periodLabel}<br />截至 {summary.asOfDate}</p>
+          <p>{summary.year} 年记录<br />截至 {summary.asOfDate}</p>
         </div>
         <div className="annualYearSwitcher" aria-label="切换年度">
           <button type="button" onClick={() => setYear((value) => value - 1)} aria-label="上一年">‹</button>

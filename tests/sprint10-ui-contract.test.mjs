@@ -21,6 +21,6 @@ test("top shell contains only the clickable brand", () => {
 });
 
 test("welcome header stays personal and non-commercial", () => {
-  assert.match(header, /健康、工作、财务与职业档案的当前记录/);
+  assert.match(header, /健康、工作、工资与职业的最近记录/);
   assert.doesNotMatch(header, /升级计划|Upgrade|AI|评价|建议/);
 });

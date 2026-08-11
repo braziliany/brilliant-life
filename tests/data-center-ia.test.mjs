@@ -36,7 +36,7 @@ test("overview uses existing facts and domain summaries without extra requests",
 
 test("production UI keeps internal fact terminology out of personal archive copy", () => {
   const productionCopy = [overview, health, calendar, career, salary, annualPage, annualCharts].join("\n");
-  assert.doesNotMatch(productionCopy, /事实层|事实摘要|生活事实|工资事实|健康事实|日历事实/);
+  assert.doesNotMatch(productionCopy, /事实层|事实摘要|生活事实|工资事实|健康事实|日历事实|实时草稿|年度档案|健康档案|时间档案|职业档案|月度档案/);
   assert.match(overview, /最近记录/);
   assert.match(health, /今日健康|健康趋势/);
   assert.match(salary, /工资记录/);

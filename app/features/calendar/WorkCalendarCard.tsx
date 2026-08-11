@@ -42,7 +42,7 @@ export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendar
   return (
     <article id="time" className={`card calendar${calendarEditing ? " editing" : ""}${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow light">TIME · 时间档案</p><h2>{monthLabel}</h2></div>
+        <div><p className="eyebrow light">TIME · 工作时间</p><h2>{monthLabel}</h2></div>
         <div className="calendarActions">
           <div className="monthSwitcher" aria-label="切换月份">
             <button type="button" onClick={() => onChangeMonth(-1)} aria-label="上个月">‹</button>

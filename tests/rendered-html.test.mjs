@@ -96,12 +96,12 @@ test("renders the current Brilliant Life dashboard in the local Workers runtime"
   const html = await response.text();
   assert.match(html, /璀璨人生/);
   assert.match(html, /数据中心/);
-  assert.match(html, /年度档案/);
+  assert.match(html, /查看今年/);
   assert.match(html, /今日状态/);
   assert.match(html, /今日步数/);
   assert.match(html, /健康趋势/);
   assert.match(html, /本月工作/);
   assert.match(html, /预计实发/);
-  assert.match(html, /职业档案/);
+  assert.match(html, /职业经历/);
   assert.doesNotMatch(html, /网站导航|升级计划|我的习惯|健康生活仪表盘|codex-preview|SkeletonPreview/);
 });

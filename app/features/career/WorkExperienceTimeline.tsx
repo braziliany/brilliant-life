@@ -23,7 +23,7 @@ export function WorkExperienceTimeline({ active, formOpen, editingId, status, dr
   return (
     <article id="career" className={`card habits${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
-        <div><p className="eyebrow">CAREER · 职业档案</p><h2>职业经历</h2></div>
+        <div><p className="eyebrow">CAREER · 职业记录</p><h2>职业经历</h2></div>
         <button type="button" className="addButton secondaryAction" onClick={() => onOpenForm()}>＋ 新增</button>
       </div>
       {!formOpen && currentExperience && <div className="careerCurrent"><span>当前 / 最近职业阶段</span><strong>{currentExperience.role}</strong><b>{currentExperience.company}</b><small>{currentExperience.startDate} — {currentExperience.endDate ?? "至今"} · {formatDuration(currentExperience.startDate, currentExperience.endDate)}</small></div>}

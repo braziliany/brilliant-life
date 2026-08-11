@@ -61,7 +61,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         </div>
       )}
       <div className="salaryHistoryHead">
-        <div><p className="eyebrow">月度档案</p><h3>工资历史</h3></div>
+        <div><p className="eyebrow">按月记录</p><h3>工资历史</h3></div>
         <div className="salaryHistoryActions">
           <button type="button" className="exportSalary" onClick={onExport} disabled={salaryRecords.length === 0}>导出 CSV</button>
           <button type="button" className="saveSalary" onClick={onSave} disabled={salaryStatus === "saving" || !isCurrentCalendarMonth || !holidayCalendarConfigured}>{!holidayCalendarConfigured ? "等待官方日历" : !isCurrentCalendarMonth ? "历史已锁定" : salaryStatus === "saving" ? "保存中…" : salaryStatus === "saved" ? "已保存" : "保存本月"}</button>
@@ -92,7 +92,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         ) : salaryLoadStatus === "error" ? (
           <div className="moduleState" role="alert"><p>工资记录读取失败，固定计算规则仍可使用。</p><button type="button" onClick={onReload}>重新加载</button></div>
         ) : salaryRecords.length === 0 ? (
-          <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条档案。</p>
+          <p className="emptySalary">还没有工资记录，点击“保存本月”建立第一条记录。</p>
         ) : salaryRecords.map((record) => (
           <div className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
             <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 加项 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
