@@ -43,6 +43,7 @@ import {
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
 import { calculateSalarySummary, summarizeSavedSalaryYear } from "./features/salary/domain";
 import { AnnualReportPage } from "./features/annual/AnnualReportPage";
+import { LifeFinancePanel } from "./features/finance/LifeFinancePanel";
 import type { CalendarDayView, CalendarNote, HealthDaily, HealthIngestionRun, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
 const getShanghaiDate = (value = new Date()) => {
@@ -749,6 +750,7 @@ export default function Home() {
               onExport={exportSalaryRecords}
               onReload={loadSalaryData}
             />
+            <LifeFinancePanel active={activeSection === "life-finance"} year={today.year} />
           </div>
         </div>
         )}

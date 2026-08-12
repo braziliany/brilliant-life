@@ -1,6 +1,6 @@
 # 璀璨人生
 
-部署在 Cloudflare Workers 上的个人生活仪表盘，集中管理 Apple 健康汇总、工作日历、工资快照和职业经历。
+部署在 Cloudflare Workers 上的个人生活仪表盘，集中管理 Apple 健康汇总、工作日历、工资快照、职业经历和生命财务。
 
 ## 技术架构
 
@@ -10,6 +10,7 @@
 - Cloudflare Access 保护网页和读取接口；
 - 独立 Worker Secret 验证 Health Auto Export 上传；
 - Drizzle schema 和顺序 SQL migration 管理数据库结构。
+- Life Finance 通过钱迹 JSON / Excel 适配器进行幂等增量导入，金额使用整数分保存。
 
 公开仓库不包含生产备份、健康原始 JSON、API Key、Access Token、请求头或设备名称。
 
@@ -38,6 +39,10 @@ npm run verify
 4. 在 Wrangler 本地 Workers 运行时检查构建后的 HTML 和安全响应头。
 
 测试只使用临时本地数据库和合成数据，完成后自动清理，不读取生产备份。
+
+## Life Finance
+
+生命财务不是记账软件替代品。钱迹继续负责日常记录，璀璨人生负责标准化、生命领域分类和长期轨迹。当前支持钱迹 JSON 与 Excel 手动增量导入；原始账单文件不会保存到服务器，也不得提交 Git。详细设计见 `docs/life-finance.md`。
 
 ## D1 schema 与 migration
 

@@ -10,7 +10,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "test": "npm run verify",
-    "test:domains": "node --test tests/api-validation.test.mjs tests/calendar-domain.test.mjs tests/career-domain.test.mjs tests/health-domain.test.mjs tests/salary-domain.test.mjs tests/annual-domain.test.mjs tests/annual-page-contract.test.mjs tests/sprint10-ui-contract.test.mjs tests/data-center-ia.test.mjs",
+    "test:domains": "node --test tests/api-validation.test.mjs tests/calendar-domain.test.mjs tests/career-domain.test.mjs tests/health-domain.test.mjs tests/salary-domain.test.mjs tests/finance-domain.test.mjs tests/annual-domain.test.mjs tests/annual-page-contract.test.mjs tests/sprint10-ui-contract.test.mjs tests/data-center-ia.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",
     "verify": "npm run build && npm run test:domains && npm run test:migrations && npm run test:rendered",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
@@ -23,6 +23,7 @@
   "dependencies": {
     "@fontsource/lxgw-wenkai": "^5.3.0",
     "drizzle-orm": "0.45.2",
+    "fflate": "^0.8.2",
     "next": "16.2.12",
     "react": "19.2.8",
     "react-dom": "19.2.8"

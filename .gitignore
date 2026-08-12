@@ -41,4 +41,8 @@ next-env.d.ts
 /outputs/
 /work/
 /backups/
+/data/private/
+/imports/
+*.private.xlsx
+*.private.json
 .start-*.log

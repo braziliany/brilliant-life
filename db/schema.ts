@@ -101,3 +101,38 @@ export const workExperiences = sqliteTable("work_experiences", {
   sortOrder: integer("sort_order").notNull().default(0),
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const financeTransactions = sqliteTable(
+  "finance_transactions",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    source: text("source").notNull(),
+    sourceId: text("source_id").notNull(),
+    occurredAt: text("occurred_at").notNull(),
+    type: text("type", { enum: ["expense", "income", "refund", "transfer", "repayment"] }).notNull(),
+    amountCents: integer("amount_cents").notNull(),
+    currency: text("currency").notNull().default("CNY"),
+    rawType: text("raw_type").notNull().default(""),
+    rawCategory: text("raw_category").notNull().default(""),
+    rawSubcategory: text("raw_subcategory").notNull().default(""),
+    accountFrom: text("account_from").notNull().default(""),
+    accountTo: text("account_to").notNull().default(""),
+    note: text("note").notNull().default(""),
+    tags: text("tags").notNull().default("[]"),
+    lifeDomain: text("life_domain").notNull().default("other"),
+    lifeDomainOverride: text("life_domain_override"),
+    personId: integer("person_id"),
+    projectId: integer("project_id"),
+    assetId: integer("asset_id"),
+    eventId: integer("event_id"),
+    placeId: integer("place_id"),
+    semanticNote: text("semantic_note").notNull().default(""),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("finance_transactions_source_source_id_unique").on(table.source, table.sourceId),
+    index("finance_transactions_occurred_at_idx").on(table.occurredAt),
+    index("finance_transactions_life_domain_idx").on(table.lifeDomain),
+  ]
+);

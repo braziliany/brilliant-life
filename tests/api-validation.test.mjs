@@ -13,6 +13,7 @@ import {
 } from "../app/api/validation.ts";
 import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
 import { hasDashboardAccess } from "../app/api/access.ts";
+import { validNormalizedFinanceTransaction } from "../app/features/finance/import-service.ts";
 
 test("dashboard access rejects forged headers on the public workers.dev host", () => {
   assert.equal(hasDashboardAccess(new Request("https://pulse-health-dashboard.leopardser.workers.dev/api/salary", {
@@ -63,6 +64,13 @@ test("health upload requires an exact independent API key", () => {
   assert.equal(isValidHealthApiKey("secret", "secret"), true);
   assert.equal(isValidHealthApiKey("secret", "wrong"), false);
   assert.equal(isValidHealthApiKey("", ""), false);
+});
+
+test("finance import accepts only normalized integer-cent QianJi records", () => {
+  const base = { source: "qianji", sourceId: "qj-1", occurredAt: "2026-08-11T12:00:00+08:00", type: "expense", amountCents: 13609, currency: "CNY", rawType: "支出", rawCategory: "三餐", rawSubcategory: "午餐", accountFrom: "钱包", accountTo: "", note: "午餐", tags: [], lifeDomain: "food" };
+  assert.equal(validNormalizedFinanceTransaction(base), true);
+  assert.equal(validNormalizedFinanceTransaction({ ...base, amountCents: 136.09 }), false);
+  assert.equal(validNormalizedFinanceTransaction({ ...base, source: "unknown" }), false);
 });
 
 test("health normalization aggregates supported metrics and clamps unsafe values", () => {

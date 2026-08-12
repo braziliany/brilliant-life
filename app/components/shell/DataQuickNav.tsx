@@ -11,7 +11,8 @@ export function DataQuickNav({ activeSection, onOpen }: Props) {
         ["health", "健康"],
         ["time", "时间"],
         ["career", "职业"],
-        ["finance", "财务"],
+        ["life-finance", "生命财务"],
+        ["finance", "工资"],
       ].map(([section, label]) => (
         <button
           type="button"

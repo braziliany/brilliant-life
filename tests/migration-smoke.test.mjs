@@ -74,16 +74,27 @@ test("an empty local D1 applies every migration in order", { timeout: 120_000 },
     const allMigrations = combineMigrations(harness.root, "all.sql", migrationFiles);
     harness.execute("--file", allMigrations);
 
-    const tables = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('health_daily','health_ingestion_runs','calendar_overrides','calendar_notes','salary_records','salary_settings','work_experiences') ORDER BY name;"));
+    const tables = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('health_daily','health_ingestion_runs','calendar_overrides','calendar_notes','salary_records','salary_settings','work_experiences','finance_transactions') ORDER BY name;"));
     assert.deepEqual(tables.map(({ name }) => name), [
       "calendar_notes",
       "calendar_overrides",
+      "finance_transactions",
       "health_daily",
       "health_ingestion_runs",
       "salary_records",
       "salary_settings",
       "work_experiences",
     ]);
+
+    const financeColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('finance_transactions') ORDER BY cid;"));
+    assert.deepEqual(financeColumns.map(({ name }) => name).slice(0, 8), ["id", "source", "source_id", "occurred_at", "type", "amount_cents", "currency", "raw_type"]);
+    const financeIndexes = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'finance_transactions' ORDER BY name;"));
+    assert.ok(financeIndexes.some(({ name }) => name === "finance_transactions_source_source_id_unique"));
+
+    harness.execute("--command", "INSERT INTO finance_transactions (source, source_id, occurred_at, type, amount_cents, raw_category, life_domain, person_id, project_id, asset_id, event_id, place_id, semantic_note) VALUES ('qianji','qj-fixture-1','2026-08-11T12:00:00+08:00','expense',13609,'三餐','food',1,2,3,4,5,'人工说明') ON CONFLICT(source, source_id) DO UPDATE SET amount_cents=excluded.amount_cents, raw_category=excluded.raw_category, life_domain=excluded.life_domain, updated_at=CURRENT_TIMESTAMP;");
+    harness.execute("--command", "INSERT INTO finance_transactions (source, source_id, occurred_at, type, amount_cents, raw_category, life_domain) VALUES ('qianji','qj-fixture-1','2026-08-11T12:00:00+08:00','expense',15000,'三餐','food') ON CONFLICT(source, source_id) DO UPDATE SET amount_cents=excluded.amount_cents, raw_category=excluded.raw_category, life_domain=excluded.life_domain, updated_at=CURRENT_TIMESTAMP;");
+    const financeRows = firstResults(harness.execute("--command", "SELECT COUNT(*) AS count, amount_cents, person_id, project_id, asset_id, event_id, place_id, semantic_note FROM finance_transactions WHERE source='qianji' AND source_id='qj-fixture-1';"));
+    assert.deepEqual(financeRows, [{ count: 1, amount_cents: 15000, person_id: 1, project_id: 2, asset_id: 3, event_id: 4, place_id: 5, semantic_note: "人工说明" }]);
 
     const healthColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('health_daily') ORDER BY cid;"));
     assert.deepEqual(healthColumns.map(({ name }) => name).slice(-4), [

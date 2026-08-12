@@ -16,13 +16,14 @@ const annualPage = read("app/features/annual/AnnualReportPage.tsx");
 const annualCharts = read("app/features/annual/charts.tsx");
 const styles = read("app/globals.css");
 
-test("data center exposes overview and four life domains", () => {
+test("data center exposes overview and life domains", () => {
   assert.match(nav, /data-overview[\s\S]*总览/);
   assert.match(nav, /health[\s\S]*健康/);
   assert.match(nav, /time[\s\S]*时间/);
   assert.match(nav, /career[\s\S]*职业/);
   assert.match(nav, /finance[\s\S]*财务/);
-  assert.doesNotMatch(nav, /每日目标|工作经历|工资"/);
+  assert.match(nav, /life-finance[\s\S]*生命财务/);
+  assert.doesNotMatch(nav, /每日目标|工作经历/);
 });
 
 test("overview uses existing facts and domain summaries without extra requests", () => {
