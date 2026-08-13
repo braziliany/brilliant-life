@@ -4,7 +4,7 @@ import { strToU8, zipSync } from "fflate";
 
 import { QianJiExcelAdapter } from "../app/features/finance/adapters/qianji-excel.ts";
 import { QianJiJsonAdapter } from "../app/features/finance/adapters/qianji-json.ts";
-import { classifyLifeDomain, mergeImportedSourceFields, normalizeFinanceType, planFinanceImport, summarizeLifeFinance } from "../app/features/finance/domain.ts";
+import { classifyLifeDomain, mergeImportedSourceFields, normalizeFinanceType, planFinanceImport, sortSignificantEvents, summarizeLifeFinance } from "../app/features/finance/domain.ts";
 
 const rows = [
   { 账单ID: "qj-1", 类型: "支出", 金额: 100, 币种: "CNY", 时间: "2026-01-02 08:30:00", 分类: "三餐", 二级分类: "早餐", 账户: "钱包", 备注: "早餐", 标签: "日常" },
@@ -61,6 +61,21 @@ test("accounting excludes transfer and repayment and offsets refunds", async () 
   assert.equal(summary.refundCents, 1_000);
   assert.equal(summary.netExpenseCents, 9_000);
   assert.equal(summary.incomeCents, 50_000);
+});
+
+test("significant expenses sort by date, same-day amount, then stable source identity", async () => {
+  const normalized = await new QianJiJsonAdapter().parse([
+    { ...rows[0], 账单ID: "later-small", 时间: "2026-03-02 08:00:00", 金额: 600 },
+    { ...rows[0], 账单ID: "same-day-b", 时间: "2026-03-01 20:00:00", 金额: 800 },
+    { ...rows[0], 账单ID: "same-day-a", 时间: "2026-03-01 09:00:00", 金额: 800 },
+    { ...rows[0], 账单ID: "same-day-large", 时间: "2026-03-01 07:00:00", 金额: 900 },
+  ]);
+  const records = normalized.map((item, index) => ({ ...item, id: index + 1, lifeDomainOverride: null, personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" }));
+  const originalOrder = records.map((item) => item.sourceId);
+  const sorted = sortSignificantEvents(records);
+  assert.deepEqual(sorted.map((item) => item.sourceId), ["later-small", "same-day-large", "same-day-a", "same-day-b"]);
+  assert.deepEqual(records.map((item) => item.sourceId), originalOrder);
+  assert.deepEqual(summarizeLifeFinance(records, 2026, "2026-12-31").significantEvents.map((item) => item.sourceId), ["later-small", "same-day-large", "same-day-a", "same-day-b"]);
 });
 
 test("same source import is idempotent and changed source fields plan an update", async () => {

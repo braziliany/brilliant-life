@@ -55,6 +55,16 @@ export function centsToYuan(cents: number) {
 
 const effectiveDomain = (transaction: Pick<FinanceTransactionRecord, "lifeDomain" | "lifeDomainOverride">) => transaction.lifeDomainOverride ?? transaction.lifeDomain;
 
+export function sortSignificantEvents(transactions: FinanceTransactionRecord[]) {
+  return [...transactions].sort((a, b) => {
+    const dateOrder = b.occurredAt.slice(0, 10).localeCompare(a.occurredAt.slice(0, 10));
+    if (dateOrder !== 0) return dateOrder;
+    if (a.amountCents !== b.amountCents) return b.amountCents - a.amountCents;
+    const sourceIdOrder = a.sourceId.localeCompare(b.sourceId);
+    return sourceIdOrder !== 0 ? sourceIdOrder : a.id - b.id;
+  });
+}
+
 export function summarizeLifeFinance(transactions: FinanceTransactionRecord[], year: number, asOfDate: string, significantThresholdCents = 50_000) {
   const yearPrefix = `${year}-`;
   const included = transactions.filter((item) => item.occurredAt.startsWith(yearPrefix) && item.occurredAt.slice(0, 10) <= asOfDate);
@@ -92,7 +102,7 @@ export function summarizeLifeFinance(transactions: FinanceTransactionRecord[], y
     personalExpenseCents: netExpenseCents - (domains.get("family") ?? 0),
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ month, netExpenseCents: value.expenseCents - value.refundCents })),
     domains: [...domains.entries()].filter(([, amountCents]) => amountCents > 0).sort((a, b) => b[1] - a[1]).map(([domain, amountCents]) => ({ domain, label: LIFE_DOMAIN_LABELS[domain], amountCents, ratio: netExpenseCents > 0 ? amountCents / netExpenseCents : 0 })),
-    significantEvents: included.filter((item) => item.type === "expense" && item.amountCents >= significantThresholdCents).sort((a, b) => b.amountCents - a.amountCents),
+    significantEvents: sortSignificantEvents(included.filter((item) => item.type === "expense" && item.amountCents >= significantThresholdCents)),
   };
 }
 
