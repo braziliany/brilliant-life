@@ -67,6 +67,7 @@ npm run db:backup
 ## Cloudflare Access 与健康上传
 
 - `pulse.sophier.org` 由 Cloudflare Access 保护；
+- Pulse 日常登录仅使用 One-time PIN，授权邮箱由 `Allow Owner` 精确匹配，应用会话为 14 天；恢复流程见 `docs/Cloudflare Access 登录与恢复手册.md`；
 - Workers.dev 上的受保护读取接口不能依赖可伪造的 Access 请求头；
 - Health Auto Export 通过 `X-API-Key` 使用独立的 `HEALTH_INGEST_API_KEY` Worker Secret；
 - Secret 只能通过 Wrangler/Cloudflare 管理并写入 iPhone 客户端，不能提交到仓库；
