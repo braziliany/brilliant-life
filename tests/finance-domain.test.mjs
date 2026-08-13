@@ -31,6 +31,24 @@ test("QianJi JSON and Excel adapters produce identical normalized transactions",
   assert.equal(json[0].amountCents, 10_000);
 });
 
+test("QianJi Excel account1 and account2 headers preserve source accounts", async () => {
+  const [transaction] = await new QianJiExcelAdapter().parse(makeWorkbook([{
+    ID: "qj-real-account-1",
+    时间: "2026-08-11 19:05:10",
+    分类: "其它",
+    二级分类: "",
+    类型: "转账",
+    金额: 100,
+    币种: "CNY",
+    账户1: "来源账户",
+    账户2: "目标账户",
+    备注: "",
+    标签: "",
+  }]));
+  assert.equal(transaction.accountFrom, "来源账户");
+  assert.equal(transaction.accountTo, "目标账户");
+});
+
 test("transaction types normalize expense income refund transfer and repayment", () => {
   assert.deepEqual(["支出", "收入", "退款", "转账", "信用卡还款"].map(normalizeFinanceType), ["expense", "income", "refund", "transfer", "repayment"]);
 });

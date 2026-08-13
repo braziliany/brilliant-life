@@ -11,8 +11,8 @@ const aliases = {
   occurredAt: ["occurred_at", "occurredAt", "time", "时间", "日期", "交易时间"],
   category: ["category", "分类", "一级分类"],
   subcategory: ["subcategory", "subCategory", "二级分类", "子分类"],
-  accountFrom: ["account_from", "accountFrom", "账户", "付款账户", "转出账户"],
-  accountTo: ["account_to", "accountTo", "收款账户", "转入账户"],
+  accountFrom: ["account_from", "accountFrom", "账户", "账户1", "付款账户", "转出账户"],
+  accountTo: ["account_to", "accountTo", "账户2", "收款账户", "转入账户"],
   note: ["note", "备注", "商家", "说明"],
   tags: ["tags", "标签"],
 } as const;
