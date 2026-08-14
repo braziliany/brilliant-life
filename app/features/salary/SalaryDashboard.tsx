@@ -43,9 +43,9 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         </div>
         <label className="workdayInput"><span>{monthLabel}工作日</span><input type="number" readOnly value={workdays} /><b>天</b></label>
       </div>
-      <div className="salaryYearFacts"><div><span>今年已保存</span><strong>{yearSavedMonths}</strong><small>个月</small></div><div><span>累计实发</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalNetSalary)}` : "—"}</strong><small>来自已保存记录</small></div><div><span>累计个税</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalIncomeTax)}` : "—"}</strong><small>来自已保存记录</small></div></div>
+      <div className="salaryYearFacts"><div><span>已保存月份</span><strong>{yearSavedMonths}</strong><small>个月</small></div><div><span>累计实发</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalNetSalary)}` : "—"}</strong><small>来自已保存记录</small></div><div><span>累计个税</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalIncomeTax)}` : "—"}</strong><small>来自已保存记录</small></div></div>
       <div className="salarySummary">
-        <div className="netPay"><span>{holidayCalendarConfigured ? "当前日历预计实发" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按 {workdays} 个工作日计算</small></div>
+        <div className="netPay"><span>{holidayCalendarConfigured ? "本月预计实发" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按当前工作日历计算 · {workdays} 个工作日</small></div>
         <div className="salaryMetrics">
           <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
           <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除</small></div>

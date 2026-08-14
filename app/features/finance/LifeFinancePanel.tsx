@@ -119,7 +119,7 @@ export function LifeFinancePanel({ active, year }: Props) {
               </section>
               <section className="financeEvents" aria-labelledby="finance-events-title">
                 <div className="financeSectionHead"><h3 id="finance-events-title">重要支出</h3><span>金额较高的支出记录</span></div>
-                {summary.significantEvents.length ? <ol>{summary.significantEvents.slice(0, 5).map((item) => { const title = item.note || item.rawSubcategory || item.rawCategory || "支出"; const domain = LIFE_DOMAIN_LABELS[item.lifeDomainOverride ?? item.lifeDomain]; const category = item.rawCategory && item.rawCategory !== title ? item.rawCategory : domain; return <li key={item.id}><time>{item.occurredAt.slice(0, 10)}</time><div><b>{title}</b><small>{category} · 钱迹</small></div><strong>¥{centsToYuan(item.amountCents)}</strong></li>; })}</ol> : <p>今年还没有超过 ¥500.00 的单笔支出。</p>}
+                {summary.significantEvents.length ? <ol>{summary.significantEvents.slice(0, 5).map((item) => { const title = item.note || item.rawSubcategory || item.rawCategory || "支出"; const domain = LIFE_DOMAIN_LABELS[item.lifeDomainOverride ?? item.lifeDomain]; const category = item.rawCategory && item.rawCategory !== title ? item.rawCategory : domain; return <li key={item.id}><time>{item.occurredAt.slice(0, 10)}</time><div><b>{title}</b><small>{category}</small></div><strong>¥{centsToYuan(item.amountCents)}</strong></li>; })}</ol> : <p>今年还没有超过 ¥500.00 的单笔支出。</p>}
               </section>
               <section className="financeDataTools" aria-label="数据管理"><div><span>数据管理</span><small>导入或更新钱迹记录</small></div><FinanceImportTools importing={importing} inputRef={inputRef} onImport={(file) => void importFile(file)} /></section>
             </div>

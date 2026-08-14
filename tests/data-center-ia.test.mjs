@@ -33,6 +33,8 @@ test("overview uses existing facts and domain summaries without extra requests",
   assert.match(page, /summarizeSavedSalaryYear/);
   assert.match(page, /selectCurrentCareerStage/);
   assert.match(overview, /今天[\s\S]*本月[\s\S]*今年/);
+  assert.match(overview, /FINANCE · 今年工资[\s\S]*已保存 \$\{savedSalaryMonths\} 个月工资记录/);
+  assert.doesNotMatch(overview, /今年已保存/);
   assert.doesNotMatch(overview, /fetch\(|calculateSalary|resolveCalendarDay/);
 });
 
@@ -49,6 +51,7 @@ test("life finance presents personal records with secondary data management", ()
   assert.match(lifeFinance, /今年收入[\s\S]*净消费[\s\S]*家庭支出[\s\S]*个人消费/);
   assert.match(lifeFinance, /每月净消费[\s\S]*月 · 截至/);
   assert.match(lifeFinance, /金额较高的支出记录/);
+  assert.doesNotMatch(lifeFinance, /\{category\} · 钱迹/);
   assert.match(lifeFinance, /financeDataTools[\s\S]*数据管理/);
   assert.match(lifeFinance, /<summary>导入数据<\/summary>/);
   assert.doesNotMatch(lifeFinance, /生命财务|财务轨迹|资源投入|这些钱意味着什么|来源：钱迹|每月记录/);
@@ -68,6 +71,8 @@ test("all existing tools remain reachable with lower visual priority", () => {
 });
 
 test("salary history emphasizes saved net pay and keeps full details expandable", () => {
+  assert.match(salary, /本月预计实发[\s\S]*按当前工作日历计算/);
+  assert.doesNotMatch(salary, /当前日历预计实发|今年已保存/);
   assert.match(salary, /<details className=\{`salaryRecord/);
   assert.match(salary, /<span>实发<\/span><strong>¥\{money\(record\.netSalary\)\}<\/strong>/);
   assert.doesNotMatch(salary, /已保存实发/);
