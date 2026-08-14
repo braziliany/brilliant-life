@@ -14,6 +14,7 @@ const career = read("app/features/career/WorkExperienceTimeline.tsx");
 const salary = read("app/features/salary/SalaryDashboard.tsx");
 const annualPage = read("app/features/annual/AnnualReportPage.tsx");
 const annualCharts = read("app/features/annual/charts.tsx");
+const lifeFinance = read("app/features/finance/LifeFinancePanel.tsx");
 const styles = read("app/globals.css");
 
 test("data center exposes overview and life domains", () => {
@@ -22,7 +23,7 @@ test("data center exposes overview and life domains", () => {
   assert.match(nav, /time[\s\S]*时间/);
   assert.match(nav, /career[\s\S]*职业/);
   assert.match(nav, /finance[\s\S]*财务/);
-  assert.match(nav, /life-finance[\s\S]*生命财务/);
+  assert.match(nav, /life-finance[\s\S]*财务记录/);
   assert.doesNotMatch(nav, /每日目标|工作经历/);
 });
 
@@ -36,11 +37,21 @@ test("overview uses existing facts and domain summaries without extra requests",
 });
 
 test("production UI keeps internal fact terminology out of personal archive copy", () => {
-  const productionCopy = [overview, health, calendar, career, salary, annualPage, annualCharts].join("\n");
+  const productionCopy = [overview, health, calendar, career, salary, annualPage, annualCharts, lifeFinance].join("\n");
   assert.doesNotMatch(productionCopy, /事实层|事实摘要|生活事实|工资事实|健康事实|日历事实|实时草稿|健康档案|时间档案|职业档案|月度档案/);
   assert.match(overview, /最近记录/);
   assert.match(health, /今日健康|健康趋势/);
   assert.match(salary, /工资记录/);
+});
+
+test("life finance presents personal records with secondary data management", () => {
+  assert.match(lifeFinance, /财务记录[\s\S]*统计截至/);
+  assert.match(lifeFinance, /今年收入[\s\S]*净消费[\s\S]*家庭支出[\s\S]*个人消费/);
+  assert.match(lifeFinance, /每月净消费[\s\S]*月 · 截至/);
+  assert.match(lifeFinance, /金额较高的支出记录/);
+  assert.match(lifeFinance, /financeDataTools[\s\S]*数据管理/);
+  assert.match(lifeFinance, /<summary>导入数据<\/summary>/);
+  assert.doesNotMatch(lifeFinance, /生命财务|财务轨迹|资源投入|这些钱意味着什么|来源：钱迹|每月记录/);
 });
 
 test("all existing tools remain reachable with lower visual priority", () => {

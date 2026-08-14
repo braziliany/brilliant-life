@@ -1,5 +1,7 @@
 # 璀璨人生
 
+本项目当前已验证的本地开发环境为 Node.js 22.x。升级 Node 主版本前应单独验证 `npm run dev`、build 和完整测试。
+
 部署在 Cloudflare Workers 上的个人生活仪表盘，集中管理 Apple 健康汇总、工作日历、工资快照、职业经历和生命财务。
 
 ## 技术架构
