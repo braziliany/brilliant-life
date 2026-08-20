@@ -2,9 +2,9 @@ import type { HealthDaily, HealthLoadStatus } from "../../page-view.types";
 
 type Props = {
   active: boolean;
-  steps: number;
+  steps: number | null;
   stepGoal: number;
-  stepProgress: number;
+  stepProgress: number | null;
   healthLoadStatus: HealthLoadStatus;
   hasTodayHealth: boolean;
   editingStepGoal: boolean;
@@ -27,8 +27,9 @@ export function DailyGoalsColumn({ active, steps, stepGoal, stepProgress, health
         <div>
           <p className="eyebrow">HEALTH · 个人基线</p>
           <h2>今日步数</h2>
-          <strong>{steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span>
-          {healthLoadStatus === "ready" && !hasTodayHealth && <small className="todayHealthPending">等待今日同步</small>}
+          <strong>{steps === null ? "—" : steps.toLocaleString("zh-CN")}</strong><span> / {stepGoal.toLocaleString("zh-CN")} 步</span>
+          {healthLoadStatus === "ready" && !hasTodayHealth && <small className="todayHealthPending">今日尚未同步</small>}
+          {healthLoadStatus === "ready" && hasTodayHealth && steps === null && <small className="todayHealthPending">暂无步数记录</small>}
           {editingStepGoal ? (
             <form className="stepGoalForm" onSubmit={onSave}>
               <input type="number" min="1000" max="100000" step="500" aria-label="每日步数目标" value={stepGoalDraft} onChange={(event) => onDraftChange(event.target.value)} autoFocus />
@@ -39,7 +40,7 @@ export function DailyGoalsColumn({ active, steps, stepGoal, stepProgress, health
             <button type="button" className="textButton" onClick={onStartEditing}>调整目标 →</button>
           )}
         </div>
-        <div className="progressRing" style={{ background: `conic-gradient(var(--coral) 0 ${stepProgress}%, #eceae5 ${stepProgress}%)` }}><div><b>{stepProgress}%</b><small>已完成</small></div></div>
+        <div className="progressRing" style={{ background: stepProgress === null ? "#eceae5" : `conic-gradient(var(--coral) 0 ${stepProgress}%, #eceae5 ${stepProgress}%)` }}><div><b>{stepProgress === null ? "—" : `${stepProgress}%`}</b><small>{stepProgress === null ? "等待记录" : "已完成"}</small></div></div>
       </article>
       <article className="card weight">
         <div className="cardHead"><div><p className="eyebrow">Apple 健康</p><h2>体重趋势</h2></div><strong>{latestWeight === null ? "—" : latestWeight.toFixed(1)}<small>{latestWeight === null ? "等待同步" : " kg"}</small></strong></div>

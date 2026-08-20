@@ -6,17 +6,25 @@ export const selectTodayHealth = (history: HealthDaily[], todayKey: string) =>
 export const toChronologicalHealthHistory = (history: HealthDaily[]) =>
   [...history].reverse();
 
-export const calculateHealthSummary = (health: HealthDaily | null, stepGoal: number) => {
-  const steps = health?.steps ?? 0;
+export const calculateHealthSummary = (
+  health: HealthDaily | null,
+  stepGoal: number,
+  metricKeys?: readonly string[],
+) => {
+  const hasMetric = (metric: string) => Boolean(health) && (metricKeys === undefined || metricKeys.includes(metric));
+  const steps = hasMetric("steps") ? health!.steps : null;
+  const activeEnergy = hasMetric("activeEnergyKcal") ? Math.round(health!.activeEnergyKcal) : null;
+  const restingEnergy = hasMetric("restingEnergyKcal") ? health!.restingEnergyKcal : null;
+  const exerciseMinutes = hasMetric("exerciseMinutes") ? health!.exerciseMinutes : null;
 
   return {
     steps,
-    stepProgress: Math.min(100, Math.round((steps / stepGoal) * 100)),
-    activeEnergy: Math.round(health?.activeEnergyKcal ?? 0),
-    totalEnergy: health && health.restingEnergyKcal > 0
-      ? Math.round(health.activeEnergyKcal + health.restingEnergyKcal)
+    stepProgress: steps === null ? null : Math.min(100, Math.round((steps / stepGoal) * 100)),
+    activeEnergy,
+    totalEnergy: activeEnergy !== null && restingEnergy !== null
+      ? Math.round(health!.activeEnergyKcal + restingEnergy)
       : null,
-    exerciseHours: ((health?.exerciseMinutes ?? 0) / 60).toFixed(1),
+    exerciseHours: exerciseMinutes === null ? null : (exerciseMinutes / 60).toFixed(1),
   };
 };
 
@@ -139,3 +147,45 @@ export const findLatestSuccessfulIngestionForDate = (
   ingestions: HealthIngestionRun[],
   date: string,
 ) => ingestions.find((ingestion) => ingestion.status === "success" && ingestion.coveredDates.includes(date)) ?? null;
+
+export const findLatestSuccessfulHealthIngestion = (ingestions: HealthIngestionRun[]) =>
+  ingestions.find((ingestion) => ingestion.status === "success") ?? null;
+
+export const getSuccessfulHealthMetricKeysForDate = (
+  ingestions: HealthIngestionRun[],
+  date: string,
+) => [...new Set(ingestions
+  .filter((ingestion) => ingestion.status === "success" && ingestion.coveredDates.includes(date))
+  .flatMap((ingestion) => ingestion.metricKeys))];
+
+export const resolveTodayHealthSync = (
+  history: HealthDaily[],
+  ingestions: HealthIngestionRun[],
+  todayKey: string,
+) => {
+  const ingestion = findLatestSuccessfulIngestionForDate(ingestions, todayKey);
+  return {
+    health: selectTodayHealth(history, todayKey),
+    ingestion,
+    synced: ingestion !== null,
+    metricKeys: getSuccessfulHealthMetricKeysForDate(ingestions, todayKey),
+    lastSuccessfulIngestion: findLatestSuccessfulHealthIngestion(ingestions),
+  };
+};
+
+export const formatHealthSyncDateTime = (receivedAt?: string) => {
+  if (!receivedAt) return "尚无记录";
+  const date = new Date(receivedAt);
+  if (Number.isNaN(date.getTime())) return "时间未知";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${read("year")}-${read("month")}-${read("day")} ${read("hour")}:${read("minute")}`;
+};

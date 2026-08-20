@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import test from "node:test";
 import {
   currentShanghaiMonth,
@@ -14,6 +16,9 @@ import {
 import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
 import { hasDashboardAccess } from "../app/api/access.ts";
 import { validNormalizedFinanceTransaction } from "../app/features/finance/import-service.ts";
+
+const root = resolve(new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const healthRoute = readFileSync(resolve(root, "app/api/health/route.ts"), "utf8");
 
 test("dashboard access rejects forged headers on the public workers.dev host", () => {
   assert.equal(hasDashboardAccess(new Request("https://pulse-health-dashboard.leopardser.workers.dev/api/salary", {
@@ -64,6 +69,14 @@ test("health upload requires an exact independent API key", () => {
   assert.equal(isValidHealthApiKey("secret", "secret"), true);
   assert.equal(isValidHealthApiKey("secret", "wrong"), false);
   assert.equal(isValidHealthApiKey("", ""), false);
+});
+
+test("health ingest records server-proven success metadata without a new schema", () => {
+  assert.match(healthRoute, /const receivedAt = new Date\(\)\.toISOString\(\)/);
+  assert.match(healthRoute, /AUTO_EXPORT_HEALTH_SOURCE = "Auto Export Health"/);
+  assert.match(healthRoute, /coveredDates: JSON\.stringify\(rows\.map/);
+  assert.match(healthRoute, /importedDays: rows\.length[\s\S]*status: "success"/);
+  assert.match(healthRoute, /rowsInserted[\s\S]*rowsUpdated[\s\S]*dataDateStart[\s\S]*dataDateEnd/);
 });
 
 test("finance import accepts only normalized integer-cent QianJi records", () => {

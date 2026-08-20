@@ -47,6 +47,7 @@ const render = async () => {
   mkdirSync(persistence);
   mkdirSync(xdg);
   const port = await availablePort();
+  const inspectorPort = await availablePort();
   const child = spawn(process.execPath, [
     wranglerCli,
     "dev",
@@ -54,6 +55,8 @@ const render = async () => {
     join(projectRoot, "dist", "server", "wrangler.json"),
     "--port",
     String(port),
+    "--inspector-port",
+    String(inspectorPort),
     "--ip",
     "127.0.0.1",
     "--local",

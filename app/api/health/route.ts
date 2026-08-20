@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, inArray } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { getDb } from "../../../db";
 import { healthDaily, healthIngestionRuns } from "../../../db/schema";
@@ -14,6 +14,8 @@ const jsonHeaders = {
   "Cache-Control": "no-store",
 };
 
+const AUTO_EXPORT_HEALTH_SOURCE = "Auto Export Health";
+
 const parseStringArray = (value: string) => {
   try {
     const parsed = JSON.parse(value);
@@ -21,12 +23,6 @@ const parseStringArray = (value: string) => {
   } catch {
     return [];
   }
-};
-
-const ingestionSource = (payload?: HealthPayload) => {
-  const source = payload?.source?.trim().slice(0, 64);
-  if (source) return source;
-  return Array.isArray(payload?.data?.metrics ?? payload?.metrics) ? "health-auto-export" : null;
 };
 
 export async function GET(request: Request) {
@@ -47,7 +43,19 @@ export async function GET(request: Request) {
       coveredDates: parseStringArray(run.coveredDates),
       metricKeys: parseStringArray(run.metricKeys),
     }));
-    return Response.json({ health: history[0] ?? null, history, ingestions }, { headers: jsonHeaders });
+    const lastSuccessfulIngestion = ingestions.find((run) => run.status === "success") ?? null;
+    return Response.json({
+      health: history[0] ?? null,
+      history,
+      ingestions,
+      sync: lastSuccessfulIngestion ? {
+        lastReceivedAt: lastSuccessfulIngestion.receivedAt,
+        dataDateStart: lastSuccessfulIngestion.coveredDates[0] ?? null,
+        dataDateEnd: lastSuccessfulIngestion.coveredDates.at(-1) ?? null,
+        importedDays: lastSuccessfulIngestion.importedDays,
+        source: lastSuccessfulIngestion.source,
+      } : null,
+    }, { headers: jsonHeaders });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Database unavailable";
     return Response.json({ error: message }, { status: 500, headers: jsonHeaders });
@@ -85,7 +93,7 @@ export async function POST(request: Request) {
       await db.insert(healthIngestionRuns).values({
         receivedAt,
         status: "no_supported_metrics",
-        source: ingestionSource(payload),
+        source: AUTO_EXPORT_HEALTH_SOURCE,
       });
       return Response.json(
         { error: "No supported health metrics found" },
@@ -93,6 +101,13 @@ export async function POST(request: Request) {
       );
     }
 
+    const existingDates = new Set((await db
+      .select({ date: healthDaily.date })
+      .from(healthDaily)
+      .where(inArray(healthDaily.date, rows.map((row) => row.date))))
+      .map((row) => row.date));
+    const rowsInserted = rows.filter((row) => !existingDates.has(row.date)).length;
+    const rowsUpdated = rows.length - rowsInserted;
     for (const row of rows) {
       const values = { ...row, updatedAt: new Date().toISOString() };
       const updateFields = selectHealthUpdateFields(row, coverage[row.date] ?? []);
@@ -111,14 +126,25 @@ export async function POST(request: Request) {
       metricKeys: JSON.stringify(metricKeys),
       importedDays: rows.length,
       status: "success",
-      source: ingestionSource(payload),
+      source: AUTO_EXPORT_HEALTH_SOURCE,
     });
     const [health] = await db
       .select()
       .from(healthDaily)
       .where(eq(healthDaily.date, rows.at(-1)!.date))
       .limit(1);
-    return Response.json({ imported: rows.length, health }, { status: 200, headers: jsonHeaders });
+    return Response.json({
+      imported: rows.length,
+      health,
+      sync: {
+        receivedAt,
+        dataDateStart: rows[0].date,
+        dataDateEnd: rows.at(-1)!.date,
+        rowsInserted,
+        rowsUpdated,
+        source: AUTO_EXPORT_HEALTH_SOURCE,
+      },
+    }, { status: 200, headers: jsonHeaders });
   } catch (error) {
     return Response.json({ error: "Health data import failed" }, { status: 400, headers: jsonHeaders });
   }

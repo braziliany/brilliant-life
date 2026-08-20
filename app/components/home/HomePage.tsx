@@ -4,10 +4,11 @@ type Props = {
   today: ShanghaiDate;
   dailyQuote: { text: string; source: string };
   healthLoadStatus: HealthLoadStatus;
-  steps: number;
+  steps: number | null;
   stepGoal: number;
-  stepProgress: number;
-  activeEnergy: number;
+  stepProgress: number | null;
+  activeEnergy: number | null;
+  todayHealthSynced: boolean;
   workdays: number;
   healthHistoryDays: number;
   netSalary: number;
@@ -17,7 +18,7 @@ type Props = {
   onOpenAnnual: () => void;
 };
 
-export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal, stepProgress, activeEnergy, workdays, healthHistoryDays, netSalary, workExperienceCount, money, onOpenDashboard, onOpenAnnual }: Props) {
+export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal, stepProgress, activeEnergy, todayHealthSynced, workdays, healthHistoryDays, netSalary, workExperienceCount, money, onOpenDashboard, onOpenAnnual }: Props) {
   return (
     <section className="homePage">
       <div className="homeHero">
@@ -33,9 +34,9 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
         </div>
         <div className="homeSnapshot" aria-label="今日生活概览">
           <div className="snapshotHead"><div><i /><span>今日状态</span></div><small>{today.month + 1}月{today.day}日</small></div>
-          <div className="snapshotPrimary"><span>今日步数</span><strong>{healthLoadStatus === "loading" ? "读取中" : healthLoadStatus === "error" ? "—" : steps.toLocaleString("zh-CN")}</strong><small>{healthLoadStatus === "error" ? "健康数据暂时无法读取" : `目标 ${stepGoal.toLocaleString("zh-CN")} 步`}</small><div><i style={{ width: `${stepProgress}%` }} /></div></div>
+          <div className="snapshotPrimary"><span>今日步数</span><strong>{healthLoadStatus === "loading" ? "读取中" : healthLoadStatus === "error" || steps === null ? "—" : steps.toLocaleString("zh-CN")}</strong><small>{healthLoadStatus === "loading" ? "正在检查今日记录" : healthLoadStatus === "error" ? "健康数据暂时无法读取" : !todayHealthSynced ? "今日尚未同步" : steps === null ? "暂无步数记录" : `目标 ${stepGoal.toLocaleString("zh-CN")} 步`}</small><div><i style={{ width: `${stepProgress ?? 0}%` }} /></div></div>
           <div className="snapshotMetrics">
-            <div><span>活动能量</span><b>{activeEnergy.toLocaleString("zh-CN")}</b><small>千卡</small></div>
+            <div><span>活动能量</span><b>{activeEnergy?.toLocaleString("zh-CN") ?? "—"}</b><small>{activeEnergy === null ? "暂无记录" : "千卡"}</small></div>
             <div><span>本月工作</span><b>{workdays}</b><small>天</small></div>
           </div>
           <button type="button" onClick={() => onOpenDashboard("health")}><span>查看完整数据</span><b>↗</b></button>

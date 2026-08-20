@@ -13,9 +13,11 @@ import {
   calculateHealthTrend,
   calculateHealthIngestionContinuity,
   findLatestSuccessfulIngestionForDate,
+  findLatestSuccessfulHealthIngestion,
+  formatHealthSyncDateTime,
+  getSuccessfulHealthMetricKeysForDate,
   calculateWeightTrend,
   getHealthMetricValue,
-  getMissingTodayHealthMetrics,
   selectTodayHealth,
   toChronologicalHealthHistory,
 } from "./features/health/domain";
@@ -61,20 +63,6 @@ const getShanghaiDate = (value = new Date()) => {
     day: Number(read("day")),
     weekday: read("weekday"),
   };
-};
-
-const formatShanghaiDateTime = (value?: string) => {
-  if (!value) return "尚无记录";
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return "时间未知";
-  return new Intl.DateTimeFormat("zh-CN", {
-    timeZone: "Asia/Shanghai",
-    month: "numeric",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).format(parsed);
 };
 
 const genshinQuotes = [
@@ -161,7 +149,6 @@ export default function Home() {
   const isCurrentCalendarMonth = calendarMonthKey === currentMonthKey;
   const workdays = calendarWorkdays;
   const calendarProgress = summarizeCalendarMonthProgress(calendarMonth.year, calendarMonth.month, todayKey, calendarOverrides);
-  const { steps, stepProgress, activeEnergy, totalEnergy, exerciseHours } = calculateHealthSummary(health, stepGoal);
   const { recentWeightHistory, latestWeight, weightChange, recentWeightMin, recentWeightRange } = calculateWeightTrend(healthHistory);
   const healthMetricConfig = {
     steps: { label: "步数", unit: "步", color: "var(--lime)" },
@@ -174,8 +161,15 @@ export default function Home() {
   const { metricHistory: healthMetricHistory, metricMax: healthMetricMax, metricAverageLabel: healthMetricAverageLabel } = calculateHealthTrend(healthHistory, healthPeriod, healthMetric);
   const healthMetricValue = (item: HealthDaily) => getHealthMetricValue(item, healthMetric);
   const latestSyncedHealth = healthHistory.at(-1) ?? null;
-  const latestHealthIngestion = healthIngestions[0] ?? null;
+  const latestHealthIngestion = findLatestSuccessfulHealthIngestion(healthIngestions);
   const latestTodayIngestion = findLatestSuccessfulIngestionForDate(healthIngestions, todayKey);
+  const todayHealthMetricKeys = getSuccessfulHealthMetricKeysForDate(healthIngestions, todayKey);
+  const todayHealthSynced = latestTodayIngestion !== null;
+  const { steps, stepProgress, activeEnergy, totalEnergy, exerciseHours } = calculateHealthSummary(
+    todayHealthSynced ? health : null,
+    stepGoal,
+    todayHealthMetricKeys,
+  );
   const ingestionContinuity = calculateHealthIngestionContinuity(healthIngestions, todayKey);
   const ingestionMetricLabels: Record<string, string> = {
     steps: "步数",
@@ -192,20 +186,18 @@ export default function Home() {
     : `近7天成功上传 ${ingestionContinuity.successfulDateKeys.length}/7 天${ingestionContinuity.missingDateKeys.length ? `，未收到 ${ingestionContinuity.missingDateKeys.join("、")}` : ""}${ingestionContinuity.failedDateKeys.length ? `，异常 ${ingestionContinuity.failedDateKeys.join("、")}` : ""}`;
   const todayUploadSummary = latestTodayIngestion
     ? `今天最近一次包含 ${latestTodayIngestion.metricKeys.map((key) => ingestionMetricLabels[key] ?? key).join("、") || "无支持指标"}`
-    : "今天尚无成功上传事件";
-  const missingTodayMetricLabels = {
-    weightKg: "体重",
-    sleepMinutes: "睡眠",
-    restingHeartRateBpm: "静息心率",
-  } as const;
-  const missingTodayMetrics = getMissingTodayHealthMetrics(health).map((metric) => missingTodayMetricLabels[metric]);
+    : "今日尚未同步";
+  const expectedTodayMetricKeys = ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "sleepMinutes", "restingHeartRateBpm"];
+  const missingTodayMetrics = todayHealthSynced
+    ? expectedTodayMetricKeys.filter((key) => !todayHealthMetricKeys.includes(key)).map((key) => ingestionMetricLabels[key])
+    : [];
   const healthFreshness = healthLoadStatus === "loading"
     ? "正在检查"
     : healthLoadStatus === "error"
       ? "读取失败"
-      : health
+      : todayHealthSynced
         ? "今天已同步"
-        : "今天尚未上传";
+        : "今日尚未同步";
 
   const loadHealthData = () => {
     setHealthLoadStatus("loading");
@@ -578,6 +570,7 @@ export default function Home() {
             stepGoal={stepGoal}
             stepProgress={stepProgress}
             activeEnergy={activeEnergy}
+            todayHealthSynced={todayHealthSynced}
             workdays={workdays}
             healthHistoryDays={healthHistory.length}
             netSalary={netSalary}
@@ -595,7 +588,7 @@ export default function Home() {
 
           <DataCenterOverview
             active={activeSection === "data-overview"}
-            hasTodayHealth={health !== null}
+            hasTodayHealth={todayHealthSynced}
             healthLoadStatus={healthLoadStatus}
             steps={steps}
             monthLabel={monthLabel}
@@ -616,11 +609,11 @@ export default function Home() {
               showHealthGuide={showHealthGuide}
               showHealthTrend={showHealthTrend}
               healthHistoryLength={healthHistory.length}
-              health={health}
               healthLoadStatus={healthLoadStatus}
               healthFreshness={healthFreshness}
+              todayHealthSynced={todayHealthSynced}
               latestSyncedHealth={latestSyncedHealth}
-              latestUploadLabel={formatShanghaiDateTime(latestHealthIngestion?.receivedAt ?? latestSyncedHealth?.updatedAt)}
+              latestUploadLabel={formatHealthSyncDateTime(latestHealthIngestion?.receivedAt)}
               ingestionContinuityLabel={ingestionContinuityLabel}
               todayUploadSummary={todayUploadSummary}
               missingTodayMetrics={missingTodayMetrics}
@@ -686,7 +679,7 @@ export default function Home() {
               stepGoal={stepGoal}
               stepProgress={stepProgress}
               healthLoadStatus={healthLoadStatus}
-              hasTodayHealth={health !== null}
+              hasTodayHealth={todayHealthSynced}
               editingStepGoal={editingStepGoal}
               stepGoalDraft={stepGoalDraft}
               latestWeight={latestWeight}

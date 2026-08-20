@@ -7,9 +7,9 @@ type Props = {
   showHealthGuide: boolean;
   showHealthTrend: boolean;
   healthHistoryLength: number;
-  health: HealthDaily | null;
   healthLoadStatus: HealthLoadStatus;
   healthFreshness: string;
+  todayHealthSynced: boolean;
   latestSyncedHealth: HealthDaily | null;
   latestUploadLabel: string;
   ingestionContinuityLabel: string;
@@ -22,8 +22,8 @@ type Props = {
   healthMetricHistory: HealthDaily[];
   healthMetricMax: number;
   totalEnergy: number | null;
-  activeEnergy: number;
-  exerciseHours: string;
+  activeEnergy: number | null;
+  exerciseHours: string | null;
   healthMetricValue: (item: HealthDaily) => number;
   onExport: () => void;
   onToggleTrend: () => void;
@@ -33,7 +33,7 @@ type Props = {
   onPeriodChange: (period: 7 | 30) => void;
 };
 
-export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, health, healthLoadStatus, healthFreshness, latestSyncedHealth, latestUploadLabel, ingestionContinuityLabel, todayUploadSummary, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
+export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, healthLoadStatus, healthFreshness, todayHealthSynced, latestSyncedHealth, latestUploadLabel, ingestionContinuityLabel, todayUploadSummary, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
   return (
     <article id="health" className={`card activity${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
@@ -43,21 +43,22 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
           <details className="moduleTools"><summary>工具</summary><div><button type="button" onClick={onExport} disabled={healthHistoryLength === 0} aria-label="导出最近30天健康数据">导出 CSV</button><button type="button" onClick={onToggleGuide}>{showHealthGuide ? "返回健康数据" : "同步与状态"}</button></div></details>
         </div>
       </div>
+      <p className="healthLastSync"><span>最后同步</span><b>{latestUploadLabel}</b>{healthLoadStatus === "ready" && !todayHealthSynced && <em>今日尚未同步</em>}</p>
       {showHealthGuide ? (
         <div className="healthGuide">
           <div className="healthSyncCenter">
             <div className="healthSyncCenterHead">
-              <div><span className={`healthSyncDot ${health ? "online" : healthLoadStatus === "error" ? "error" : ""}`} /><div><small>同步状态</small><strong>{healthFreshness}</strong></div></div>
+              <div><span className={`healthSyncDot ${todayHealthSynced ? "online" : healthLoadStatus === "error" ? "error" : ""}`} /><div><small>同步状态</small><strong>{healthFreshness}</strong></div></div>
               <button type="button" onClick={onReload} disabled={healthLoadStatus === "loading"}>{healthLoadStatus === "loading" ? "刷新中…" : "立即刷新"}</button>
             </div>
             <div className="healthSyncFacts">
               <div><span>最近上传</span><b>{latestUploadLabel}</b></div>
               <div><span>数据日期</span><b>{latestSyncedHealth?.date ?? "尚无记录"}</b></div>
-              <div><span>今日指标</span><b>{!health ? "等待上传" : missingTodayMetrics.length ? `缺少 ${missingTodayMetrics.join("、")}` : "主要指标完整"}</b></div>
+              <div><span>今日指标</span><b>{!todayHealthSynced ? "今日尚未同步" : missingTodayMetrics.length ? `缺少 ${missingTodayMetrics.join("、")}` : "主要指标完整"}</b></div>
             </div>
             <p>{ingestionContinuityLabel}；{todayUploadSummary}</p>
-            {!health && latestSyncedHealth && <p>服务器最后收到的是 {latestSyncedHealth.date} 的数据；请在 Health Auto Export 中手动运行一次“今天”导出。</p>}
-            {health && missingTodayMetrics.length > 0 && <p>今天的数据已收到，但 {missingTodayMetrics.join("、")} 尚未包含在上传内容中，请检查读取权限后重新导出。</p>}
+            {!todayHealthSynced && latestSyncedHealth && <p>服务器最后收到的数据日期是 {latestSyncedHealth.date}；快捷指令完成不代表服务器已经收到今天的数据。</p>}
+            {todayHealthSynced && missingTodayMetrics.length > 0 && <p>今天的数据已收到，但 {missingTodayMetrics.join("、")} 尚未包含在上传内容中，请检查读取权限后重新导出。</p>}
           </div>
           <ol>
             <li><b>选择指标</b><span>步数、活动能量、静息能量、Apple 锻炼时间、睡眠分析、静息心率；有体重秤后再启用体重。</span></li>
@@ -80,7 +81,7 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
             </div>
             <div className="healthPeriodTabs"><button type="button" className={healthPeriod === 7 ? "active" : ""} onClick={() => onPeriodChange(7)}>7天</button><button type="button" className={healthPeriod === 30 ? "active" : ""} onClick={() => onPeriodChange(30)}>30天</button></div>
           </div>
-          <div className="healthTrendSummary"><span>{healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? "平均" : "日均"}</span><strong>{healthMetricAverageLabel}</strong><small>{healthMetricConfig.unit}</small>{health && <span className="healthSyncStatus">最近同步 {health.date} · {health.source === "health-auto-export" ? "Apple 健康" : health.source}</span>}</div>
+          <div className="healthTrendSummary"><span>{healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? "平均" : "日均"}</span><strong>{healthMetricAverageLabel}</strong><small>{healthMetricConfig.unit}</small><span className="healthSyncStatus">{todayHealthSynced ? "今日已同步" : "今日尚未同步"}</span></div>
           {healthMetricHistory.length ? (
             <div className={`healthBars${healthPeriod === 30 ? " compact" : ""}`} aria-label={`最近${healthPeriod}天${healthMetricConfig.label}趋势`}>
               {healthMetricHistory.map((item) => (
@@ -93,10 +94,10 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
           ) : <div className="healthTrendEmpty"><p>{healthLoadStatus === "loading" ? "正在读取健康数据…" : healthLoadStatus === "error" ? "健康数据读取失败" : "还没有可用于绘制趋势的健康数据"}</p>{healthLoadStatus === "error" && <button type="button" onClick={onReload}>重新加载</button>}</div>}
         </div>
       ) : <>
-        <div className="bubbleStage" aria-label={`今日总消耗${totalEnergy ?? "暂无"}千卡，活动消耗${activeEnergy}千卡，运动${exerciseHours}小时`}>
+        <div className="bubbleStage" aria-label={`今日总消耗${totalEnergy ?? "暂无"}千卡，活动消耗${activeEnergy ?? "暂无"}千卡，运动${exerciseHours ?? "暂无"}小时`}>
           <div className="bubble yellow"><strong>{totalEnergy?.toLocaleString("zh-CN") ?? "—"}</strong><small>{totalEnergy === null ? "等待静息能量" : "总千卡消耗"}</small></div>
-          <div className="bubble coral"><strong>{activeEnergy.toLocaleString("zh-CN")}</strong><small>活动千卡</small></div>
-          <div className="bubble dark"><strong>{exerciseHours}</strong><small>小时</small></div>
+          <div className="bubble coral"><strong>{activeEnergy?.toLocaleString("zh-CN") ?? "—"}</strong><small>{activeEnergy === null ? "暂无活动能量" : "活动千卡"}</small></div>
+          <div className="bubble dark"><strong>{exerciseHours ?? "—"}</strong><small>{exerciseHours === null ? "暂无锻炼记录" : "小时"}</small></div>
         </div>
         <div className="legend"><span><i className="dot yellowDot" />总消耗</span><span><i className="dot coralDot" />活动消耗</span><span><i className="dot darkDot" />运动时长</span></div>
       </>}

@@ -7,10 +7,13 @@ import {
   calculateHealthTrend,
   calculateWeightTrend,
   findLatestSuccessfulIngestionForDate,
+  findLatestSuccessfulHealthIngestion,
+  formatHealthSyncDateTime,
   getHealthMetricValue,
   getMissingTodayHealthMetrics,
   getRecentHealthDateKeys,
   healthIngestionShanghaiDate,
+  resolveTodayHealthSync,
   selectTodayHealth,
   toChronologicalHealthHistory,
 } from "../app/features/health/domain.ts";
@@ -48,7 +51,7 @@ test("toChronologicalHealthHistory reverses a copy and preserves its input", () 
   assert.notEqual(result, history);
 });
 
-test("calculateHealthSummary preserves current dashboard rounding and fallback rules", () => {
+test("calculateHealthSummary preserves values while distinguishing missing metrics from zero", () => {
   assert.deepEqual(calculateHealthSummary(healthRecord(), 8_500), {
     steps: 8_000,
     stepProgress: 94,
@@ -57,14 +60,23 @@ test("calculateHealthSummary preserves current dashboard rounding and fallback r
     exerciseHours: "1.3",
   });
   assert.equal(calculateHealthSummary(healthRecord({ steps: 20_000 }), 8_500).stepProgress, 100);
-  assert.equal(calculateHealthSummary(healthRecord({ restingEnergyKcal: 0 }), 8_500).totalEnergy, null);
+  assert.equal(calculateHealthSummary(healthRecord({ restingEnergyKcal: 0 }), 8_500).totalEnergy, 322);
   assert.deepEqual(calculateHealthSummary(null, 8_500), {
+    steps: null,
+    stepProgress: null,
+    activeEnergy: null,
+    totalEnergy: null,
+    exerciseHours: null,
+  });
+  assert.deepEqual(calculateHealthSummary(healthRecord({ steps: 0 }), 8_500, ["steps"]), {
     steps: 0,
     stepProgress: 0,
-    activeEnergy: 0,
+    activeEnergy: null,
     totalEnergy: null,
-    exerciseHours: "0.0",
+    exerciseHours: null,
   });
+  assert.equal(calculateHealthSummary(healthRecord({ steps: 1234 }), 8_500, []).steps, null);
+  assert.equal(calculateHealthSummary(healthRecord({ steps: 1234 }), 8_500, ["steps"]).steps, 1234);
 });
 
 test("getHealthMetricValue preserves nullable metric and sleep conversion behavior", () => {
@@ -164,6 +176,8 @@ test("getMissingTodayHealthMetrics returns only the current optional metric keys
 
 test("health ingestion dates preserve Shanghai timezone and seven-day boundaries", () => {
   assert.equal(healthIngestionShanghaiDate("2026-08-08T16:30:00.000Z"), "2026-08-09");
+  assert.equal(formatHealthSyncDateTime("2026-08-08T16:30:00.000Z"), "2026-08-09 00:30");
+  assert.equal(formatHealthSyncDateTime(), "尚无记录");
   assert.equal(healthIngestionShanghaiDate("invalid"), null);
   assert.deepEqual(getRecentHealthDateKeys("2026-08-09"), [
     "2026-08-03",
@@ -190,4 +204,23 @@ test("health ingestion continuity distinguishes success, failure, and no request
   assert.deepEqual(result.missingDateKeys, ["2026-08-03", "2026-08-04", "2026-08-05", "2026-08-06"]);
   assert.equal(findLatestSuccessfulIngestionForDate(ingestions, "2026-08-09"), ingestions[0]);
   assert.equal(findLatestSuccessfulIngestionForDate(ingestions, "2026-08-08"), null);
+  assert.equal(findLatestSuccessfulHealthIngestion(ingestions)?.receivedAt, "2026-08-09T01:00:00.000Z");
+});
+
+test("today health sync is proven only by a successful server ingestion", () => {
+  const history = [healthRecord({ date: "2026-08-15", steps: 0 })];
+  const none = resolveTodayHealthSync(history, [], "2026-08-15");
+  assert.equal(none.synced, false);
+  assert.equal(none.ingestion, null);
+  assert.deepEqual(none.metricKeys, []);
+
+  const ingestions = [
+    { id: 3, receivedAt: "2026-08-15T02:30:00.000Z", coveredDates: ["2026-08-15"], metricKeys: ["sleepMinutes"], importedDays: 1, status: "success", source: "Auto Export Health" },
+    { id: 2, receivedAt: "2026-08-15T02:00:00.000Z", coveredDates: ["2026-08-15"], metricKeys: ["steps"], importedDays: 1, status: "success", source: "Auto Export Health" },
+  ];
+  const synced = resolveTodayHealthSync(history, ingestions, "2026-08-15");
+  assert.equal(synced.synced, true);
+  assert.equal(synced.lastSuccessfulIngestion?.receivedAt, "2026-08-15T02:30:00.000Z");
+  assert.deepEqual(synced.metricKeys, ["sleepMinutes", "steps"]);
+  assert.equal(calculateHealthSummary(synced.health, 8_500, synced.metricKeys).steps, 0);
 });

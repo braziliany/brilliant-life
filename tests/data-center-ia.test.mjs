@@ -9,6 +9,7 @@ const page = read("app/page.tsx");
 const nav = read("app/components/shell/DataQuickNav.tsx");
 const overview = read("app/components/shell/DataCenterOverview.tsx");
 const health = read("app/features/health/HealthOverviewCard.tsx");
+const dailyGoals = read("app/features/health/DailyGoalsColumn.tsx");
 const calendar = read("app/features/calendar/WorkCalendarCard.tsx");
 const career = read("app/features/career/WorkExperienceTimeline.tsx");
 const salary = read("app/features/salary/SalaryDashboard.tsx");
@@ -44,6 +45,14 @@ test("production UI keeps internal fact terminology out of personal archive copy
   assert.match(overview, /最近记录/);
   assert.match(health, /今日健康|健康趋势/);
   assert.match(salary, /工资记录/);
+});
+
+test("health UI shows server-proven sync state without turning missing data into zero", () => {
+  assert.match(health, /healthLastSync[\s\S]*最后同步[\s\S]*今日尚未同步/);
+  assert.match(health, /activeEnergy\?\.toLocaleString[\s\S]*\?\? "—"/);
+  assert.match(dailyGoals, /steps === null \? "—"/);
+  assert.match(dailyGoals, /stepProgress === null \? "—"/);
+  assert.match(dailyGoals, /今日尚未同步[\s\S]*暂无步数记录/);
 });
 
 test("life finance presents personal records with secondary data management", () => {
@@ -84,5 +93,7 @@ test("responsive facts layout and compact tools preserve mobile readability", ()
   assert.match(styles, /\.dataOverviewFacts\{display:grid/);
   assert.match(styles, /@media \(max-width:560px\)[\s\S]*\.dataOverviewFacts/);
   assert.match(styles, /\.dataQuickNav\{overflow-x:auto/);
+  assert.match(styles, /\.moduleTools:not\(\[open\]\)>div\{display:none\}/);
+  assert.match(styles, /\.dashboard\{width:100%;min-width:0;max-width:100%/);
   assert.match(styles, /:focus-visible/);
 });
