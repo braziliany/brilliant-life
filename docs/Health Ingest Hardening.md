@@ -2,7 +2,7 @@
 
 ## 状态
 
-验收通过。2026-08-22 已执行远端 D1 migration；应用代码待正式发布。
+验收通过并已于 2026-08-22 正式发布。
 
 ## 数据语义
 
@@ -50,3 +50,14 @@
 - migration 后 `health_daily.metric_coverage` 已存在；
 - 114 条历史记录的 `metric_coverage` 全部保持 `NULL`；
 - migration 前后 Health 行数、日期范围及全部数值字段汇总完全一致。
+
+## 正式发布与实机验收
+
+- Git 提交：`4ed4994e34ac4e57c5da3a816389407b76f6d57c`；
+- Worker Version ID：`c394b157-717c-4b36-b531-fdfbcb7ba357`；
+- 实机 Auto Export 请求由服务端于 2026-08-22 09:30（Asia/Shanghai）接收，来源为 `Auto Export Health`，覆盖 2026-08-15 至 2026-08-21 共 7 天；
+- 7 条日期记录获得新协议 coverage；107 条早期记录继续保持 `NULL`；
+- 本次 payload 缺失的步数、能量、锻炼等字段没有覆盖既有数值；8 月 20 日既有活动数据保持不变；
+- 本次真实 payload 未包含 coverage 明确 present 且值为 0 的样本，explicit zero 分支由生产同代码回归测试验证，未将实机样本虚报为已覆盖；
+- Data Center、Health 区域与“我的 2026”线上页面正常；年度页面保留 114 天记录，并自然提示其中 107 天为早期记录；
+- 未授权 Health ingest 继续返回 401。
