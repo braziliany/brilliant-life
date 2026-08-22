@@ -4,13 +4,21 @@ import type {
   WorkExperience,
 } from "../../page-view.types.ts";
 import {
+  LIFE_DOMAIN_LABELS,
+  summarizeLifeFinance,
+} from "../finance/domain.ts";
+import type {
+  FinanceTransactionRecord,
+  LifeDomain,
+} from "../finance/types.ts";
+import {
   getCalendarMonthShape,
   getHolidayCalendar,
   resolveCalendarDay,
   type CalendarOverrides,
 } from "../calendar/domain.ts";
 
-const ANNUAL_SUMMARY_VERSION = "annual-summary-v1";
+const ANNUAL_SUMMARY_VERSION = "annual-summary-v2";
 
 export type AnnualCoverageState =
   | "unconfigured"
@@ -47,7 +55,15 @@ type AnnualSummaryInput = {
   healthRecords: HealthDaily[];
   calendarData: CalendarYearData;
   salaryRecords: SalaryRecord[];
+  financeTransactions?: FinanceTransactionRecord[];
   experiences: WorkExperience[];
+};
+
+const annualLifeDomainLabels: Record<LifeDomain, string> = {
+  ...LIFE_DOMAIN_LABELS,
+  device: "电器数码",
+  entertainment: "娱乐",
+  appearance: "外表",
 };
 
 function round(value: number, digits = 2) {
@@ -435,6 +451,80 @@ export function summarizeSalaryYear(
   } satisfies DomainSummary<Record<string, unknown>, Record<string, unknown>>;
 }
 
+export function summarizeAnnualLifeFinance(
+  year: number,
+  transactions: FinanceTransactionRecord[],
+  asOfDate: string | null,
+  expectedMonths: number,
+  periodStatus: "not-started" | "in-progress" | "complete",
+) {
+  const cutoff = asOfDate ?? `${year}-01-01`;
+  const included = asOfDate
+    ? transactions.filter(
+        (item) =>
+          item.occurredAt.startsWith(`${year}-`) &&
+          item.occurredAt.slice(0, 10) <= asOfDate,
+      )
+    : [];
+  const summary = summarizeLifeFinance(included, year, cutoff);
+  const dates = included
+    .map((item) => item.occurredAt.slice(0, 10))
+    .sort((a, b) => a.localeCompare(b));
+  const dateStart = dates[0] ?? null;
+  const dateEnd = dates.at(-1) ?? null;
+  const coveredMonths = [...new Set(dates.map((date) => date.slice(0, 7)))];
+  const sources = [...new Set(included.map((item) => item.source))];
+  const warnings = summary.transactionCount === 0
+    ? ["no-life-finance-records"]
+    : dateEnd && asOfDate && dateEnd < asOfDate
+      ? ["life-finance-records-cutoff"]
+      : [];
+
+  return {
+    facts: {
+      recordCount: summary.transactionCount,
+      dateStart,
+      dateEnd,
+      incomeCents: summary.incomeCents,
+      grossExpenseCents: summary.expenseCents,
+      refundsCents: summary.refundCents,
+      netExpenseCents: summary.netExpenseCents,
+      familyExpenseCents: summary.familySupportCents,
+      personalExpenseCents: summary.personalExpenseCents,
+      monthlyNetExpense: summary.monthly,
+      domainDistribution: summary.domains.map((item) => ({
+        ...item,
+        label: annualLifeDomainLabels[item.domain],
+      })),
+      importantExpenses: summary.significantEvents.slice(0, 5).map((item) => {
+        const rawTitle = item.note || item.rawSubcategory || item.rawCategory || "支出";
+        const title = rawTitle.length > 28 ? `${rawTitle.slice(0, 28)}…` : rawTitle;
+        return {
+          date: item.occurredAt.slice(0, 10),
+          title,
+          category: annualLifeDomainLabels[item.lifeDomainOverride ?? item.lifeDomain],
+          amountCents: item.amountCents,
+        };
+      }),
+    },
+    coverage: {
+      expectedMonths,
+      availableMonths: coveredMonths.length,
+      ratio: expectedMonths ? round(coveredMonths.length / expectedMonths, 4) : 0,
+      coveredMonths,
+      dateStart,
+      dateEnd,
+      annualAsOfDate: asOfDate,
+      sourceCutoffDate: dateEnd,
+      fullYearExpectedMonths: 12,
+      scope: periodStatus === "complete" ? "full-year" as const : "year-to-date" as const,
+      completeYear: periodStatus === "complete" && dateStart === `${year}-01-01` && dateEnd === `${year}-12-31`,
+    },
+    sources: sources.map((source) => `finance_transactions:${source}`),
+    warnings,
+  } satisfies DomainSummary<Record<string, unknown>, Record<string, unknown>>;
+}
+
 function monthIndex(value: string) {
   const [year, month] = value.split("-").map(Number);
   return year * 12 + month - 1;
@@ -541,29 +631,42 @@ export function generateAnnualSummaryDraft(
       includesFutureDates: reporting.periodStatus !== "complete",
     },
   };
-  const financeBase = summarizeSalaryYear(
+  const salaryBase = summarizeSalaryYear(
     year,
     reporting.factThroughMonth
       ? data.salaryRecords.filter((record) => record.month <= reporting.factThroughMonth!)
       : [],
   );
-  const finance = {
-    ...financeBase,
+  const salary = {
+    ...salaryBase,
     coverage: {
-      ...financeBase.coverage,
+      ...salaryBase.coverage,
       expectedMonths: reporting.expectedMonths,
       fullYearExpectedMonths: 12,
       ratio: reporting.expectedMonths
-        ? round(financeBase.coverage.availableMonths / reporting.expectedMonths, 4)
+        ? round(salaryBase.coverage.availableMonths / reporting.expectedMonths, 4)
         : 0,
       scope: reporting.periodStatus === "complete" ? "full-year" as const : "year-to-date" as const,
       asOfMonth: reporting.factThroughMonth,
     },
     warnings: [
-      ...(financeBase.coverage.availableMonths < reporting.expectedMonths
+      ...(salaryBase.coverage.availableMonths < reporting.expectedMonths
         ? ["missing-salary-months"]
         : []),
     ],
+  };
+  const lifeFinance = summarizeAnnualLifeFinance(
+    year,
+    data.financeTransactions ?? [],
+    reporting.factThroughDate,
+    reporting.expectedMonths,
+    reporting.periodStatus,
+  );
+  const finance = {
+    salary,
+    lifeFinance,
+    sources: [...new Set([...salary.sources, ...lifeFinance.sources])],
+    warnings: [...new Set([...salary.warnings, ...lifeFinance.warnings])],
   };
   const careerInput = reporting.factThroughMonth
     ? data.experiences.map((experience) => ({
@@ -593,7 +696,7 @@ export function generateAnnualSummaryDraft(
         ? ["partial-career-year"]
         : [],
   };
-  const summaries = [health, time, finance, career];
+  const summaries = [health, time, salary, lifeFinance, career];
 
   return {
     year,
@@ -606,7 +709,8 @@ export function generateAnnualSummaryDraft(
     completeness: {
       healthDaysRatio: health.coverage.ratio,
       calendarDaysRatio: time.coverage.ratio,
-      salaryMonthsRatio: finance.coverage.ratio,
+      salaryMonthsRatio: salary.coverage.ratio,
+      lifeFinanceMonthsRatio: lifeFinance.coverage.ratio,
       careerMonthsRatio: career.coverage.ratio,
     },
     health,
@@ -630,6 +734,8 @@ const warningExplanations: Record<string, string> = {
   "legacy-health-coverage-unknown": "部分早期健康记录缺少指标级同步信息。",
   "unconfigured-holiday-calendar": "该年度尚未配置官方节假日与调休规则。",
   "missing-salary-months": "截至统计月份，已保存工资记录尚未覆盖全部已到月份。",
+  "no-life-finance-records": "这一年暂无财务记录。",
+  "life-finance-records-cutoff": "当前财务记录的截止日期早于年度档案日期。",
   "no-career-records": "该年度没有与之重叠的职业经历记录。",
   "partial-career-year": "该年度职业经历记录未覆盖全部月份。",
 };
@@ -638,6 +744,7 @@ const sourceExplanations: Record<string, string> = {
   health_daily: "健康每日汇总记录",
   calendar_overrides: "个人工作日历修改",
   salary_records: "已保存的月度工资快照",
+  "finance_transactions:qianji": "钱迹导入",
   work_experiences: "职业经历记录",
 };
 
@@ -728,7 +835,9 @@ function annualMetricValue(
     "health" | "finance" | "time",
     string,
   ];
-  const facts = draft[domainName].facts as Record<string, unknown>;
+  const facts = domainName === "finance"
+    ? draft.finance.salary.facts as Record<string, unknown>
+    : draft[domainName].facts as Record<string, unknown>;
   const value = facts[factName];
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
@@ -739,8 +848,14 @@ export function compareAnnualMetric(
   baseline: AnnualSummaryDraft,
 ) {
   const domainName = comparableMetricDomains[metric];
-  const currentState = getAnnualCoverageState(current[domainName].coverage);
-  const baselineState = getAnnualCoverageState(baseline[domainName].coverage);
+  const currentCoverage = domainName === "finance"
+    ? current.finance.salary.coverage
+    : current[domainName].coverage;
+  const baselineCoverage = domainName === "finance"
+    ? baseline.finance.salary.coverage
+    : baseline[domainName].coverage;
+  const currentState = getAnnualCoverageState(currentCoverage);
+  const baselineState = getAnnualCoverageState(baselineCoverage);
   const currentValue = annualMetricValue(current, metric);
   const baselineValue = annualMetricValue(baseline, metric);
   const reasons: string[] = [];

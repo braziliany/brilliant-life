@@ -10,7 +10,7 @@
     "build": "vinext build",
     "start": "vinext start",
     "test": "npm run verify",
-    "test:domains": "node --test tests/api-validation.test.mjs tests/calendar-domain.test.mjs tests/career-domain.test.mjs tests/health-domain.test.mjs tests/salary-domain.test.mjs tests/finance-domain.test.mjs tests/annual-domain.test.mjs tests/annual-page-contract.test.mjs tests/sprint10-ui-contract.test.mjs tests/data-center-ia.test.mjs",
+    "test:domains": "node --test tests/api-validation.test.mjs tests/calendar-domain.test.mjs tests/career-domain.test.mjs tests/health-domain.test.mjs tests/salary-domain.test.mjs tests/finance-domain.test.mjs tests/annual-domain.test.mjs tests/annual-life-finance.test.mjs tests/annual-page-contract.test.mjs tests/annual-preview-fixture.test.mjs tests/sprint10-ui-contract.test.mjs tests/data-center-ia.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",
     "verify": "npm run build && npm run test:domains && npm run test:migrations && npm run test:rendered",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
@@ -18,6 +18,8 @@
     "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-d1.ps1",
     "db:restore": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/restore-d1.ps1",
     "db:verify": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/verify-d1-backup.ps1",
+    "preview:annual": "node scripts/annual-preview.mjs seed",
+    "preview:reset": "node scripts/annual-preview.mjs reset",
     "test:migrations": "node --test tests/migration-smoke.test.mjs"
   },
   "dependencies": {

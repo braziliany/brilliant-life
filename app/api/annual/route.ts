@@ -2,11 +2,13 @@ import { asc, and, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import {
   calendarOverrides,
+  financeTransactions,
   healthDaily,
   salaryRecords,
   workExperiences,
 } from "../../../db/schema";
 import { generateAnnualSummaryDraft } from "../../features/annual/domain";
+import { toFinanceRecord } from "../../features/finance/import-service";
 import { hasDashboardAccess } from "../access";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
@@ -43,7 +45,7 @@ export async function GET(request: Request) {
 
   try {
     const db = getDb();
-    const [healthRecords, overrides, salaries, experiences] = await Promise.all([
+    const [healthRecords, overrides, salaries, financeRows, experiences] = await Promise.all([
       db
         .select()
         .from(healthDaily)
@@ -70,6 +72,16 @@ export async function GET(request: Request) {
         .orderBy(asc(salaryRecords.month)),
       db
         .select()
+        .from(financeTransactions)
+        .where(
+          and(
+            gte(financeTransactions.occurredAt, `${dateStart}T00:00:00+08:00`),
+            lt(financeTransactions.occurredAt, `${dateEnd}T00:00:00+08:00`),
+          ),
+        )
+        .orderBy(asc(financeTransactions.occurredAt)),
+      db
+        .select()
         .from(workExperiences)
         .orderBy(asc(workExperiences.startDate), asc(workExperiences.id)),
     ]);
@@ -84,6 +96,7 @@ export async function GET(request: Request) {
         ),
       },
       salaryRecords: salaries,
+      financeTransactions: financeRows.map(toFinanceRecord),
       experiences,
     });
 

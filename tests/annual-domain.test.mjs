@@ -308,7 +308,7 @@ test("summarizeCareerYear reports an empty year without career inference", () =>
   assert.deepEqual(summary.warnings, ["no-career-records"]);
 });
 
-test("generateAnnualSummaryDraft composes four factual domains with caller time", () => {
+test("generateAnnualSummaryDraft composes five factual domains with caller time", () => {
   const input = {
     generatedAt: "2027-01-01T00:00:00.000Z",
     healthRecords: [healthRecord("2026-07-29", { steps: 17381 })],
@@ -330,13 +330,14 @@ test("generateAnnualSummaryDraft composes four factual domains with caller time"
 
   assert.equal(draft.year, 2026);
   assert.equal(draft.generatedAt, input.generatedAt);
-  assert.equal(draft.calculationVersion, "annual-summary-v1");
+  assert.equal(draft.calculationVersion, "annual-summary-v2");
   assert.equal(draft.status, "draft");
   assert.equal(draft.asOfDate, "2027-01-01");
   assert.equal(draft.periodStatus, "complete");
   assert.equal(draft.health.facts.totalSteps, 17381);
   assert.equal(draft.time.facts.officialWorkdays, 248);
-  assert.equal(draft.finance.facts.totalNetSalary, 6159.15);
+  assert.equal(draft.finance.salary.facts.totalNetSalary, 6159.15);
+  assert.equal(draft.finance.lifeFinance.facts.recordCount, 0);
   assert.equal(draft.career.coverage.ratio, 1);
   assert.deepEqual(draft.sources, [
     "health_daily",
@@ -375,9 +376,9 @@ test("annual draft marks an unfinished current year without using system time", 
     scope: "year-to-date",
     asOfDate: "2026-08-09",
   });
-  assert.equal(draft.finance.coverage.expectedMonths, 8);
-  assert.equal(draft.finance.coverage.fullYearExpectedMonths, 12);
-  assert.equal(draft.finance.coverage.scope, "year-to-date");
+  assert.equal(draft.finance.salary.coverage.expectedMonths, 8);
+  assert.equal(draft.finance.salary.coverage.fullYearExpectedMonths, 12);
+  assert.equal(draft.finance.salary.coverage.scope, "year-to-date");
   assert.equal(draft.time.coverage.scope, "full-year-configured");
   assert.equal(draft.time.coverage.includesFutureDates, true);
   assert.equal(draft.time.coverage.expectedDays, 365);
@@ -403,8 +404,8 @@ test("current-year facts exclude records after asOf while calendar retains the c
 
   assert.equal(draft.health.facts.totalSteps, 100);
   assert.equal(draft.health.coverage.availableDays, 1);
-  assert.equal(draft.finance.facts.totalNetSalary, 1000);
-  assert.deepEqual(draft.finance.facts.savedMonths, ["2026-08"]);
+  assert.equal(draft.finance.salary.facts.totalNetSalary, 1000);
+  assert.deepEqual(draft.finance.salary.facts.savedMonths, ["2026-08"]);
   assert.equal(draft.time.facts.officialWorkdays, 248);
   assert.equal(draft.time.coverage.includesFutureDates, true);
 });
