@@ -9,6 +9,7 @@ const page = read("app/features/annual/AnnualReportPage.tsx");
 const charts = read("app/features/annual/charts.tsx");
 const styles = read("app/globals.css");
 const annualApi = read("app/api/annual/route.ts");
+const annualDomain = read("app/features/annual/domain.ts");
 const implementationRecord = read("docs/v1.5-Sprint-10-年度报告页面实施记录.md");
 
 test("annual page declares AnnualSummaryDraft as its only factual payload", () => {
@@ -46,6 +47,13 @@ test("annual UI consumes domain-defined YTD and full-year calendar semantics", (
   assert.match(page + charts, /summary\.time\.coverage\.includesFutureDates/);
   assert.match(page, /summary\.finance\.coverage\.expectedMonths/);
   assert.doesNotMatch(page + charts, /new Date|Date\.parse|daysInYear|monthIndex/);
+});
+
+test("annual health keeps early records visible while explaining their lower confidence naturally", () => {
+  assert.match(page, /coverage\.legacyUnknownDays/);
+  assert.match(page, /天为早期记录/);
+  assert.doesNotMatch(page, /legacy unknown|coverage protocol|旧协议/i);
+  assert.match(annualDomain, /部分早期健康记录缺少指标级同步信息/);
 });
 
 test("annual responsive contract keeps mobile charts readable and honors reduced motion", () => {

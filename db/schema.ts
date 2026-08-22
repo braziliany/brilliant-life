@@ -14,6 +14,7 @@ export const healthDaily = sqliteTable(
     weightKg: real("weight_kg"),
     sleepMinutes: real("sleep_minutes"),
     restingHeartRateBpm: real("resting_heart_rate_bpm"),
+    metricCoverage: text("metric_coverage"),
     source: text("source").notNull().default("apple-health"),
     updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },

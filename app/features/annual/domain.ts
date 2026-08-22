@@ -107,6 +107,49 @@ function average(values: number[]) {
     : round(values.reduce((total, value) => total + value, 0) / values.length);
 }
 
+const annualHealthMetricKeys = [
+  "steps",
+  "activeEnergyKcal",
+  "restingEnergyKcal",
+  "exerciseMinutes",
+  "workoutCount",
+  "weightKg",
+  "sleepMinutes",
+  "restingHeartRateBpm",
+] as const;
+
+type AnnualHealthMetricKey = typeof annualHealthMetricKeys[number];
+
+function healthMetricCoverage(record: HealthDaily) {
+  if (record.metricCoverage === null || record.metricCoverage === undefined) return null;
+  try {
+    const parsed = JSON.parse(record.metricCoverage);
+    if (!Array.isArray(parsed)) return null;
+    return new Set<AnnualHealthMetricKey>(
+      annualHealthMetricKeys.filter((key) => parsed.includes(key)),
+    );
+  } catch {
+    return null;
+  }
+}
+
+function recordsWithHealthMetric(
+  records: HealthDaily[],
+  metric: AnnualHealthMetricKey,
+) {
+  return records.filter((record) => {
+    const coverage = healthMetricCoverage(record);
+    return coverage === null || coverage.has(metric);
+  });
+}
+
+function trustedRecordsWithHealthMetric(
+  records: HealthDaily[],
+  metric: AnnualHealthMetricKey,
+) {
+  return records.filter((record) => healthMetricCoverage(record)?.has(metric));
+}
+
 export function getYearRange(year: number) {
   return {
     start: `${year}-01-01`,
@@ -127,33 +170,63 @@ export function summarizeHealthYear(
   const records = [...recordsByDate.values()].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
-  const sleepValues = records.flatMap((record) =>
+  const legacyUnknownRecords = records.filter((record) => healthMetricCoverage(record) === null);
+  const trustedRecords = records.filter((record) => healthMetricCoverage(record) !== null);
+  const trustedCoveredRecords = trustedRecords.filter((record) => healthMetricCoverage(record)!.size > 0);
+  const confirmedMissingRecords = trustedRecords.filter((record) => healthMetricCoverage(record)!.size === 0);
+  const coveredRecords = [...legacyUnknownRecords, ...trustedCoveredRecords];
+  const stepRecords = recordsWithHealthMetric(records, "steps");
+  const activeEnergyRecords = recordsWithHealthMetric(records, "activeEnergyKcal");
+  const exerciseRecords = recordsWithHealthMetric(records, "exerciseMinutes");
+  const trustedMetricAvailableDays = Object.fromEntries(
+    annualHealthMetricKeys.map((metric) => [metric, trustedRecordsWithHealthMetric(records, metric).length]),
+  ) as Record<AnnualHealthMetricKey, number>;
+  const sleepValues = recordsWithHealthMetric(records, "sleepMinutes").flatMap((record) =>
     record.sleepMinutes === null ? [] : [record.sleepMinutes],
   );
-  const weightRecords = records.filter(
+  const weightRecords = recordsWithHealthMetric(records, "weightKg").filter(
     (record): record is HealthDaily & { weightKg: number } =>
       record.weightKg !== null,
   );
-  const heartRateValues = records.flatMap((record) =>
+  const heartRateValues = recordsWithHealthMetric(records, "restingHeartRateBpm").flatMap((record) =>
     record.restingHeartRateBpm === null ? [] : [record.restingHeartRateBpm],
   );
   const expectedDays = daysInYear(year);
-  const availableDays = records.length;
+  const availableDays = coveredRecords.length;
   const months = Array.from({ length: 12 }, (_, monthIndex) => {
     const month = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
     const monthRecords = records.filter((record) => record.date.startsWith(month));
-    const monthSleep = monthRecords.flatMap((record) =>
+    const monthCoveredRecords = monthRecords.filter((record) => {
+      const coverage = healthMetricCoverage(record);
+      return coverage === null || coverage.size > 0;
+    });
+    const monthStepRecords = recordsWithHealthMetric(monthRecords, "steps");
+    const monthActiveEnergyRecords = recordsWithHealthMetric(monthRecords, "activeEnergyKcal");
+    const monthExerciseRecords = recordsWithHealthMetric(monthRecords, "exerciseMinutes");
+    const monthSleep = recordsWithHealthMetric(monthRecords, "sleepMinutes").flatMap((record) =>
       record.sleepMinutes === null ? [] : [record.sleepMinutes],
     );
     return {
       month,
-      availableDays: monthRecords.length,
-      totalSteps: monthRecords.reduce((total, record) => total + record.steps, 0),
+      availableDays: monthCoveredRecords.length,
+      metricAvailableDays: {
+        steps: monthStepRecords.length,
+        activeEnergyKcal: monthActiveEnergyRecords.length,
+        exerciseMinutes: monthExerciseRecords.length,
+        sleepMinutes: monthSleep.length,
+      },
+      trustedMetricAvailableDays: {
+        steps: trustedRecordsWithHealthMetric(monthRecords, "steps").length,
+        activeEnergyKcal: trustedRecordsWithHealthMetric(monthRecords, "activeEnergyKcal").length,
+        exerciseMinutes: trustedRecordsWithHealthMetric(monthRecords, "exerciseMinutes").length,
+        sleepMinutes: trustedRecordsWithHealthMetric(monthRecords, "sleepMinutes").filter((record) => record.sleepMinutes !== null).length,
+      },
+      totalSteps: monthStepRecords.reduce((total, record) => total + record.steps, 0),
       activeEnergyKcal: round(
-        monthRecords.reduce((total, record) => total + record.activeEnergyKcal, 0),
+        monthActiveEnergyRecords.reduce((total, record) => total + record.activeEnergyKcal, 0),
       ),
       exerciseMinutes: round(
-        monthRecords.reduce((total, record) => total + record.exerciseMinutes, 0),
+        monthExerciseRecords.reduce((total, record) => total + record.exerciseMinutes, 0),
       ),
       averageSleepMinutes: average(monthSleep),
     };
@@ -161,6 +234,9 @@ export function summarizeHealthYear(
   const warnings: string[] = [];
 
   if (availableDays < expectedDays) warnings.push("missing-health-days");
+  if (legacyUnknownRecords.length > 0) {
+    warnings.push("legacy-health-coverage-unknown");
+  }
   if (sleepValues.length === 0) warnings.push("missing-sleep-data");
   if (weightRecords.length === 0) warnings.push("missing-weight-data");
   if (heartRateValues.length === 0)
@@ -169,25 +245,34 @@ export function summarizeHealthYear(
   return {
     facts: {
       availableDays,
+      metricAvailableDays: {
+        steps: stepRecords.length,
+        activeEnergyKcal: activeEnergyRecords.length,
+        exerciseMinutes: exerciseRecords.length,
+        sleepMinutes: sleepValues.length,
+        weightKg: weightRecords.length,
+        restingHeartRateBpm: heartRateValues.length,
+      },
+      trustedMetricAvailableDays,
       months,
-      totalSteps: records.reduce((total, record) => total + record.steps, 0),
-      averageSteps: average(records.map((record) => record.steps)),
+      totalSteps: stepRecords.reduce((total, record) => total + record.steps, 0),
+      averageSteps: average(stepRecords.map((record) => record.steps)),
       totalActiveEnergyKcal: round(
-        records.reduce(
+        activeEnergyRecords.reduce(
           (total, record) => total + record.activeEnergyKcal,
           0,
         ),
       ),
       averageActiveEnergyKcal: average(
-        records.map((record) => record.activeEnergyKcal),
+        activeEnergyRecords.map((record) => record.activeEnergyKcal),
       ),
       totalExerciseMinutes: round(
-        records.reduce(
+        exerciseRecords.reduce(
           (total, record) => total + record.exerciseMinutes,
           0,
         ),
       ),
-      exerciseDays: records.filter((record) => record.exerciseMinutes > 0).length,
+      exerciseDays: exerciseRecords.filter((record) => record.exerciseMinutes > 0).length,
       sleep: {
         availableDays: sleepValues.length,
         averageMinutes: average(sleepValues),
@@ -212,6 +297,15 @@ export function summarizeHealthYear(
       expectedDays,
       availableDays,
       ratio: round(availableDays / expectedDays, 4),
+      trustedDays: trustedCoveredRecords.length,
+      trustedRatio: round(trustedCoveredRecords.length / expectedDays, 4),
+      legacyUnknownDays: legacyUnknownRecords.length,
+      confirmedMissingDays: confirmedMissingRecords.length,
+      trustState: legacyUnknownRecords.length > 0
+        ? "legacy-unknown" as const
+        : trustedCoveredRecords.length > 0
+          ? "trusted" as const
+          : "no-records" as const,
     },
     sources: ["health_daily"],
     warnings,
@@ -533,6 +627,7 @@ const warningExplanations: Record<string, string> = {
   "missing-sleep-data": "该年度没有可用的睡眠记录。",
   "missing-weight-data": "该年度没有可用的体重记录。",
   "missing-resting-heart-rate-data": "该年度没有可用的静息心率记录。",
+  "legacy-health-coverage-unknown": "部分早期健康记录缺少指标级同步信息。",
   "unconfigured-holiday-calendar": "该年度尚未配置官方节假日与调休规则。",
   "missing-salary-months": "截至统计月份，已保存工资记录尚未覆盖全部已到月份。",
   "no-career-records": "该年度没有与之重叠的职业经历记录。",

@@ -15,6 +15,17 @@ import {
   summarizeSalaryYear,
 } from "../app/features/annual/domain.ts";
 
+const completeHealthCoverage = JSON.stringify([
+  "steps",
+  "activeEnergyKcal",
+  "restingEnergyKcal",
+  "exerciseMinutes",
+  "workoutCount",
+  "weightKg",
+  "sleepMinutes",
+  "restingHeartRateBpm",
+]);
+
 const healthRecord = (date, overrides = {}) => ({
   date,
   steps: 0,
@@ -25,6 +36,7 @@ const healthRecord = (date, overrides = {}) => ({
   weightKg: null,
   sleepMinutes: null,
   restingHeartRateBpm: null,
+  metricCoverage: completeHealthCoverage,
   source: "health-auto-export",
   updatedAt: `${date}T12:00:00.000Z`,
   ...overrides,
@@ -142,6 +154,43 @@ test("summarizeHealthYear returns explicit missing-state facts for an empty year
     "missing-weight-data",
     "missing-resting-heart-rate-data",
   ]);
+});
+
+test("annual health keeps legacy values, excludes confirmed missing, and retains explicit zero", () => {
+  const summary = summarizeHealthYear(2026, [
+    healthRecord("2026-01-01", { steps: 10000, metricCoverage: '["steps"]' }),
+    healthRecord("2026-01-02", { steps: 99999, metricCoverage: "[]" }),
+    healthRecord("2026-01-03", { steps: 0, metricCoverage: '["steps"]' }),
+    healthRecord("2026-01-04", { steps: 88888, metricCoverage: null }),
+  ]);
+
+  assert.equal(summary.coverage.availableDays, 3);
+  assert.equal(summary.coverage.trustedDays, 2);
+  assert.equal(summary.coverage.legacyUnknownDays, 1);
+  assert.equal(summary.coverage.confirmedMissingDays, 1);
+  assert.equal(summary.coverage.trustState, "legacy-unknown");
+  assert.equal(summary.facts.metricAvailableDays.steps, 3);
+  assert.equal(summary.facts.trustedMetricAvailableDays.steps, 2);
+  assert.equal(summary.facts.totalSteps, 98888);
+  assert.equal(summary.facts.averageSteps, 32962.67);
+  assert.ok(summary.warnings.includes("legacy-health-coverage-unknown"));
+});
+
+test("legacy annual rows preserve the pre-migration page facts without becoming trusted coverage", () => {
+  const summary = summarizeHealthYear(2026, yearDates(2026).map((date) =>
+    healthRecord(date, { steps: 1234, metricCoverage: null })
+  ));
+
+  assert.equal(summary.coverage.availableDays, 365);
+  assert.equal(summary.coverage.ratio, 1);
+  assert.equal(summary.coverage.trustedDays, 0);
+  assert.equal(summary.coverage.trustedRatio, 0);
+  assert.equal(summary.coverage.legacyUnknownDays, 365);
+  assert.equal(summary.coverage.trustState, "legacy-unknown");
+  assert.equal(summary.facts.totalSteps, 365 * 1234);
+  assert.equal(summary.facts.averageSteps, 1234);
+  assert.equal(summary.facts.trustedMetricAvailableDays.steps, 0);
+  assert.ok(summary.warnings.includes("legacy-health-coverage-unknown"));
 });
 
 test("summarizeCalendarYear preserves the configured 2026 official facts", () => {
@@ -317,6 +366,11 @@ test("annual draft marks an unfinished current year without using system time", 
     expectedDays: 221,
     availableDays: 0,
     ratio: 0,
+    trustedDays: 0,
+    trustedRatio: 0,
+    legacyUnknownDays: 0,
+    confirmedMissingDays: 0,
+    trustState: "no-records",
     fullYearExpectedDays: 365,
     scope: "year-to-date",
     asOfDate: "2026-08-09",

@@ -15,6 +15,7 @@ import {
   findLatestSuccessfulIngestionForDate,
   findLatestSuccessfulHealthIngestion,
   formatHealthSyncDateTime,
+  getHealthMetricKeysForRecord,
   getSuccessfulHealthMetricKeysForDate,
   calculateWeightTrend,
   getHealthMetricValue,
@@ -163,7 +164,8 @@ export default function Home() {
   const latestSyncedHealth = healthHistory.at(-1) ?? null;
   const latestHealthIngestion = findLatestSuccessfulHealthIngestion(healthIngestions);
   const latestTodayIngestion = findLatestSuccessfulIngestionForDate(healthIngestions, todayKey);
-  const todayHealthMetricKeys = getSuccessfulHealthMetricKeysForDate(healthIngestions, todayKey);
+  const todayHealthMetricKeys = getHealthMetricKeysForRecord(health)
+    ?? getSuccessfulHealthMetricKeysForDate(healthIngestions, todayKey);
   const todayHealthSynced = latestTodayIngestion !== null;
   const { steps, stepProgress, activeEnergy, totalEnergy, exerciseHours } = calculateHealthSummary(
     todayHealthSynced ? health : null,

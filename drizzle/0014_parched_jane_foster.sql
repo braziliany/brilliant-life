@@ -1,0 +1,1 @@
+ALTER TABLE `health_daily` ADD `metric_coverage` text;

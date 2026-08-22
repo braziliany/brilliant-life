@@ -8,6 +8,7 @@ export type HealthDaily = {
   weightKg: number | null;
   sleepMinutes: number | null;
   restingHeartRateBpm: number | null;
+  metricCoverage?: string | null;
   source: string;
   updatedAt: string;
 };

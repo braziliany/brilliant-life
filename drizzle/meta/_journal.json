@@ -99,6 +99,13 @@
       "when": 1786533261472,
       "tag": "0013_minor_gwen_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1787353193528,
+      "tag": "0014_parched_jane_foster",
+      "breakpoints": true
     }
   ]
 }

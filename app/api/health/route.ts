@@ -6,6 +6,7 @@ import { hasDashboardAccess } from "../access";
 import {
   type HealthPayload,
   isValidHealthApiKey,
+  mergeHealthMetricCoverage,
   normalizeHealthIngestion,
   selectHealthUpdateFields,
 } from "../validation";
@@ -101,20 +102,25 @@ export async function POST(request: Request) {
       );
     }
 
-    const existingDates = new Set((await db
-      .select({ date: healthDaily.date })
+    const existingRows = await db
+      .select({ date: healthDaily.date, metricCoverage: healthDaily.metricCoverage })
       .from(healthDaily)
-      .where(inArray(healthDaily.date, rows.map((row) => row.date))))
-      .map((row) => row.date));
+      .where(inArray(healthDaily.date, rows.map((row) => row.date)));
+    const existingCoverage = new Map(existingRows.map((row) => [row.date, row.metricCoverage]));
+    const existingDates = new Set(existingRows.map((row) => row.date));
     const rowsInserted = rows.filter((row) => !existingDates.has(row.date)).length;
     const rowsUpdated = rows.length - rowsInserted;
     for (const row of rows) {
-      const values = { ...row, updatedAt: new Date().toISOString() };
-      const updateFields = selectHealthUpdateFields(row, coverage[row.date] ?? []);
+      const incomingCoverage = coverage[row.date] ?? [];
+      const mergedCoverage = mergeHealthMetricCoverage(existingCoverage.get(row.date), incomingCoverage);
+      const metricCoverage = JSON.stringify(mergedCoverage);
+      const values = { ...row, metricCoverage, updatedAt: new Date().toISOString() };
+      const updateFields = selectHealthUpdateFields(row, incomingCoverage);
       await db.insert(healthDaily).values(values).onConflictDoUpdate({
         target: healthDaily.date,
         set: {
           ...updateFields,
+          metricCoverage,
           updatedAt: values.updatedAt,
         },
       });

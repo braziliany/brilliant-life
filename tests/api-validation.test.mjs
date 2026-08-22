@@ -4,10 +4,14 @@ import { resolve } from "node:path";
 import test from "node:test";
 import {
   currentShanghaiMonth,
+  healthDateInShanghai,
   isCurrentSalaryMonth,
   isValidHealthApiKey,
+  mergeHealthMetricCoverage,
   normalizeHealthIngestion,
   normalizeHealthPayload,
+  parseHealthMetricCoverage,
+  parseOptionalNumber,
   selectHealthUpdateFields,
   validDate,
   validMonth,
@@ -71,12 +75,41 @@ test("health upload requires an exact independent API key", () => {
   assert.equal(isValidHealthApiKey("", ""), false);
 });
 
-test("health ingest records server-proven success metadata without a new schema", () => {
+test("health ingest records server-proven success metadata and date-level coverage", () => {
   assert.match(healthRoute, /const receivedAt = new Date\(\)\.toISOString\(\)/);
   assert.match(healthRoute, /AUTO_EXPORT_HEALTH_SOURCE = "Auto Export Health"/);
   assert.match(healthRoute, /coveredDates: JSON\.stringify\(rows\.map/);
   assert.match(healthRoute, /importedDays: rows\.length[\s\S]*status: "success"/);
   assert.match(healthRoute, /rowsInserted[\s\S]*rowsUpdated[\s\S]*dataDateStart[\s\S]*dataDateEnd/);
+  assert.match(healthRoute, /mergeHealthMetricCoverage/);
+  assert.match(healthRoute, /metricCoverage/);
+});
+
+test("optional health numbers preserve absence and explicit zero", () => {
+  for (const value of [undefined, null, "", "   ", "not-a-number", Number.NaN, Number.POSITIVE_INFINITY]) {
+    assert.deepEqual(parseOptionalNumber(value), { present: false, value: null });
+  }
+  for (const [value, expected] of [[0, 0], ["0", 0], [123, 123], ["123", 123], ["123.45", 123.45]]) {
+    assert.deepEqual(parseOptionalNumber(value), { present: true, value: expected });
+  }
+});
+
+test("health dates use the Asia Shanghai natural day without shifting local dates twice", () => {
+  assert.equal(healthDateInShanghai("2026-08-20T15:30:00Z"), "2026-08-20");
+  assert.equal(healthDateInShanghai("2026-08-20T16:30:00Z"), "2026-08-21");
+  assert.equal(healthDateInShanghai("2026-08-21T00:30:00+08:00"), "2026-08-21");
+  assert.equal(healthDateInShanghai("2026-08-21"), "2026-08-21");
+});
+
+test("date-level health coverage is validated and merged without deleting previous presence", () => {
+  assert.equal(parseHealthMetricCoverage(null), null);
+  assert.deepEqual(parseHealthMetricCoverage("[]"), []);
+  assert.deepEqual(parseHealthMetricCoverage('["steps","unknown","sleepMinutes"]'), ["steps", "sleepMinutes"]);
+  assert.deepEqual(mergeHealthMetricCoverage('["steps"]', ["sleepMinutes", "steps"]), ["steps", "sleepMinutes"]);
+  assert.deepEqual(mergeHealthMetricCoverage(null, []), []);
+  const afterRealIngest = mergeHealthMetricCoverage(null, ["steps"]);
+  assert.deepEqual(afterRealIngest, ["steps"]);
+  assert.deepEqual(mergeHealthMetricCoverage(JSON.stringify(afterRealIngest), []), ["steps"]);
 });
 
 test("finance import accepts only normalized integer-cent QianJi records", () => {
@@ -133,7 +166,7 @@ test("health normalization aggregates supported metrics and clamps unsafe values
   })[0].sleepMinutes, 450);
   assert.equal(normalizeHealthPayload({
     metrics: [{ name: "sleep_analysis", units: "hr", data: [{ date: "2026-07-29", totalSleep: 0, inBed: 8 }] }],
-  })[0].sleepMinutes, null);
+  })[0].sleepMinutes, 0);
   assert.deepEqual(normalizeHealthPayload({
     metrics: [{ name: "step_count", data: [
       { qty: 1, date: "2026-07-29" },
@@ -183,4 +216,42 @@ test("partial health uploads update only metrics actually included in the reques
   });
   assert.equal(Object.hasOwn(selectHealthUpdateFields(ingestion.rows[0], ingestion.coverage["2026-08-09"]), "steps"), false);
   assert.equal(Object.hasOwn(selectHealthUpdateFields(ingestion.rows[0], ingestion.coverage["2026-08-09"]), "activeEnergyKcal"), false);
+});
+
+test("flat health payload aligns numeric strings with coverage and ignores absent values", () => {
+  const ingestion = normalizeHealthIngestion({
+    date: "2026-08-21",
+    steps: "0",
+    activeEnergyKcal: "157.01",
+    restingEnergyKcal: null,
+    exerciseMinutes: "   ",
+  });
+  assert.deepEqual(ingestion.coverage["2026-08-21"], ["steps", "activeEnergyKcal"]);
+  assert.equal(ingestion.rows[0].steps, 0);
+  assert.equal(ingestion.rows[0].activeEnergyKcal, 157.01);
+  assert.deepEqual(selectHealthUpdateFields(ingestion.rows[0], ingestion.coverage["2026-08-21"]), {
+    steps: 0,
+    activeEnergyKcal: 157.01,
+    source: "apple-health",
+  });
+});
+
+test("workout coverage distinguishes missing, explicit empty, and dated workout rows", () => {
+  const missing = normalizeHealthIngestion({ date: "2026-08-21", steps: 1 });
+  assert.equal(missing.coverage["2026-08-21"].includes("workoutCount"), false);
+
+  const empty = normalizeHealthIngestion({ date: "2026-08-21", workouts: [] });
+  assert.deepEqual(empty.coverage["2026-08-21"], ["workoutCount"]);
+  assert.equal(empty.rows[0].workoutCount, 0);
+
+  const populated = normalizeHealthIngestion({
+    metrics: [{ name: "step_count", data: [{ qty: 1, date: "2026-08-21" }] }],
+    workouts: [
+      { startDate: "2026-08-21T08:00:00+08:00" },
+      { endDate: "2026-08-21T10:00:00+08:00" },
+      { date: "2026-08-20T16:30:00Z" },
+    ],
+  });
+  assert.equal(populated.rows[0].workoutCount, 3);
+  assert.equal(populated.coverage["2026-08-21"].includes("workoutCount"), true);
 });

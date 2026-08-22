@@ -9,6 +9,7 @@ import {
   findLatestSuccessfulIngestionForDate,
   findLatestSuccessfulHealthIngestion,
   formatHealthSyncDateTime,
+  getHealthMetricKeysForRecord,
   getHealthMetricValue,
   getMissingTodayHealthMetrics,
   getRecentHealthDateKeys,
@@ -223,4 +224,23 @@ test("today health sync is proven only by a successful server ingestion", () => 
   assert.equal(synced.lastSuccessfulIngestion?.receivedAt, "2026-08-15T02:30:00.000Z");
   assert.deepEqual(synced.metricKeys, ["sleepMinutes", "steps"]);
   assert.equal(calculateHealthSummary(synced.health, 8_500, synced.metricKeys).steps, 0);
+});
+
+test("today health prefers exact date-level coverage and preserves legacy fallback", () => {
+  assert.deepEqual(getHealthMetricKeysForRecord(healthRecord({ metricCoverage: '["steps"]' })), ["steps"]);
+  assert.deepEqual(getHealthMetricKeysForRecord(healthRecord({ metricCoverage: "[]" })), []);
+  assert.equal(getHealthMetricKeysForRecord(healthRecord({ metricCoverage: null })), null);
+
+  const history = [healthRecord({
+    date: "2026-08-15",
+    steps: 0,
+    sleepMinutes: 420,
+    metricCoverage: '["sleepMinutes"]',
+  })];
+  const ingestions = [
+    { id: 1, receivedAt: "2026-08-15T02:00:00.000Z", coveredDates: ["2026-08-15"], metricKeys: ["steps", "sleepMinutes"], importedDays: 1, status: "success", source: "Auto Export Health" },
+  ];
+  const resolved = resolveTodayHealthSync(history, ingestions, "2026-08-15");
+  assert.deepEqual(resolved.metricKeys, ["sleepMinutes"]);
+  assert.equal(calculateHealthSummary(resolved.health, 8_500, resolved.metricKeys).steps, null);
 });

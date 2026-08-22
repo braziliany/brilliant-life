@@ -1,35 +1,42 @@
 export type HealthPayload = {
   date?: string;
-  steps?: number;
-  activeEnergyKcal?: number;
-  restingEnergyKcal?: number;
-  exerciseMinutes?: number;
-  workoutCount?: number;
-  weightKg?: number;
-  sleepMinutes?: number;
-  restingHeartRateBpm?: number;
+  steps?: unknown;
+  activeEnergyKcal?: unknown;
+  restingEnergyKcal?: unknown;
+  exerciseMinutes?: unknown;
+  workoutCount?: unknown;
+  weightKg?: unknown;
+  sleepMinutes?: unknown;
+  restingHeartRateBpm?: unknown;
   source?: string;
   metrics?: HealthMetric[];
-  data?: { metrics?: HealthMetric[] };
+  workouts?: HealthWorkout[];
+  data?: { metrics?: HealthMetric[]; workouts?: HealthWorkout[] };
+};
+
+type HealthWorkout = {
+  date?: string;
+  startDate?: string;
+  endDate?: string;
 };
 
 type HealthMetric = {
   name?: string;
   units?: string;
   data?: Array<{
-    qty?: number;
+    qty?: unknown;
     date?: string;
     startDate?: string;
     endDate?: string;
     value?: string;
     sleepStage?: string;
-    totalSleep?: number;
-    asleep?: number;
-    core?: number;
-    deep?: number;
-    rem?: number;
-    awake?: number;
-    inBed?: number;
+    totalSleep?: unknown;
+    asleep?: unknown;
+    core?: unknown;
+    deep?: unknown;
+    rem?: unknown;
+    awake?: unknown;
+    inBed?: unknown;
     sleepStart?: string;
     sleepEnd?: string;
   }>;
@@ -62,6 +69,37 @@ export type NormalizedHealthIngestion = {
   rows: NormalizedHealthRow[];
   coverage: Record<string, HealthMetricKey[]>;
 };
+
+const healthMetricKeys: readonly HealthMetricKey[] = [
+  "steps",
+  "activeEnergyKcal",
+  "restingEnergyKcal",
+  "exerciseMinutes",
+  "workoutCount",
+  "weightKg",
+  "sleepMinutes",
+  "restingHeartRateBpm",
+];
+
+export function parseHealthMetricCoverage(value: unknown): HealthMetricKey[] | null {
+  if (value === null || value === undefined) return null;
+  try {
+    const parsed = typeof value === "string" ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) return null;
+    return healthMetricKeys.filter((key) => parsed.includes(key));
+  } catch {
+    return null;
+  }
+}
+
+export function mergeHealthMetricCoverage(
+  existing: unknown,
+  incoming: readonly HealthMetricKey[],
+) {
+  const previous = parseHealthMetricCoverage(existing) ?? [];
+  const present = new Set<HealthMetricKey>([...previous, ...incoming]);
+  return healthMetricKeys.filter((key) => present.has(key));
+}
 
 export function validMonth(value: unknown) {
   return typeof value === "string" && /^\d{4}-\d{2}$/.test(value);
@@ -100,44 +138,70 @@ export function isValidHealthApiKey(configuredKey: unknown, suppliedKey: unknown
   return typeof configuredKey === "string" && configuredKey.length > 0 && suppliedKey === configuredKey;
 }
 
-function numberInRange(value: unknown, min: number, max: number) {
-  const parsed = Number(value ?? 0);
-  return Number.isFinite(parsed) ? Math.min(max, Math.max(min, parsed)) : 0;
+export type OptionalNumberResult =
+  | { present: true; value: number }
+  | { present: false; value: null };
+
+export function parseOptionalNumber(value: unknown): OptionalNumberResult {
+  if (value === undefined || value === null) return { present: false, value: null };
+  if (typeof value === "string" && value.trim() === "") return { present: false, value: null };
+  if (typeof value !== "number" && typeof value !== "string") return { present: false, value: null };
+  const parsed = typeof value === "number" ? value : Number(value.trim());
+  return Number.isFinite(parsed)
+    ? { present: true, value: parsed }
+    : { present: false, value: null };
 }
 
-function dateOnly(value: unknown) {
-  const match = String(value ?? "").match(/^(\d{4}-\d{2}-\d{2})/);
-  return match?.[1] ?? "";
+function numberInRange(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function healthDateInShanghai(value: unknown) {
+  if (typeof value !== "string") return "";
+  const trimmed = value.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const timestamp = Date.parse(trimmed);
+  if (!Number.isFinite(timestamp)) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp));
+  const year = parts.find((part) => part.type === "year")?.value ?? "";
+  const month = parts.find((part) => part.type === "month")?.value ?? "";
+  const day = parts.find((part) => part.type === "day")?.value ?? "";
+  return year && month && day ? `${year}-${month}-${day}` : "";
 }
 
 function weightInKg(value: unknown, units = "kg") {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return null;
+  const parsed = parseOptionalNumber(value);
+  if (!parsed.present) return null;
   const normalizedUnits = units.toLowerCase();
   const kilograms = normalizedUnits.startsWith("lb")
-    ? parsed * 0.45359237
+    ? parsed.value * 0.45359237
     : normalizedUnits.startsWith("g") && !normalizedUnits.startsWith("kg")
-      ? parsed / 1000
-      : parsed;
+      ? parsed.value / 1000
+      : parsed.value;
   return kilograms >= 20 && kilograms <= 400 ? Math.round(kilograms * 1000) / 1000 : null;
 }
 
 function energyInKcal(value: unknown, units = "kcal") {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  const parsed = parseOptionalNumber(value);
+  if (!parsed.present) return null;
   const normalizedUnits = units.toLowerCase().replaceAll(/\s/g, "");
   const kilocalories = normalizedUnits === "kj" || normalizedUnits.startsWith("kilojoule")
-    ? parsed / 4.184
+    ? parsed.value / 4.184
     : normalizedUnits === "j" || normalizedUnits.startsWith("joule")
-      ? parsed / 4_184
-      : parsed;
+      ? parsed.value / 4_184
+      : parsed.value;
   return numberInRange(Math.round(kilocalories * 1_000_000) / 1_000_000, 0, 20_000);
 }
 
 function heartRateInBpm(value: unknown) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 20 && parsed <= 250
-    ? Math.round(parsed * 10) / 10
+  const parsed = parseOptionalNumber(value);
+  return parsed.present && parsed.value >= 20 && parsed.value <= 250
+    ? Math.round(parsed.value * 10) / 10
     : null;
 }
 
@@ -147,15 +211,15 @@ function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], 
     : units.toLowerCase().startsWith("sec")
       ? 1 / 60
       : 1;
-  const aggregatedTotal = Number(point.totalSleep ?? point.asleep);
-  if (Number.isFinite(aggregatedTotal) && aggregatedTotal > 0) {
-    return Math.min(1_440, aggregatedTotal * unitMultiplier);
+  const aggregatedTotal = parseOptionalNumber(point.totalSleep ?? point.asleep);
+  if (aggregatedTotal.present) {
+    return numberInRange(aggregatedTotal.value * unitMultiplier, 0, 1_440);
   }
-  const stageTotal = [point.core, point.deep, point.rem]
-    .map(Number)
-    .filter((value) => Number.isFinite(value) && value > 0)
-    .reduce((sum, value) => sum + value, 0);
-  if (stageTotal > 0) return Math.min(1_440, stageTotal * unitMultiplier);
+  const stages = [point.core, point.deep, point.rem].map(parseOptionalNumber);
+  if (stages.some((result) => result.present)) {
+    const stageTotal = stages.reduce((sum, result) => sum + (result.present ? result.value : 0), 0);
+    return numberInRange(stageTotal * unitMultiplier, 0, 1_440);
+  }
 
   const start = Date.parse(point.startDate ?? "");
   const end = Date.parse(point.endDate ?? "");
@@ -163,10 +227,10 @@ function sleepDurationMinutes(point: NonNullable<HealthMetric["data"]>[number], 
     return Math.min(1_440, (end - start) / 60_000);
   }
 
-  const quantity = Number(point.qty);
-  if (!Number.isFinite(quantity) || quantity <= 0) return 0;
-  const minutes = quantity * unitMultiplier;
-  return Math.min(1_440, minutes);
+  const quantity = parseOptionalNumber(point.qty);
+  if (!quantity.present) return null;
+  const minutes = quantity.value * unitMultiplier;
+  return numberInRange(minutes, 0, 1_440);
 }
 
 export function selectHealthUpdateFields(
@@ -191,29 +255,40 @@ export function selectHealthUpdateFields(
 export function normalizeHealthIngestion(payload: HealthPayload): NormalizedHealthIngestion {
   const metrics = payload.data?.metrics ?? payload.metrics;
   if (!Array.isArray(metrics)) {
-    const date = dateOnly(payload.date);
+    const date = healthDateInShanghai(payload.date);
     if (!date) return { rows: [], coverage: {} };
+
+    const steps = parseOptionalNumber(payload.steps);
+    const activeEnergy = parseOptionalNumber(payload.activeEnergyKcal);
+    const restingEnergy = parseOptionalNumber(payload.restingEnergyKcal);
+    const exerciseMinutes = parseOptionalNumber(payload.exerciseMinutes);
+    const workoutCount = parseOptionalNumber(payload.workoutCount);
+    const sleepMinutes = parseOptionalNumber(payload.sleepMinutes);
+    const rootWorkouts = payload.data?.workouts ?? payload.workouts;
+    const explicitWorkoutCount = Array.isArray(rootWorkouts)
+      ? { present: true as const, value: rootWorkouts.length }
+      : workoutCount;
 
     const row = {
       date,
-      steps: Math.round(numberInRange(payload.steps, 0, 200_000)),
-      activeEnergyKcal: numberInRange(payload.activeEnergyKcal, 0, 20_000),
-      restingEnergyKcal: numberInRange(payload.restingEnergyKcal, 0, 20_000),
-      exerciseMinutes: numberInRange(payload.exerciseMinutes, 0, 1_440),
-      workoutCount: Math.round(numberInRange(payload.workoutCount, 0, 100)),
+      steps: steps.present ? Math.round(numberInRange(steps.value, 0, 200_000)) : 0,
+      activeEnergyKcal: activeEnergy.present ? numberInRange(activeEnergy.value, 0, 20_000) : 0,
+      restingEnergyKcal: restingEnergy.present ? numberInRange(restingEnergy.value, 0, 20_000) : 0,
+      exerciseMinutes: exerciseMinutes.present ? numberInRange(exerciseMinutes.value, 0, 1_440) : 0,
+      workoutCount: explicitWorkoutCount.present ? Math.round(numberInRange(explicitWorkoutCount.value, 0, 100)) : 0,
       weightKg: weightInKg(payload.weightKg),
-      sleepMinutes: payload.sleepMinutes == null ? null : numberInRange(payload.sleepMinutes, 0, 1_440),
+      sleepMinutes: sleepMinutes.present ? numberInRange(sleepMinutes.value, 0, 1_440) : null,
       restingHeartRateBpm: heartRateInBpm(payload.restingHeartRateBpm),
       source: payload.source?.trim().slice(0, 64) || "apple-health",
     } satisfies NormalizedHealthRow;
     const coverage: HealthMetricKey[] = [
-      Number.isFinite(payload.steps) ? "steps" : null,
-      Number.isFinite(payload.activeEnergyKcal) ? "activeEnergyKcal" : null,
-      Number.isFinite(payload.restingEnergyKcal) ? "restingEnergyKcal" : null,
-      Number.isFinite(payload.exerciseMinutes) ? "exerciseMinutes" : null,
-      Number.isFinite(payload.workoutCount) ? "workoutCount" : null,
+      steps.present ? "steps" : null,
+      activeEnergy.present ? "activeEnergyKcal" : null,
+      restingEnergy.present ? "restingEnergyKcal" : null,
+      exerciseMinutes.present ? "exerciseMinutes" : null,
+      explicitWorkoutCount.present ? "workoutCount" : null,
       row.weightKg !== null ? "weightKg" : null,
-      payload.sleepMinutes != null && Number.isFinite(Number(payload.sleepMinutes)) ? "sleepMinutes" : null,
+      sleepMinutes.present ? "sleepMinutes" : null,
       row.restingHeartRateBpm !== null ? "restingHeartRateBpm" : null,
     ].filter((key): key is HealthMetricKey => key !== null);
     return { rows: [row], coverage: { [date]: coverage } };
@@ -232,7 +307,7 @@ export function normalizeHealthIngestion(payload: HealthPayload): NormalizedHeal
     if (name !== "step_count" && name !== "active_energy" && !exerciseNames.has(name) && !restingEnergyNames.has(name) && !weightNames.has(name) && !sleepNames.has(name) && !restingHeartRateNames.has(name)) continue;
 
     for (const point of metric.data ?? []) {
-      const date = dateOnly(point.sleepEnd ?? point.endDate ?? point.date);
+      const date = healthDateInShanghai(point.sleepEnd ?? point.endDate ?? point.date);
       if (!date) continue;
       const day = days.get(date) ?? {
         date,
@@ -247,22 +322,23 @@ export function normalizeHealthIngestion(payload: HealthPayload): NormalizedHeal
         source: "health-auto-export",
       };
       const dayCoverage = coverage.get(date) ?? new Set<HealthMetricKey>();
-      const qty = numberInRange(point.qty, 0, 200_000);
-      const hasNumericQuantity = Number.isFinite(Number(point.qty));
-      if (name === "step_count" && hasNumericQuantity) {
+      const parsedQuantity = parseOptionalNumber(point.qty);
+      const qty = parsedQuantity.present ? numberInRange(parsedQuantity.value, 0, 200_000) : 0;
+      if (name === "step_count" && parsedQuantity.present) {
         day.steps += Math.round(qty);
         dayCoverage.add("steps");
       }
-      if (name === "active_energy" && hasNumericQuantity) {
-        day.activeEnergyKcal += energyInKcal(point.qty, metric.units);
+      if (name === "active_energy" && parsedQuantity.present) {
+        day.activeEnergyKcal += energyInKcal(point.qty, metric.units) ?? 0;
         dayCoverage.add("activeEnergyKcal");
       }
-      if (restingEnergyNames.has(name) && hasNumericQuantity) {
-        day.restingEnergyKcal += energyInKcal(point.qty, metric.units);
+      if (restingEnergyNames.has(name) && parsedQuantity.present) {
+        day.restingEnergyKcal += energyInKcal(point.qty, metric.units) ?? 0;
         dayCoverage.add("restingEnergyKcal");
       }
-      if (exerciseNames.has(name) && hasNumericQuantity) {
-        day.exerciseMinutes += metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
+      if (exerciseNames.has(name) && parsedQuantity.present) {
+        const minutes = metric.units?.toLowerCase().startsWith("hr") ? qty * 60 : qty;
+        day.exerciseMinutes = numberInRange(day.exerciseMinutes + minutes, 0, 1_440);
         dayCoverage.add("exerciseMinutes");
       }
       if (weightNames.has(name)) {
@@ -276,7 +352,7 @@ export function normalizeHealthIngestion(payload: HealthPayload): NormalizedHeal
         const stage = (point.sleepStage ?? point.value ?? name).toLowerCase().replaceAll(/[\s_-]/g, "");
         if (!stage.includes("awake") && !stage.includes("inbed")) {
           const duration = sleepDurationMinutes(point, metric.units);
-          if (duration > 0) {
+          if (duration !== null) {
             day.sleepMinutes = (day.sleepMinutes ?? 0) + duration;
             dayCoverage.add("sleepMinutes");
           }
@@ -291,6 +367,57 @@ export function normalizeHealthIngestion(payload: HealthPayload): NormalizedHeal
       }
       days.set(date, day);
       coverage.set(date, dayCoverage);
+    }
+  }
+
+  const workouts = payload.data?.workouts ?? payload.workouts;
+  if (Array.isArray(workouts)) {
+    if (workouts.length === 0) {
+      const date = healthDateInShanghai(payload.date);
+      if (date) {
+        const day = days.get(date) ?? {
+          date,
+          steps: 0,
+          activeEnergyKcal: 0,
+          restingEnergyKcal: 0,
+          exerciseMinutes: 0,
+          workoutCount: 0,
+          weightKg: null,
+          sleepMinutes: null,
+          restingHeartRateBpm: null,
+          source: "health-auto-export",
+        };
+        const dayCoverage = coverage.get(date) ?? new Set<HealthMetricKey>();
+        day.workoutCount = 0;
+        dayCoverage.add("workoutCount");
+        days.set(date, day);
+        coverage.set(date, dayCoverage);
+      }
+    } else {
+      const workoutCounts = new Map<string, number>();
+      for (const workout of workouts) {
+        const date = healthDateInShanghai(workout.endDate ?? workout.startDate ?? workout.date);
+        if (date) workoutCounts.set(date, (workoutCounts.get(date) ?? 0) + 1);
+      }
+      for (const [date, count] of workoutCounts) {
+        const day = days.get(date) ?? {
+          date,
+          steps: 0,
+          activeEnergyKcal: 0,
+          restingEnergyKcal: 0,
+          exerciseMinutes: 0,
+          workoutCount: 0,
+          weightKg: null,
+          sleepMinutes: null,
+          restingHeartRateBpm: null,
+          source: "health-auto-export",
+        };
+        const dayCoverage = coverage.get(date) ?? new Set<HealthMetricKey>();
+        day.workoutCount = Math.min(100, count);
+        dayCoverage.add("workoutCount");
+        days.set(date, day);
+        coverage.set(date, dayCoverage);
+      }
     }
   }
 

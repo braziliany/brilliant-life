@@ -32,7 +32,7 @@ function ChartFrame({ title, subtitle, wide, children }: ChartFrameProps) {
 
 export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft }) {
   const months = summary.health.facts.months;
-  const available = months.filter((month) => month.availableDays > 0);
+  const available = months.filter((month) => month.metricAvailableDays.steps > 0);
   const max = Math.max(1, ...available.map((month) => month.totalSteps));
   const top = [...available]
     .sort((a, b) => b.totalSteps - a.totalSteps)
@@ -48,7 +48,7 @@ export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft })
       <svg viewBox="0 0 800 300" role="img" aria-label="年度每月步数与健康记录覆盖">
         {months.map((month, index) => {
           const x = 35 + index * 65;
-          const hasData = month.availableDays > 0;
+          const hasData = month.metricAvailableDays.steps > 0;
           const y = hasData ? 245 - (month.totalSteps / max) * 180 : 245;
           return (
             <g key={month.month} className="lieflatReveal" style={{ animationDelay: `${index * 45}ms` }}>
@@ -56,7 +56,7 @@ export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft })
               {hasData && <>
                 <line x1={x} y1={y} x2={x} y2={Math.min(245, y + 36)} stroke={porcelain.data} strokeWidth="2" />
                 <circle cx={x} cy={y} r={top.includes(month.month) ? 6 : 4} fill={porcelain.data}>
-                  <title>{monthLabel(month.month)}：{month.totalSteps.toLocaleString("zh-CN")} 步，记录 {month.availableDays} 天</title>
+                  <title>{monthLabel(month.month)}：{month.totalSteps.toLocaleString("zh-CN")} 步，记录 {month.metricAvailableDays.steps} 天</title>
                 </circle>
                 {top.includes(month.month) && (
                   <text x={x} y={Math.max(16, y - 12)} textAnchor="middle" fill={porcelain.text} fontSize="12" fontWeight="800">
@@ -72,8 +72,8 @@ export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft })
         })}
       </svg>
       <div className="annualChartFacts" aria-label="年度健康记录">
-        <span>活动能量 <b>{available.length ? `${Math.round(summary.health.facts.totalActiveEnergyKcal).toLocaleString("zh-CN")} kcal` : "—"}</b></span>
-        <span>锻炼 <b>{available.length ? `${Math.round(summary.health.facts.totalExerciseMinutes).toLocaleString("zh-CN")} 分钟` : "—"}</b></span>
+        <span>活动能量 <b>{summary.health.facts.metricAvailableDays.activeEnergyKcal ? `${Math.round(summary.health.facts.totalActiveEnergyKcal).toLocaleString("zh-CN")} kcal` : "—"}</b></span>
+        <span>锻炼 <b>{summary.health.facts.metricAvailableDays.exerciseMinutes ? `${Math.round(summary.health.facts.totalExerciseMinutes).toLocaleString("zh-CN")} 分钟` : "—"}</b></span>
         <span>睡眠覆盖 <b>{summary.health.facts.sleep.availableDays} 天</b></span>
       </div>
     </ChartFrame>

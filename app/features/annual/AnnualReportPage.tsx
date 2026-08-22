@@ -77,8 +77,8 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
       </header>
 
       <div className="annualFacts" aria-label="年度概览">
-        <article><span>健康记录</span><strong>{summary.health.coverage.availableDays}</strong><small>/ 截至今日 {summary.health.coverage.expectedDays} 天 · 全年 {summary.health.coverage.fullYearExpectedDays} 天</small></article>
-        <article><span>全年步数</span><strong>{summary.health.coverage.availableDays ? number(summary.health.facts.totalSteps) : "—"}</strong><small>{summary.health.coverage.availableDays ? "步" : "没有记录"}</small></article>
+        <article><span>健康记录</span><strong>{summary.health.coverage.availableDays}</strong><small>/ 截至今日 {summary.health.coverage.expectedDays} 天 · 全年 {summary.health.coverage.fullYearExpectedDays} 天{summary.health.coverage.legacyUnknownDays ? ` · ${summary.health.coverage.legacyUnknownDays} 天为早期记录` : ""}</small></article>
+        <article><span>全年步数</span><strong>{summary.health.facts.metricAvailableDays.steps ? number(summary.health.facts.totalSteps) : "—"}</strong><small>{summary.health.facts.metricAvailableDays.steps ? "步" : "没有记录"}</small></article>
         <article><span>全年配置工作日</span><strong>{summary.time.coverage.officialCalendarConfigured ? summary.time.facts.actualWorkdays : "—"}</strong><small>{summary.time.coverage.officialCalendarConfigured ? (summary.time.coverage.includesFutureDates ? "天 · 含未来日期" : "天 · 全年已结束") : "日历未配置"}</small></article>
         <article><span>截至当前已存工资</span><strong>{summary.finance.coverage.availableMonths ? money(summary.finance.facts.totalNetSalary) : "—"}</strong><small>{summary.finance.coverage.availableMonths} / {summary.finance.coverage.expectedMonths} 个已到月份 · 全年范围 {summary.finance.coverage.fullYearExpectedMonths} 月</small></article>
       </div>

@@ -158,17 +158,30 @@ export const getSuccessfulHealthMetricKeysForDate = (
   .filter((ingestion) => ingestion.status === "success" && ingestion.coveredDates.includes(date))
   .flatMap((ingestion) => ingestion.metricKeys))];
 
+export const getHealthMetricKeysForRecord = (health: HealthDaily | null) => {
+  if (!health || health.metricCoverage === null || health.metricCoverage === undefined) return null;
+  try {
+    const parsed = JSON.parse(health.metricCoverage);
+    return Array.isArray(parsed)
+      ? [...new Set(parsed.filter((key): key is string => typeof key === "string"))]
+      : null;
+  } catch {
+    return null;
+  }
+};
+
 export const resolveTodayHealthSync = (
   history: HealthDaily[],
   ingestions: HealthIngestionRun[],
   todayKey: string,
 ) => {
   const ingestion = findLatestSuccessfulIngestionForDate(ingestions, todayKey);
+  const health = selectTodayHealth(history, todayKey);
   return {
-    health: selectTodayHealth(history, todayKey),
+    health,
     ingestion,
     synced: ingestion !== null,
-    metricKeys: getSuccessfulHealthMetricKeysForDate(ingestions, todayKey),
+    metricKeys: getHealthMetricKeysForRecord(health) ?? getSuccessfulHealthMetricKeysForDate(ingestions, todayKey),
     lastSuccessfulIngestion: findLatestSuccessfulHealthIngestion(ingestions),
   };
 };

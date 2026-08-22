@@ -97,11 +97,12 @@ test("an empty local D1 applies every migration in order", { timeout: 120_000 },
     assert.deepEqual(financeRows, [{ count: 1, amount_cents: 15000, person_id: 1, project_id: 2, asset_id: 3, event_id: 4, place_id: 5, semantic_note: "人工说明" }]);
 
     const healthColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('health_daily') ORDER BY cid;"));
-    assert.deepEqual(healthColumns.map(({ name }) => name).slice(-4), [
+    assert.deepEqual(healthColumns.map(({ name }) => name).slice(-5), [
       "resting_energy_kcal",
       "weight_kg",
       "sleep_minutes",
       "resting_heart_rate_bpm",
+      "metric_coverage",
     ]);
   } finally {
     rmSync(harness.root, { recursive: true, force: true });
@@ -124,7 +125,9 @@ INSERT INTO work_experiences (company, role, start_date, summary, sort_order) VA
     harness.execute("--file", before);
     harness.execute("--file", after);
 
-    const health = firstResults(harness.execute("--command", "SELECT date, steps, active_energy_kcal, resting_energy_kcal, weight_kg, sleep_minutes, resting_heart_rate_bpm, source FROM health_daily;"));
+    harness.execute("--command", "INSERT INTO health_daily (date, steps, active_energy_kcal, exercise_minutes, workout_count, source, resting_energy_kcal) VALUES ('2026-07-26', 0, 0, 0, 0, 'old-worker-shape', 0);");
+
+    const health = firstResults(harness.execute("--command", "SELECT date, steps, active_energy_kcal, resting_energy_kcal, weight_kg, sleep_minutes, resting_heart_rate_bpm, metric_coverage, source FROM health_daily ORDER BY date;"));
     assert.deepEqual(health, [{
       date: "2026-07-25",
       steps: 885,
@@ -133,7 +136,18 @@ INSERT INTO work_experiences (company, role, start_date, summary, sort_order) VA
       weight_kg: null,
       sleep_minutes: null,
       resting_heart_rate_bpm: null,
+      metric_coverage: null,
       source: "synthetic-test",
+    }, {
+      date: "2026-07-26",
+      steps: 0,
+      active_energy_kcal: 0,
+      resting_energy_kcal: 0,
+      weight_kg: null,
+      sleep_minutes: null,
+      resting_heart_rate_bpm: null,
+      metric_coverage: null,
+      source: "old-worker-shape",
     }]);
 
     const salary = firstResults(harness.execute("--command", "SELECT month, workdays, gross_salary, income_tax, net_salary FROM salary_records;"));
