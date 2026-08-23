@@ -97,3 +97,12 @@ test("responsive facts layout and compact tools preserve mobile readability", ()
   assert.match(styles, /\.dashboard\{width:100%;min-width:0;max-width:100%/);
   assert.match(styles, /:focus-visible/);
 });
+
+test("calendar today accent is purple and overrides ordinary day indicators", () => {
+  assert.match(styles, /\.days>button\.today:before\{background:#c28cff\}/);
+  assert.match(styles, /\.calendarLegend \.todayLine\{background:#c28cff\}/);
+  assert.ok(
+    styles.lastIndexOf(".days>button.today:before{background:#c28cff}") >
+      styles.indexOf(".days>button.workday:before"),
+  );
+});

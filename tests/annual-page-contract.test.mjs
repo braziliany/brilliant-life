@@ -65,6 +65,8 @@ test("annual health keeps early records visible while explaining their lower con
 
 test("annual responsive contract keeps mobile charts readable and honors reduced motion", () => {
   assert.match(styles, /@media \(max-width:560px\)[\s\S]*\.annualChartCanvas svg/);
+  assert.match(styles, /\.annualLifeFinanceCharts \.annualChartCard:last-child \.annualChartCanvas svg\{height:auto\}/);
+  assert.match(styles, /@media \(max-width:560px\)[\s\S]*\.annualLifeFinanceCharts \.annualChartCard:last-child \.annualChartCanvas svg\{height:430px\}/);
   assert.match(styles, /@media \(prefers-reduced-motion:reduce\)/);
   assert.match(styles, /\.lieflatReveal,.lieflatDraw\{opacity:1;animation:none/);
   assert.match(styles, /\.annualFinanceSources\{grid-template-columns:1fr\}/);
