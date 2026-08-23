@@ -7,13 +7,13 @@ const nullable = (value) => value === null ? "NULL" : quote(value);
 
 export const healthRows = [
   ["2026-01-12", 7200, 420, 1540, 28, 1, 68.4, 438, 62, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "sleepMinutes", "restingHeartRateBpm"]],
-  ["2026-02-16", 8100, 465, 1580, 34, 1, 68.1, 421, 61, null],
+  ["2026-02-15", 8100, 465, 1580, 34, 1, 68.1, 421, 61, null],
   ["2026-03-20", 9300, 510, 1605, 42, 2, null, 452, null, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "sleepMinutes"]],
-  ["2026-04-08", 0, 0, 1495, 0, 0, 67.8, null, 64, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "restingHeartRateBpm"]],
+  ["2026-04-12", 0, 0, 1495, 0, 0, 67.8, null, 64, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "restingHeartRateBpm"]],
   ["2026-05-18", 0, 0, 0, 0, 0, null, null, null, []],
-  ["2026-06-22", 10450, 575, 1640, 48, 2, 67.5, 410, 60, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "sleepMinutes", "restingHeartRateBpm"]],
+  ["2026-06-21", 10450, 575, 1640, 48, 2, 67.5, 410, 60, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "sleepMinutes", "restingHeartRateBpm"]],
   ["2026-07-14", 6850, 390, 1510, 22, 1, 67.3, 467, 63, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "sleepMinutes", "restingHeartRateBpm"]],
-  ["2026-08-18", 11200, 630, 1660, 55, 2, 67.0, 445, 59, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "sleepMinutes", "restingHeartRateBpm"]],
+  ["2026-08-16", 11200, 630, 1660, 55, 2, 67.0, 445, 59, ["steps", "activeEnergyKcal", "restingEnergyKcal", "exerciseMinutes", "workoutCount", "weightKg", "sleepMinutes", "restingHeartRateBpm"]],
 ];
 
 export const salaryRows = [

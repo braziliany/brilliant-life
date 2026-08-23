@@ -17,8 +17,14 @@ import {
   resolveCalendarDay,
   type CalendarOverrides,
 } from "../calendar/domain.ts";
+import {
+  getHealthMetricCoverage,
+  healthCoverageMetrics,
+  type HealthCoverageMetric,
+} from "../health/domain.ts";
+import { generateLifeInsights } from "../insights/domain.ts";
 
-const ANNUAL_SUMMARY_VERSION = "annual-summary-v2";
+const ANNUAL_SUMMARY_VERSION = "annual-summary-v3";
 
 export type AnnualCoverageState =
   | "unconfigured"
@@ -123,47 +129,21 @@ function average(values: number[]) {
     : round(values.reduce((total, value) => total + value, 0) / values.length);
 }
 
-const annualHealthMetricKeys = [
-  "steps",
-  "activeEnergyKcal",
-  "restingEnergyKcal",
-  "exerciseMinutes",
-  "workoutCount",
-  "weightKg",
-  "sleepMinutes",
-  "restingHeartRateBpm",
-] as const;
-
-type AnnualHealthMetricKey = typeof annualHealthMetricKeys[number];
-
-function healthMetricCoverage(record: HealthDaily) {
-  if (record.metricCoverage === null || record.metricCoverage === undefined) return null;
-  try {
-    const parsed = JSON.parse(record.metricCoverage);
-    if (!Array.isArray(parsed)) return null;
-    return new Set<AnnualHealthMetricKey>(
-      annualHealthMetricKeys.filter((key) => parsed.includes(key)),
-    );
-  } catch {
-    return null;
-  }
-}
-
 function recordsWithHealthMetric(
   records: HealthDaily[],
-  metric: AnnualHealthMetricKey,
+  metric: HealthCoverageMetric,
 ) {
   return records.filter((record) => {
-    const coverage = healthMetricCoverage(record);
+    const coverage = getHealthMetricCoverage(record);
     return coverage === null || coverage.has(metric);
   });
 }
 
 function trustedRecordsWithHealthMetric(
   records: HealthDaily[],
-  metric: AnnualHealthMetricKey,
+  metric: HealthCoverageMetric,
 ) {
-  return records.filter((record) => healthMetricCoverage(record)?.has(metric));
+  return records.filter((record) => getHealthMetricCoverage(record)?.has(metric));
 }
 
 export function getYearRange(year: number) {
@@ -186,17 +166,17 @@ export function summarizeHealthYear(
   const records = [...recordsByDate.values()].sort((a, b) =>
     a.date.localeCompare(b.date),
   );
-  const legacyUnknownRecords = records.filter((record) => healthMetricCoverage(record) === null);
-  const trustedRecords = records.filter((record) => healthMetricCoverage(record) !== null);
-  const trustedCoveredRecords = trustedRecords.filter((record) => healthMetricCoverage(record)!.size > 0);
-  const confirmedMissingRecords = trustedRecords.filter((record) => healthMetricCoverage(record)!.size === 0);
+  const legacyUnknownRecords = records.filter((record) => getHealthMetricCoverage(record) === null);
+  const trustedRecords = records.filter((record) => getHealthMetricCoverage(record) !== null);
+  const trustedCoveredRecords = trustedRecords.filter((record) => getHealthMetricCoverage(record)!.size > 0);
+  const confirmedMissingRecords = trustedRecords.filter((record) => getHealthMetricCoverage(record)!.size === 0);
   const coveredRecords = [...legacyUnknownRecords, ...trustedCoveredRecords];
   const stepRecords = recordsWithHealthMetric(records, "steps");
   const activeEnergyRecords = recordsWithHealthMetric(records, "activeEnergyKcal");
   const exerciseRecords = recordsWithHealthMetric(records, "exerciseMinutes");
   const trustedMetricAvailableDays = Object.fromEntries(
-    annualHealthMetricKeys.map((metric) => [metric, trustedRecordsWithHealthMetric(records, metric).length]),
-  ) as Record<AnnualHealthMetricKey, number>;
+    healthCoverageMetrics.map((metric) => [metric, trustedRecordsWithHealthMetric(records, metric).length]),
+  ) as Record<HealthCoverageMetric, number>;
   const sleepValues = recordsWithHealthMetric(records, "sleepMinutes").flatMap((record) =>
     record.sleepMinutes === null ? [] : [record.sleepMinutes],
   );
@@ -213,7 +193,7 @@ export function summarizeHealthYear(
     const month = `${year}-${String(monthIndex + 1).padStart(2, "0")}`;
     const monthRecords = records.filter((record) => record.date.startsWith(month));
     const monthCoveredRecords = monthRecords.filter((record) => {
-      const coverage = healthMetricCoverage(record);
+      const coverage = getHealthMetricCoverage(record);
       return coverage === null || coverage.size > 0;
     });
     const monthStepRecords = recordsWithHealthMetric(monthRecords, "steps");
@@ -631,12 +611,10 @@ export function generateAnnualSummaryDraft(
       includesFutureDates: reporting.periodStatus !== "complete",
     },
   };
-  const salaryBase = summarizeSalaryYear(
-    year,
-    reporting.factThroughMonth
-      ? data.salaryRecords.filter((record) => record.month <= reporting.factThroughMonth!)
-      : [],
-  );
+  const salaryRecordsForPeriod = reporting.factThroughMonth
+    ? data.salaryRecords.filter((record) => record.month <= reporting.factThroughMonth!)
+    : [];
+  const salaryBase = summarizeSalaryYear(year, salaryRecordsForPeriod);
   const salary = {
     ...salaryBase,
     coverage: {
@@ -668,6 +646,16 @@ export function generateAnnualSummaryDraft(
     sources: [...new Set([...salary.sources, ...lifeFinance.sources])],
     warnings: [...new Set([...salary.warnings, ...lifeFinance.warnings])],
   };
+  const insights = generateLifeInsights({
+    year,
+    asOfDate,
+    healthRecords: reporting.factThroughDate
+      ? data.healthRecords.filter((record) => record.date <= reporting.factThroughDate!)
+      : [],
+    calendarOverrides: data.calendarData.overrides ?? {},
+    salaryRecords: salaryRecordsForPeriod,
+    lifeFinance,
+  });
   const careerInput = reporting.factThroughMonth
     ? data.experiences.map((experience) => ({
         ...experience,
@@ -717,6 +705,7 @@ export function generateAnnualSummaryDraft(
     time,
     finance,
     career,
+    insights,
     sources: [...new Set(summaries.flatMap((summary) => summary.sources))],
     warnings: [...new Set(summaries.flatMap((summary) => summary.warnings))],
   };

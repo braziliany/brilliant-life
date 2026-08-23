@@ -13,6 +13,7 @@ import {
   LifeFinanceMonthlyChart,
   TimeTickDonutChart,
 } from "./charts";
+import type { LifeInsight } from "../insights/types";
 
 type LoadStatus = "loading" | "ready" | "error";
 
@@ -20,6 +21,46 @@ const number = (value: number) => value.toLocaleString("zh-CN", { maximumFractio
 const money = (value: number) => `¥${value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const centsMoney = (value: number) => money(value / 100);
 const shortDate = (value: string) => `${Number(value.slice(5, 7))} 月 ${Number(value.slice(8, 10))} 日`;
+const shortMonth = (value: string) => `${Number(value.slice(5, 7))} 月`;
+
+function AnnualInsightItem({ insight }: { insight: LifeInsight }) {
+  if (insight.id === "health-workday-steps" || insight.id === "health-workday-exercise") {
+    const label = insight.id === "health-workday-steps" ? "步数" : "锻炼时间";
+    if (!insight.value) return <article><span>健康与工作时间</span><h3>{label}记录还不够比较</h3><p>{insight.explanation}</p></article>;
+    const difference = insight.value.difference;
+    const differenceText = difference === 0
+      ? `两类日期的平均${label}相同`
+      : difference > 0
+        ? `工作日平均多 ${number(Math.abs(difference))} ${insight.unit}`
+        : `非工作日平均多 ${number(Math.abs(difference))} ${insight.unit}`;
+    return <article>
+      <span>健康与工作时间</span>
+      <h3>工作日平均 {number(insight.value.workdayAverage)} {insight.unit}</h3>
+      <p>非工作日平均 {number(insight.value.nonWorkdayAverage)} {insight.unit} · {differenceText}</p>
+      <small>{insight.value.workdayDays} 个工作日 · {insight.value.nonWorkdayDays} 个非工作日{insight.availability === "partial" ? " · 记录覆盖部分日期" : ""}</small>
+    </article>;
+  }
+  if (insight.id === "life-finance-cash-flow") {
+    return <article>
+      <span>生活收支</span>
+      <h3>账单现金流结余</h3>
+      {insight.value ? <>
+        <strong>{centsMoney(insight.value.balanceCents)}</strong>
+        <p>账单收入 {centsMoney(insight.value.incomeCents)} · 净消费 {centsMoney(insight.value.netExpenseCents)}</p>
+      </> : <p>{insight.explanation}</p>}
+      <small>{insight.value && insight.period.start && insight.period.end ? `${shortDate(insight.period.start)} — ${shortDate(insight.period.end)} · ` : ""}{insight.explanation}</small>
+    </article>;
+  }
+  return <article>
+    <span>工资记录</span>
+    <h3>{insight.value ? `已保存 ${insight.value.savedMonthCount} 个月工资记录` : insight.coverage.available ? "工资记录还不足以形成趋势" : "今年还没有工资记录"}</h3>
+    {insight.value ? <>
+      <strong>{insight.value.difference === 0 ? "首末记录实发相同" : `最新实发比最早${insight.value.difference > 0 ? "高" : "低"} ${money(Math.abs(insight.value.difference))}`}</strong>
+      <p>{shortMonth(insight.value.firstMonth)} {money(insight.value.firstNetSalary)} · {shortMonth(insight.value.latestMonth)} {money(insight.value.latestNetSalary)}</p>
+    </> : <p>{insight.explanation}</p>}
+    <small>只比较已保存的工资记录，不包含预计工资</small>
+  </article>;
+}
 
 export function AnnualReportPage({ initialYear }: { initialYear: number }) {
   const [year, setYear] = useState(initialYear);
@@ -95,6 +136,13 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
         <FinanceHairlineChart summary={summary} />
         <CompletenessBallotChart summary={summary} />
       </div>
+
+      <section className="annualInsights" aria-labelledby="annual-insights-title">
+        <div className="annualSectionHead"><div><span>INSIGHTS</span><h2 id="annual-insights-title">这一年，生活之间发生了什么</h2></div><b>截至 {summary.asOfDate}</b></div>
+        <div className="annualInsightsGrid">
+          {summary.insights.slice(0, 4).map((insight) => <AnnualInsightItem key={insight.id} insight={insight} />)}
+        </div>
+      </section>
 
       <section className="annualFinance" aria-labelledby="annual-finance-title">
         <div className="annualSectionHead">

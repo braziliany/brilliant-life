@@ -12,6 +12,8 @@ test("annual preview fixture is synthetic and covers every requested domain", ()
   assert.ok(healthRows.some((row) => Array.isArray(row[9]) && row[9].length === 0), "confirmed missing health row");
   assert.ok(healthRows.some((row) => row[1] === 0 && row[9]?.includes("steps")), "explicit zero steps row");
   assert.ok(healthRows.some((row) => row[6] && row[7] && row[8]), "weight, sleep, and resting heart rate");
+  assert.ok(healthRows.filter((row) => [0, 6].includes(new Date(`${row[0]}T00:00:00Z`).getUTCDay())).length >= 3, "non-workday health samples");
+  assert.ok(healthRows.filter((row) => ![0, 6].includes(new Date(`${row[0]}T00:00:00Z`).getUTCDay())).length >= 3, "workday health samples");
   assert.ok(careerRows.some((row) => row[2] < "2026-01" && row[3]?.startsWith("2026-")));
   assert.ok(careerRows.some((row) => row[3] === null));
   assert.deepEqual(new Set(financeRows.map((row) => row[2])), new Set(["income", "expense", "refund", "transfer", "repayment"]));

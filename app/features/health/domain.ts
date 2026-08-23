@@ -1,5 +1,41 @@
 import type { HealthDaily, HealthIngestionRun, HealthMetric } from "../../page-view.types";
 
+export const healthCoverageMetrics = [
+  "steps",
+  "activeEnergyKcal",
+  "restingEnergyKcal",
+  "exerciseMinutes",
+  "workoutCount",
+  "weightKg",
+  "sleepMinutes",
+  "restingHeartRateBpm",
+] as const;
+
+export type HealthCoverageMetric = typeof healthCoverageMetrics[number];
+export type HealthMetricAvailability = "trusted-present" | "legacy-unknown" | "confirmed-missing";
+
+export const getHealthMetricCoverage = (record: HealthDaily) => {
+  if (record.metricCoverage === null || record.metricCoverage === undefined) return null;
+  try {
+    const parsed = JSON.parse(record.metricCoverage);
+    if (!Array.isArray(parsed)) return null;
+    return new Set<HealthCoverageMetric>(
+      healthCoverageMetrics.filter((metric) => parsed.includes(metric)),
+    );
+  } catch {
+    return null;
+  }
+};
+
+export const resolveHealthMetricAvailability = (
+  record: HealthDaily,
+  metric: HealthCoverageMetric,
+): HealthMetricAvailability => {
+  const coverage = getHealthMetricCoverage(record);
+  if (coverage === null) return "legacy-unknown";
+  return coverage.has(metric) ? "trusted-present" : "confirmed-missing";
+};
+
 export const selectTodayHealth = (history: HealthDaily[], todayKey: string) =>
   history.find((item) => item.date === todayKey) ?? null;
 

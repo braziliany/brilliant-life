@@ -330,7 +330,7 @@ test("generateAnnualSummaryDraft composes five factual domains with caller time"
 
   assert.equal(draft.year, 2026);
   assert.equal(draft.generatedAt, input.generatedAt);
-  assert.equal(draft.calculationVersion, "annual-summary-v2");
+  assert.equal(draft.calculationVersion, "annual-summary-v3");
   assert.equal(draft.status, "draft");
   assert.equal(draft.asOfDate, "2027-01-01");
   assert.equal(draft.periodStatus, "complete");

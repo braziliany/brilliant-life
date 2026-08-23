@@ -19,6 +19,16 @@ test("annual page declares AnnualSummaryDraft as its only factual payload", () =
   assert.match(annualApi, /\.from\(financeTransactions\)/);
   assert.match(annualApi, /financeTransactions: financeRows\.map\(toFinanceRecord\)/);
   assert.doesNotMatch(page + charts, /calculateSalary|calculateAnnualWorkdays|resolveCalendarDay/);
+  assert.match(page, /summary\.insights\.slice\(0, 4\)/);
+  assert.match(annualDomain, /generateLifeInsights\(/);
+});
+
+test("annual Insights remain a four-item editorial section without scoring or causal copy", () => {
+  assert.match(page, /这一年，生活之间发生了什么/);
+  assert.match(page, /账单现金流结余/);
+  assert.match(page, /只比较已保存的工资记录，不包含预计工资/);
+  assert.doesNotMatch(page, /人生评分|健康评分|财务评分|工作导致|储蓄率|财富增长|可信度\s*\d|confidence/i);
+  assert.doesNotMatch(page, /legacy unknown|metricCoverage|confirmedMissing/);
 });
 
 test("annual page preserves in-progress, independent finance, and empty career states", () => {

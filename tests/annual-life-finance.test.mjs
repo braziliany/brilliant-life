@@ -97,6 +97,9 @@ test("salary snapshots and Life Finance remain separate annual sources", () => {
   assert.equal(draft.finance.lifeFinance.facts.incomeCents, 4_335_928);
   assert.equal("totalIncome" in draft.finance, false);
   assert.deepEqual(draft.finance.sources, ["salary_records", "finance_transactions:qianji"]);
+  assert.equal(draft.insights.length, 4);
+  assert.equal(draft.insights.find((item) => item.id === "life-finance-cash-flow").value.balanceCents, 1_018_027);
+  assert.equal("insights" in draft.finance, false);
 });
 
 test("salary and Life Finance expose four independent empty-state combinations", () => {
