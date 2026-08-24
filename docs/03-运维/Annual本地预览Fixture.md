@@ -13,7 +13,7 @@ npm run dev
 需要在同一 Wi-Fi 的 iPhone 查看时，可临时使用：
 
 ```powershell
-npm run dev -- --hostname 0.0.0.0
+npm run dev -- --host 0.0.0.0
 ```
 
 完成后清理：
@@ -35,7 +35,7 @@ npm run preview:reset
 
 - CLI 硬编码使用 Wrangler `--local` 和仓库 `.wrangler/state`。
 - CLI 不接受额外参数，因此不能透传 `--remote`。
-- seed 前要求四张业务表均为空；非空时拒绝覆盖。
+- seed 前要求 fixture 涉及的业务表均为空；非空时拒绝覆盖。
 - `.annual-preview-state/manifest.json` 标记本次 seed；reset 只在标记匹配时执行。
 - `.annual-preview-state/`、`.wrangler/` 与本地 SQLite 均不进入 Git。
 - fixture 不新增表、不新增 migration、不改变 Annual 计算口径。

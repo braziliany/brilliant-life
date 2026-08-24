@@ -1,4 +1,4 @@
-# Life Finance / 生命财务
+# Life Finance
 
 ## 产品定位
 
@@ -72,10 +72,8 @@ Manual Export → Upload → Incremental Import
 
 Git 忽略：`data/private/`、`imports/`、`*.private.xlsx`、`*.private.json`。测试只包含最小脱敏 fixture，不含真实账户、银行卡或真实账单。
 
-## 未来工作
+## 截止与 Annual
 
-- QianJiApiAdapter 与定时同步；
-- Person / Project / Asset / Event / Place 实际关联 UI；
-- 跨来源重复匹配；
-- AI 语义分类和年度叙事；
-- 长期生活方式趋势。
+Life Finance 的 `dateEnd` 是当前流水实际截止日期，不等于 Annual 的 `asOf`。Annual 同时保留两者；最后一个月份可能只是部分月份。
+
+Salary 快照和 Life Finance 收入彼此独立，不自动匹配、相加或补齐。已发布真实数据的金额与记录数只保存在 v1.5 里程碑验收文档；领域层只要求固定回归基线存在。

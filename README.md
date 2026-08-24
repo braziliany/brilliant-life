@@ -44,7 +44,7 @@ npm run verify
 
 ## Life Finance
 
-生命财务不是记账软件替代品。钱迹继续负责日常记录，璀璨人生负责标准化、生命领域分类和长期轨迹。当前支持钱迹 JSON 与 Excel 手动增量导入；原始账单文件不会保存到服务器，也不得提交 Git。详细设计见 `docs/life-finance.md`。
+Life Finance 不是记账软件替代品。钱迹继续负责日常记录，璀璨人生负责标准化、生活分类和长期记录。当前支持钱迹 JSON 与 Excel 手动增量导入；原始账单文件不会保存到服务器，也不得提交 Git。详细设计见 [`docs/02-领域/Life Finance.md`](./docs/02-领域/Life%20Finance.md)。
 
 ## D1 schema 与 migration
 
@@ -64,7 +64,7 @@ npm run db:generate
 npm run db:backup
 ```
 
-恢复必须先在独立临时 D1 演练并通过 `db:verify`；生产恢复需要显式目标和人工确认。详细流程见 `docs/D1-备份恢复说明.md` 与 `docs/部署与恢复手册.md`。`backups/` 始终保持 Git 忽略，并应另存一份加密副本。
+恢复必须先在独立临时 D1 演练并通过 `db:verify`；生产恢复需要显式目标和人工确认。详细流程见 [`D1 备份与恢复`](./docs/03-运维/D1备份与恢复.md) 与 [`部署与恢复手册`](./docs/03-运维/部署与恢复手册.md)。`backups/` 始终保持 Git 忽略，并应另存一份加密副本。
 
 ## Cloudflare Access 与健康上传
 
