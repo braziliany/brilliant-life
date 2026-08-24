@@ -57,3 +57,10 @@ Annual Preview Fixture 继续保持 local-only 和纯合成数据。合成 Healt
 ## 数据库
 
 No migration。
+
+## 发布
+
+- Status: Production
+- Implementation commit: `3c07173`
+- Worker Version ID: `897b48f9-2bf5-40bf-a55e-05d5e2bdeb92`
+- 生产 Annual 页面已返回 `annual-summary-v3` 并展示四条 Insights，原有领域区域与财务基线未变。
