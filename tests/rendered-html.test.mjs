@@ -3,10 +3,11 @@ import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const projectRoot = resolve(new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const wranglerCli = join(projectRoot, "node_modules", "wrangler", "wrangler-dist", "cli.js");
 
 const availablePort = () => new Promise((resolvePort, reject) => {

@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const root = resolve(new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const page = read("app/page.tsx");
 const nav = read("app/components/shell/DataQuickNav.tsx");
@@ -64,6 +65,14 @@ test("life finance presents personal records with secondary data management", ()
   assert.match(lifeFinance, /financeDataTools[\s\S]*数据管理/);
   assert.match(lifeFinance, /<summary>导入数据<\/summary>/);
   assert.doesNotMatch(lifeFinance, /生命财务|财务轨迹|资源投入|这些钱意味着什么|来源：钱迹|每月记录/);
+  assert.match(lifeFinance, /交易记录[\s\S]*最近的生活收支记录/);
+  assert.match(lifeFinance, /原始分类[\s\S]*自动分类[\s\S]*当前分类/);
+  assert.match(lifeFinance, /来源记录 ID/);
+  assert.match(lifeFinance, /暂无交易记录/);
+  assert.match(lifeFinance, /上一页[\s\S]*下一页/);
+  assert.match(lifeFinance, /resolveFinancePageForYear\(pagination\.year, year, pagination\.page\)/);
+  assert.match(lifeFinance, /createPortal\([\s\S]*financeDetailBackdrop[\s\S]*document\.body/);
+  assert.doesNotMatch(lifeFinance, /personId|projectId|assetId|eventId|placeId/);
 });
 
 test("all existing tools remain reachable with lower visual priority", () => {

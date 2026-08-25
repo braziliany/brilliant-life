@@ -7,7 +7,7 @@ test("annual preview fixture is synthetic and covers every requested domain", ()
   assert.equal(expectedCounts.health, 8);
   assert.equal(expectedCounts.salary, 2);
   assert.equal(expectedCounts.career, 2);
-  assert.equal(expectedCounts.finance, 20);
+  assert.equal(expectedCounts.finance, 21);
   assert.ok(healthRows.some((row) => row[9] === null), "legacy unknown health row");
   assert.ok(healthRows.some((row) => Array.isArray(row[9]) && row[9].length === 0), "confirmed missing health row");
   assert.ok(healthRows.some((row) => row[1] === 0 && row[9]?.includes("steps")), "explicit zero steps row");
@@ -19,6 +19,8 @@ test("annual preview fixture is synthetic and covers every requested domain", ()
   assert.deepEqual(new Set(financeRows.map((row) => row[2])), new Set(["income", "expense", "refund", "transfer", "repayment"]));
   assert.deepEqual(new Set(financeRows.map((row) => row[1].slice(0, 7))).size, 8);
   assert.ok(financeRows.filter((row) => row[2] === "expense" && row[3] >= 50_000).length >= 5);
+  assert.ok(financeRows.some((row) => row[7] && row[5] !== row[7]), "manual life domain override");
+  assert.ok(financeRows.some((row) => !row[7]), "automatic life domain without override");
   assert.ok(financeRows.every((row) => row[1].slice(0, 10) <= PREVIEW_AS_OF));
   assert.ok(salaryRows.every((row) => ![5625.65, 5892.4, 6159.15].includes(row[7])));
   const serialized = JSON.stringify({ healthRows, salaryRows, careerRows, financeRows });

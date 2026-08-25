@@ -4,7 +4,7 @@ import { strToU8, zipSync } from "fflate";
 
 import { QianJiExcelAdapter } from "../app/features/finance/adapters/qianji-excel.ts";
 import { QianJiJsonAdapter } from "../app/features/finance/adapters/qianji-json.ts";
-import { classifyLifeDomain, mergeImportedSourceFields, normalizeFinanceType, planFinanceImport, sortSignificantEvents, summarizeLifeFinance } from "../app/features/finance/domain.ts";
+import { classifyLifeDomain, effectiveLifeDomain, mergeImportedSourceFields, normalizeFinanceType, paginateFinanceTransactions, planFinanceImport, resolveFinancePageForYear, sortFinanceTransactionsNewest, sortSignificantEvents, summarizeLifeFinance, toFinanceTransactionAuditView } from "../app/features/finance/domain.ts";
 
 const rows = [
   { 账单ID: "qj-1", 类型: "支出", 金额: 100, 币种: "CNY", 时间: "2026-01-02 08:30:00", 分类: "三餐", 二级分类: "早餐", 账户: "钱包", 备注: "早餐", 标签: "日常" },
@@ -98,4 +98,67 @@ test("life domain classifier preserves initial mapping baseline", () => {
   assert.equal(classifyLifeDomain("人工智能"), "digital");
   assert.equal(classifyLifeDomain("电器数码"), "device");
   assert.equal(classifyLifeDomain("娱乐"), "entertainment");
+});
+
+test("transaction audit uses the same effective life domain as aggregation", async () => {
+  const [normalized] = await new QianJiJsonAdapter().parse(rows.slice(0, 1));
+  const record = { ...normalized, id: 7, lifeDomainOverride: "family", personId: 12, projectId: 3, assetId: 4, eventId: 5, placeId: 6, semanticNote: "人工说明" };
+  const audit = toFinanceTransactionAuditView(record);
+  const summary = summarizeLifeFinance([record], 2026, "2026-12-31");
+  assert.equal(effectiveLifeDomain(record), "family");
+  assert.equal(audit.effectiveLifeDomain, "family");
+  assert.equal(audit.lifeDomain, "food");
+  assert.equal(audit.lifeDomainOverride, "family");
+  assert.equal(audit.rawCategory, "三餐");
+  assert.equal(audit.source, normalized.source);
+  assert.equal(audit.sourceId, normalized.sourceId);
+  assert.equal(summary.familySupportCents, normalized.amountCents);
+  assert.equal("personId" in audit, false);
+  assert.equal("projectId" in audit, false);
+  assert.equal("assetId" in audit, false);
+  assert.equal("eventId" in audit, false);
+  assert.equal("placeId" in audit, false);
+});
+
+test("transaction audit falls back to automatic domain without an override", async () => {
+  const [normalized] = await new QianJiJsonAdapter().parse(rows.slice(0, 1));
+  const record = { ...normalized, id: 8, lifeDomainOverride: null, personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" };
+  assert.equal(effectiveLifeDomain(record), "food");
+  assert.equal(toFinanceTransactionAuditView(record).effectiveLifeDomain, "food");
+});
+
+test("transaction list is newest first, stable, and paginated without mutating records", async () => {
+  const normalized = await new QianJiJsonAdapter().parse([
+    { ...rows[0], 账单ID: "old", 时间: "2026-03-01 08:00:00" },
+    { ...rows[0], 账单ID: "same-b", 时间: "2026-03-02 08:00:00" },
+    { ...rows[0], 账单ID: "same-a", 时间: "2026-03-02 08:00:00" },
+  ]);
+  const records = normalized.map((item, index) => ({ ...item, id: index + 1, lifeDomainOverride: null, personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" }));
+  const before = records.map((item) => item.sourceId);
+  assert.deepEqual(sortFinanceTransactionsNewest(records).map((item) => item.sourceId), ["same-a", "same-b", "old"]);
+  const first = paginateFinanceTransactions(records, 1, 2);
+  const second = paginateFinanceTransactions(records, 2, 2);
+  assert.deepEqual(first.items.map((item) => item.sourceId), ["same-a", "same-b"]);
+  assert.deepEqual(second.items.map((item) => item.sourceId), ["old"]);
+  assert.deepEqual({ total: first.total, totalPages: first.totalPages, pageSize: first.pageSize }, { total: 3, totalPages: 2, pageSize: 2 });
+  assert.deepEqual(records.map((item) => item.sourceId), before);
+});
+
+test("changing finance year resets page two to page one", () => {
+  assert.equal(resolveFinancePageForYear(2026, 2025, 2), 1);
+});
+
+test("a one-page target year resolves to its first page instead of a false empty page", async () => {
+  const normalized = await new QianJiJsonAdapter().parse(rows.slice(0, 1));
+  const records = normalized.map((item, index) => ({ ...item, id: index + 1, lifeDomainOverride: null, personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" }));
+  const resolvedPage = resolveFinancePageForYear(2026, 2025, 2);
+  const target = paginateFinanceTransactions(records, resolvedPage, 20);
+  assert.equal(resolvedPage, 1);
+  assert.equal(target.totalPages, 1);
+  assert.equal(target.items.length, 1);
+});
+
+test("same-year finance pagination keeps moving from page one to page two", () => {
+  assert.equal(resolveFinancePageForYear(2026, 2026, 1), 1);
+  assert.equal(resolveFinancePageForYear(2026, 2026, 2), 2);
 });

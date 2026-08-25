@@ -38,6 +38,24 @@ export type FinanceTransactionRecord = NormalizedFinanceTransaction & {
   semanticNote: string;
 };
 
+export type FinanceTransactionAuditView = {
+  key: string;
+  source: string;
+  sourceId: string;
+  occurredAt: string;
+  type: FinanceTransactionType;
+  amountCents: number;
+  currency: string;
+  title: string;
+  rawType: string;
+  rawCategory: string;
+  rawSubcategory: string;
+  lifeDomain: LifeDomain;
+  lifeDomainOverride: LifeDomain | null;
+  effectiveLifeDomain: LifeDomain;
+  semanticNote: string;
+};
+
 export interface FinanceSourceAdapter<TInput = unknown> {
   readonly source: string;
   parse(input: TInput): Promise<NormalizedFinanceTransaction[]>;

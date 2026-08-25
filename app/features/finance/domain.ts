@@ -1,4 +1,4 @@
-import type { FinanceTransactionRecord, FinanceTransactionType, LifeDomain, NormalizedFinanceTransaction } from "./types";
+import type { FinanceTransactionAuditView, FinanceTransactionRecord, FinanceTransactionType, LifeDomain, NormalizedFinanceTransaction } from "./types";
 
 export const LIFE_DOMAIN_LABELS: Record<LifeDomain, string> = {
   family: "家庭",
@@ -53,7 +53,56 @@ export function centsToYuan(cents: number) {
   return (cents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-const effectiveDomain = (transaction: Pick<FinanceTransactionRecord, "lifeDomain" | "lifeDomainOverride">) => transaction.lifeDomainOverride ?? transaction.lifeDomain;
+export const effectiveLifeDomain = (transaction: Pick<FinanceTransactionRecord, "lifeDomain" | "lifeDomainOverride">) => transaction.lifeDomainOverride ?? transaction.lifeDomain;
+
+export function resolveFinancePageForYear(pageYear: number, requestedYear: number, page: number) {
+  return pageYear === requestedYear ? page : 1;
+}
+
+export function sortFinanceTransactionsNewest(transactions: FinanceTransactionRecord[]) {
+  return [...transactions].sort((a, b) => {
+    const timeOrder = b.occurredAt.localeCompare(a.occurredAt);
+    if (timeOrder !== 0) return timeOrder;
+    const sourceOrder = a.source.localeCompare(b.source);
+    if (sourceOrder !== 0) return sourceOrder;
+    const sourceIdOrder = a.sourceId.localeCompare(b.sourceId);
+    return sourceIdOrder !== 0 ? sourceIdOrder : b.id - a.id;
+  });
+}
+
+export function toFinanceTransactionAuditView(transaction: FinanceTransactionRecord): FinanceTransactionAuditView {
+  return {
+    key: `${transaction.source}:${transaction.sourceId}`,
+    source: transaction.source,
+    sourceId: transaction.sourceId,
+    occurredAt: transaction.occurredAt,
+    type: transaction.type,
+    amountCents: transaction.amountCents,
+    currency: transaction.currency,
+    title: transaction.note || transaction.rawSubcategory || transaction.rawCategory || "财务记录",
+    rawType: transaction.rawType,
+    rawCategory: transaction.rawCategory,
+    rawSubcategory: transaction.rawSubcategory,
+    lifeDomain: transaction.lifeDomain,
+    lifeDomainOverride: transaction.lifeDomainOverride,
+    effectiveLifeDomain: effectiveLifeDomain(transaction),
+    semanticNote: transaction.semanticNote,
+  };
+}
+
+export function paginateFinanceTransactions(transactions: FinanceTransactionRecord[], page: number, pageSize: number) {
+  const newest = sortFinanceTransactionsNewest(transactions);
+  const total = newest.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const offset = (page - 1) * pageSize;
+  return {
+    items: newest.slice(offset, offset + pageSize).map(toFinanceTransactionAuditView),
+    page,
+    pageSize,
+    total,
+    totalPages,
+  };
+}
 
 export function sortSignificantEvents(transactions: FinanceTransactionRecord[]) {
   return [...transactions].sort((a, b) => {
@@ -83,11 +132,11 @@ export function summarizeLifeFinance(transactions: FinanceTransactionRecord[], y
     if (item.type === "refund") monthValue.refundCents += item.amountCents;
     monthly.set(month, monthValue);
     if (item.type === "expense") {
-      const domain = effectiveDomain(item);
+      const domain = effectiveLifeDomain(item);
       domains.set(domain, (domains.get(domain) ?? 0) + item.amountCents);
     }
     if (item.type === "refund") {
-      const domain = effectiveDomain(item);
+      const domain = effectiveLifeDomain(item);
       domains.set(domain, (domains.get(domain) ?? 0) - item.amountCents);
     }
   }

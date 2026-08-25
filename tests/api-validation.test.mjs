@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   currentShanghaiMonth,
   healthDateInShanghai,
@@ -21,7 +22,7 @@ import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
 import { hasDashboardAccess } from "../app/api/access.ts";
 import { validNormalizedFinanceTransaction } from "../app/features/finance/import-service.ts";
 
-const root = resolve(new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const root = fileURLToPath(new URL("..", import.meta.url));
 const healthRoute = readFileSync(resolve(root, "app/api/health/route.ts"), "utf8");
 
 test("dashboard access rejects forged headers on the public workers.dev host", () => {

@@ -77,3 +77,15 @@ Git 忽略：`data/private/`、`imports/`、`*.private.xlsx`、`*.private.json`�
 Life Finance 的 `dateEnd` 是当前流水实际截止日期，不等于 Annual 的 `asOf`。Annual 同时保留两者；最后一个月份可能只是部分月份。
 
 Salary 快照和 Life Finance 收入彼此独立，不自动匹配、相加或补齐。已发布真实数据的金额与记录数只保存在 v1.5 里程碑验收文档；领域层只要求固定回归基线存在。
+
+## 交易核查
+
+Life Finance 提供只读交易列表与来源核查详情，用于解释年度汇总由哪些记录构成：
+
+- 列表按 `occurred_at DESC` 排列，同时间以来源身份稳定排序，并使用受限分页；
+- 详情展示来源类型、来源记录 ID、原始分类、自动 Life Domain、可选人工覆盖和当前生效分类；
+- 当前生效分类始终复用 `life_domain_override ?? life_domain`，与 Finance 聚合保持一致；
+- API ViewModel 不暴露 dormant 的 Person / Project / Asset / Event / Place 关联字段，也不返回完整原始上传内容；
+- 交易详情不允许修改金额、日期、类型、来源或分类。人工修正属于后续独立 Sprint。
+
+交易核查不改变净消费、收入、退款、transfer 或 repayment 的统计口径，也不把 Salary 与流水关联。

@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const projectRoot = resolve(new URL("..", import.meta.url).pathname.replace(/^\/(.:)/, "$1"));
+const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const migrationsDirectory = join(projectRoot, "drizzle");
 const wranglerCli = join(projectRoot, "node_modules", "wrangler", "wrangler-dist", "cli.js");
 const migrationFiles = readdirSync(migrationsDirectory)

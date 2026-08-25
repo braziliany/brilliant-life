@@ -32,7 +32,7 @@ export const financeRows = [
   ["02-device", "2026-02-12T14:00:00+08:00", "expense", 128800, "电器数码", "device", "测试显示器"],
   ["02-refund", "2026-02-18T11:00:00+08:00", "refund", 18800, "电器数码", "device", "测试退款"],
   ["03-income", "2026-03-07T09:00:00+08:00", "income", 640000, "合成收入", "other", "三月合成收入"],
-  ["03-family", "2026-03-19T20:00:00+08:00", "expense", 96000, "家庭", "family", "家庭用品"],
+  ["03-family", "2026-03-19T20:00:00+08:00", "expense", 96000, "其它", "other", "家庭用品", "family"],
   ["03-transfer", "2026-03-25T10:00:00+08:00", "transfer", 200000, "账户转账", "other", "账户间转账"],
   ["04-learning", "2026-04-09T19:00:00+08:00", "expense", 76000, "学习", "learning", "虚构课程"],
   ["04-food", "2026-04-21T12:30:00+08:00", "expense", 42500, "三餐", "food", "四月饮食"],
@@ -47,6 +47,7 @@ export const financeRows = [
   ["08-entertainment", "2026-08-06T19:20:00+08:00", "expense", 82000, "文化休闲", "entertainment", "虚构展览"],
   ["08-food", "2026-08-12T12:10:00+08:00", "expense", 36100, "三餐", "food", "八月饮食"],
   ["08-family", "2026-08-18T18:00:00+08:00", "expense", 145000, "家庭", "family", "合成家庭支出"],
+  ["08-daily", "2026-08-20T10:30:00+08:00", "expense", 15900, "日用品", "daily_life", "八月日用品"],
 ];
 
 export function buildSeedSql() {
@@ -60,8 +61,8 @@ export function buildSeedSql() {
   for (const [company, role, start, end, summary, order] of careerRows) {
     statements.push(`INSERT INTO work_experiences (company, role, start_date, end_date, summary, sort_order, updated_at) VALUES (${quote(company)}, ${quote(role)}, ${quote(start)}, ${nullable(end)}, ${quote(summary)}, ${order}, ${quote(`${PREVIEW_AS_OF}T12:00:00.000Z`)});`);
   }
-  for (const [sourceId, occurredAt, type, amount, category, domain, note] of financeRows) {
-    statements.push(`INSERT INTO finance_transactions (source, source_id, occurred_at, type, amount_cents, currency, raw_type, raw_category, note, tags, life_domain, semantic_note, created_at, updated_at) VALUES (${quote(PREVIEW_SOURCE)}, ${quote(sourceId)}, ${quote(occurredAt)}, ${quote(type)}, ${amount}, 'CNY', ${quote(type)}, ${quote(category)}, ${quote(note)}, '[]', ${quote(domain)}, '纯合成本地预览记录', ${quote(`${PREVIEW_AS_OF}T12:00:00.000Z`)}, ${quote(`${PREVIEW_AS_OF}T12:00:00.000Z`)});`);
+  for (const [sourceId, occurredAt, type, amount, category, domain, note, domainOverride = null] of financeRows) {
+    statements.push(`INSERT INTO finance_transactions (source, source_id, occurred_at, type, amount_cents, currency, raw_type, raw_category, note, tags, life_domain, life_domain_override, semantic_note, created_at, updated_at) VALUES (${quote(PREVIEW_SOURCE)}, ${quote(sourceId)}, ${quote(occurredAt)}, ${quote(type)}, ${amount}, 'CNY', ${quote(type)}, ${quote(category)}, ${quote(note)}, '[]', ${quote(domain)}, ${nullable(domainOverride)}, '纯合成本地预览记录', ${quote(`${PREVIEW_AS_OF}T12:00:00.000Z`)}, ${quote(`${PREVIEW_AS_OF}T12:00:00.000Z`)});`);
   }
   return `${statements.join("\n")}\n`;
 }
