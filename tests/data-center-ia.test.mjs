@@ -17,6 +17,9 @@ const salary = read("app/features/salary/SalaryDashboard.tsx");
 const annualPage = read("app/features/annual/AnnualReportPage.tsx");
 const annualCharts = read("app/features/annual/charts.tsx");
 const lifeFinance = read("app/features/finance/LifeFinancePanel.tsx");
+const financeTransactions = read("app/features/finance/FinanceTransactionsPage.tsx");
+const financeTransactionDetail = read("app/features/finance/FinanceTransactionDetail.tsx");
+const financeTransactionsRoute = read("app/finance/transactions/page.tsx");
 const styles = read("app/globals.css");
 
 test("data center exposes overview and life domains", () => {
@@ -41,7 +44,7 @@ test("overview uses existing facts and domain summaries without extra requests",
 });
 
 test("production UI keeps internal fact terminology out of personal archive copy", () => {
-  const productionCopy = [overview, health, calendar, career, salary, annualPage, annualCharts, lifeFinance].join("\n");
+  const productionCopy = [overview, health, calendar, career, salary, annualPage, annualCharts, lifeFinance, financeTransactions, financeTransactionDetail].join("\n");
   assert.doesNotMatch(productionCopy, /事实层|事实摘要|生活事实|工资事实|健康事实|日历事实|实时草稿|健康档案|时间档案|职业档案|月度档案/);
   assert.match(overview, /最近记录/);
   assert.match(health, /今日健康|健康趋势/);
@@ -65,14 +68,32 @@ test("life finance presents personal records with secondary data management", ()
   assert.match(lifeFinance, /financeDataTools[\s\S]*数据管理/);
   assert.match(lifeFinance, /<summary>导入数据<\/summary>/);
   assert.doesNotMatch(lifeFinance, /生命财务|财务轨迹|资源投入|这些钱意味着什么|来源：钱迹|每月记录/);
-  assert.match(lifeFinance, /交易记录[\s\S]*最近的生活收支记录/);
-  assert.match(lifeFinance, /原始分类[\s\S]*自动分类[\s\S]*当前分类/);
-  assert.match(lifeFinance, /来源记录 ID/);
-  assert.match(lifeFinance, /暂无交易记录/);
-  assert.match(lifeFinance, /上一页[\s\S]*下一页/);
-  assert.match(lifeFinance, /resolveFinancePageForYear\(pagination\.year, year, pagination\.page\)/);
-  assert.match(lifeFinance, /createPortal\([\s\S]*financeDetailBackdrop[\s\S]*document\.body/);
+  assert.match(lifeFinance, /financeTransactionsEntry[\s\S]*href="\/finance\/transactions"[\s\S]*查看交易记录/);
+  assert.match(lifeFinance, /查看 \{summary\.transactionCount\.toLocaleString\("zh-CN"\)\} 条生活收支记录/);
+  assert.doesNotMatch(lifeFinance, /<ol>\{transactions|financePagination|共 \{transactions\.total\} 条|FinanceTransactionDetail/);
   assert.doesNotMatch(lifeFinance, /personId|projectId|assetId|eventId|placeId/);
+});
+
+test("transaction archive route keeps pagination, detail, and provenance in one secondary page", () => {
+  assert.match(financeTransactionsRoute, /FinanceTransactionsPage[\s\S]*initialYear/);
+  assert.match(financeTransactions, /href="\/#life-finance"[\s\S]*← 财务记录/);
+  assert.match(financeTransactions, /交易记录[\s\S]*查看每一笔生活收支记录/);
+  assert.match(financeTransactions, /交易年份[\s\S]*changeYear/);
+  assert.match(financeTransactions, /上一页[\s\S]*下一页/);
+  assert.match(financeTransactions, /FinanceTransactionDetail transaction=\{selectedTransaction\}/);
+  assert.match(financeTransactionDetail, /原始分类[\s\S]*自动分类[\s\S]*当前分类/);
+  assert.match(financeTransactionDetail, /来源记录 ID/);
+  assert.match(financeTransactionDetail, /createPortal\([\s\S]*financeDetailBackdrop[\s\S]*document\.body/);
+  assert.doesNotMatch(`${financeTransactions}\n${financeTransactionDetail}`, /personId|projectId|assetId|eventId|placeId/);
+});
+
+test("transaction pagination scrolls only after the requested page or year is rendered", () => {
+  assert.match(financeTransactions, /pendingScrollRef\.current = queryKey\(year, nextPage\)[\s\S]*setPagination\(\{ year, page: nextPage \}\)/);
+  assert.match(financeTransactions, /resolveFinancePageForYear\(year, nextYear, page\)/);
+  assert.match(financeTransactions, /pendingScrollRef\.current !== loadedQuery[\s\S]*requestAnimationFrame[\s\S]*listRef\.current\?\.scrollIntoView\(\{ behavior: "auto", block: "start" \}\)/);
+  assert.match(financeTransactions, /setLoadedQuery\(requestedQuery\)[\s\S]*setStatus\("ready"\)/);
+  assert.match(financeTransactions, /onClose=\{\(\) => setSelectedTransaction\(null\)\}/);
+  assert.doesNotMatch(financeTransactionDetail, /scrollIntoView|setPagination/);
 });
 
 test("all existing tools remain reachable with lower visual priority", () => {

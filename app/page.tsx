@@ -83,6 +83,18 @@ export default function Home() {
   const [healthLoadStatus, setHealthLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [healthPeriod, setHealthPeriod] = useState<7 | 30>(7);
   const [healthMetric, setHealthMetric] = useState<HealthMetric>("steps");
+
+  useEffect(() => {
+    const openLinkedSection = () => {
+      if (window.location.hash !== "#life-finance") return;
+      setSitePage("dashboard");
+      setActiveSection("life-finance");
+      window.requestAnimationFrame(() => document.getElementById("life-finance")?.scrollIntoView({ behavior: "auto", block: "center" }));
+    };
+    openLinkedSection();
+    window.addEventListener("hashchange", openLinkedSection);
+    return () => window.removeEventListener("hashchange", openLinkedSection);
+  }, []);
   const [showHealthTrend, setShowHealthTrend] = useState(false);
   const [showHealthGuide, setShowHealthGuide] = useState(false);
   const [stepGoal, setStepGoal] = useState(8500);
