@@ -128,6 +128,19 @@ test("responsive facts layout and compact tools preserve mobile readability", ()
   assert.match(styles, /:focus-visible/);
 });
 
+test("calendar uses natural height and a compact unclipped mobile grid", () => {
+  const naturalHeightRule = ".grid>.calendar{height:auto;min-height:360px;overflow:visible}";
+  const mobilePolish = styles.slice(styles.indexOf("/* Calendar mobile density"));
+
+  assert.ok(styles.lastIndexOf(naturalHeightRule) > styles.lastIndexOf(".activity,.calendar{height:365px}"));
+  assert.match(mobilePolish, /@media \(max-width:560px\)[\s\S]*\.grid>\.calendar\{min-height:0;padding:16px 15px 17px\}/);
+  assert.match(mobilePolish, /\.calendarActions\{width:auto;overflow:visible/);
+  assert.match(mobilePolish, /\.calendarFacts\{gap:4px 8px;margin:8px 0 4px;padding:8px 10px\}/);
+  assert.match(mobilePolish, /\.days\{column-gap:2px;row-gap:3px\}/);
+  assert.match(mobilePolish, /\.days>span,\.days>button,\.days\.sixRows>span,\.days\.sixRows>button\{width:34px;height:34px/);
+  assert.doesNotMatch(mobilePolish, /\.grid>\.calendar\{[^}]*overflow-y:auto/);
+});
+
 test("calendar today accent is purple and overrides ordinary day indicators", () => {
   assert.match(styles, /\.days>button\.today:before\{background:#c28cff\}/);
   assert.match(styles, /\.calendarLegend \.todayLine\{background:#c28cff\}/);
