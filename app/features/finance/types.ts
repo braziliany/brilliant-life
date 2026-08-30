@@ -1,6 +1,12 @@
 export type FinanceTransactionType = "expense" | "income" | "refund" | "transfer" | "repayment";
 
-export type LifeDomain = "family" | "food" | "digital" | "device" | "entertainment" | "daily_life" | "transport" | "appearance" | "health" | "learning" | "other";
+export const LIFE_DOMAINS = ["family", "food", "digital", "device", "entertainment", "daily_life", "transport", "appearance", "health", "learning", "other"] as const;
+
+export type LifeDomain = typeof LIFE_DOMAINS[number];
+
+export function isLifeDomain(value: unknown): value is LifeDomain {
+  return typeof value === "string" && LIFE_DOMAINS.some((domain) => domain === value);
+}
 
 export type NormalizedFinanceTransaction = {
   source: string;
@@ -39,6 +45,7 @@ export type FinanceTransactionRecord = NormalizedFinanceTransaction & {
 };
 
 export type FinanceTransactionAuditView = {
+  id: number;
   key: string;
   source: string;
   sourceId: string;

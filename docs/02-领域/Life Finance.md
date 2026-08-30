@@ -86,7 +86,7 @@ Life Finance 提供只读交易列表与来源核查详情，用于解释年度�
 - 详情展示来源类型、来源记录 ID、原始分类、自动 Life Domain、可选人工覆盖和当前生效分类；
 - 当前生效分类始终复用 `life_domain_override ?? life_domain`，与 Finance 聚合保持一致；
 - API ViewModel 不暴露 dormant 的 Person / Project / Asset / Event / Place 关联字段，也不返回完整原始上传内容；
-- 交易详情不允许修改金额、日期、类型、来源或分类。人工修正属于后续独立 Sprint。
+- 交易详情不允许修改金额、日期、类型、来源、来源分类或自动分类；只允许对当前交易设置或清除人工 Life Domain 覆盖。
 
 交易核查不改变净消费、收入、退款、transfer 或 repayment 的统计口径，也不把 Salary 与流水关联。
 
@@ -95,3 +95,21 @@ Life Finance 提供只读交易列表与来源核查详情，用于解释年度�
 Life Finance 主页面只承担年度概览：摘要、趋势、领域分布、重要支出、交易入口和数据管理。完整交易列表位于 `/finance/transactions` 二级页面；该页面统一承载年份选择、分页、交易详情与来源核查。
 
 分页状态使用 `{ year, page }`：年份变化时页码重置为 1，同年份保持正常翻页。只有目标页请求成功且新列表完成渲染后，视口才回到交易列表顶部；打开或关闭交易详情不改变当前页码和滚动位置。交易详情继续通过唯一组件以 portal 挂载到 `document.body`，避免移动端 containing block 影响视口定位。
+
+### Manual Life Domain Correction
+
+人工修正继续叠加在来源事实和自动分类之上：
+
+```text
+source fact
+  → automatic lifeDomain
+  → optional lifeDomainOverride
+  → effectiveLifeDomain = lifeDomainOverride ?? lifeDomain
+```
+
+- `PATCH /api/finance` 只接受交易数值 `id` 与 `lifeDomainOverride`；合法值复用正式 Life Domain 枚举，`null` 表示恢复自动分类；
+- 相同值写入是无副作用 no-op，不更新 `updated_at`；数据库更新白名单只包含 `life_domain_override` 与服务端生成的 `updated_at`；
+- 写接口继续受 Dashboard Access 保护，并要求生产精确 Origin 或同源本地开发 Origin；仅接受 JSON，不开放 CORS，也不允许 GET/query-string mutation；
+- 重复导入、来源事实更新或自动分类规则变化时，`life_domain_override` 与 `semantic_note` 均保持；人工覆盖存在时始终优先于最新自动分类；
+- 编辑入口只存在于交易详情，保存成功后同步更新当前列表行；来源核查、portal、分页与滚动状态保持不变；
+- 发布和回归使用带日期的 production snapshot。人工分类修正前后，记录数、收入、总支出、退款和净消费必须保持；家庭、个人及 Life Domain 分布可以按修正金额发生数学一致的变化。历史 snapshot 只代表其记录日期，不应被当作需要回滚的永久数据库状态。

@@ -68,6 +68,11 @@ export function FinanceTransactionsPage({ initialYear }: { initialYear: number }
     setPagination({ year: nextYear, page: nextPage });
   };
 
+  const applyTransactionUpdate = (updated: FinanceTransactionAuditView) => {
+    setTransactions((current) => current ? { ...current, items: current.items.map((item) => item.id === updated.id ? updated : item) } : current);
+    setSelectedTransaction((current) => current?.id === updated.id ? updated : current);
+  };
+
   return <main className="pageShell financeTransactionsShell">
     <section className="dashboard financeTransactionsDashboard">
       <header className="siteNavigation">
@@ -97,7 +102,7 @@ export function FinanceTransactionsPage({ initialYear }: { initialYear: number }
           </nav>}
         </section>
       </div>
-      {selectedTransaction && <FinanceTransactionDetail transaction={selectedTransaction} onClose={() => setSelectedTransaction(null)} />}
+      {selectedTransaction && <FinanceTransactionDetail transaction={selectedTransaction} onClose={() => setSelectedTransaction(null)} onTransactionUpdated={applyTransactionUpdate} />}
     </section>
   </main>;
 }

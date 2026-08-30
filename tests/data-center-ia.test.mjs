@@ -84,7 +84,23 @@ test("transaction archive route keeps pagination, detail, and provenance in one 
   assert.match(financeTransactionDetail, /原始分类[\s\S]*自动分类[\s\S]*当前分类/);
   assert.match(financeTransactionDetail, /来源记录 ID/);
   assert.match(financeTransactionDetail, /createPortal\([\s\S]*financeDetailBackdrop[\s\S]*document\.body/);
+  assert.match(financeTransactionDetail, /生活分类[\s\S]*LIFE_DOMAINS\.map/);
+  assert.match(financeTransactionDetail, /method: "PATCH"[\s\S]*id: transaction\.id[\s\S]*lifeDomainOverride: draftOverride/);
+  assert.match(financeTransactionDetail, /保存分类[\s\S]*恢复自动分类/);
+  assert.match(financeTransactionDetail, /"idle" \| "saving" \| "success" \| "error"/);
+  assert.match(financeTransactionDetail, /setSaveState\("saving"\)[\s\S]*response\.ok[\s\S]*onTransactionUpdated\(payload\.transaction\)/);
+  assert.doesNotMatch(financeTransactionDetail, /textarea|semanticNote[^\n]*onChange/);
+  assert.match(financeTransactions, /applyTransactionUpdate[\s\S]*item\.id === updated\.id[\s\S]*onTransactionUpdated=\{applyTransactionUpdate\}/);
   assert.doesNotMatch(`${financeTransactions}\n${financeTransactionDetail}`, /personId|projectId|assetId|eventId|placeId/);
+});
+
+test("transaction detail classification editor keeps complete responsive states", () => {
+  assert.match(styles, /\.financeDomainEditor\{[\s\S]*height:44px/);
+  assert.match(styles, /\.financeDomainEditor select:focus-visible,\.financeDomainEditor button:focus-visible/);
+  assert.match(styles, /\.financeDomainEditor\.error[\s\S]*\.financeDomainEditor\.success/);
+  assert.match(styles, /\.financeDomainEditor select:active,\.financeDomainEditor button:active/);
+  assert.match(styles, /@media \(max-width:560px\)[\s\S]*\.financeDomainActions\{align-items:stretch;flex-direction:column\}/);
+  assert.match(styles, /\.financeDetailSource code\{overflow-wrap:anywhere/);
 });
 
 test("transaction pagination scrolls only after the requested page or year is rendered", () => {

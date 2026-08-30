@@ -4,7 +4,8 @@ import { financeTransactions } from "../../../db/schema";
 import { paginateFinanceTransactions, summarizeLifeFinance } from "../../features/finance/domain";
 import { importFinanceTransactions, toFinanceRecord, validNormalizedFinanceTransaction } from "../../features/finance/import-service";
 import type { NormalizedFinanceTransaction } from "../../features/finance/types";
-import { hasDashboardAccess } from "../access";
+import { handleFinanceOverrideMutation } from "../../features/finance/write-service";
+import { hasDashboardAccess, hasDashboardMutationOrigin } from "../access";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
 const currentShanghaiDate = () => new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Shanghai", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -41,5 +42,15 @@ export async function POST(request: Request) {
     return Response.json({ report }, { headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Finance import failed" }, { status: 500, headers: jsonHeaders });
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!hasDashboardAccess(request)) return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
+  if (!hasDashboardMutationOrigin(request)) return Response.json({ error: "Finance update origin not allowed" }, { status: 403, headers: jsonHeaders });
+  try {
+    return await handleFinanceOverrideMutation(request, getDb());
+  } catch {
+    return Response.json({ error: "Finance classification update failed" }, { status: 500, headers: jsonHeaders });
   }
 }

@@ -5,6 +5,7 @@ import { strToU8, zipSync } from "fflate";
 import { QianJiExcelAdapter } from "../app/features/finance/adapters/qianji-excel.ts";
 import { QianJiJsonAdapter } from "../app/features/finance/adapters/qianji-json.ts";
 import { classifyLifeDomain, effectiveLifeDomain, mergeImportedSourceFields, normalizeFinanceType, paginateFinanceTransactions, planFinanceImport, resolveFinancePageForYear, sortFinanceTransactionsNewest, sortSignificantEvents, summarizeLifeFinance, toFinanceTransactionAuditView } from "../app/features/finance/domain.ts";
+import { isLifeDomain, LIFE_DOMAINS } from "../app/features/finance/types.ts";
 
 const rows = [
   { 账单ID: "qj-1", 类型: "支出", 金额: 100, 币种: "CNY", 时间: "2026-01-02 08:30:00", 分类: "三餐", 二级分类: "早餐", 账户: "钱包", 备注: "早餐", 标签: "日常" },
@@ -100,6 +101,14 @@ test("life domain classifier preserves initial mapping baseline", () => {
   assert.equal(classifyLifeDomain("娱乐"), "entertainment");
 });
 
+test("official Life Domain allowlist is singular, complete, and rejects arbitrary values", () => {
+  assert.deepEqual(LIFE_DOMAINS, ["family", "food", "digital", "device", "entertainment", "daily_life", "transport", "appearance", "health", "learning", "other"]);
+  assert.equal(LIFE_DOMAINS.every(isLifeDomain), true);
+  assert.equal(isLifeDomain("finance"), false);
+  assert.equal(isLifeDomain(""), false);
+  assert.equal(isLifeDomain(null), false);
+});
+
 test("transaction audit uses the same effective life domain as aggregation", async () => {
   const [normalized] = await new QianJiJsonAdapter().parse(rows.slice(0, 1));
   const record = { ...normalized, id: 7, lifeDomainOverride: "family", personId: 12, projectId: 3, assetId: 4, eventId: 5, placeId: 6, semanticNote: "人工说明" };
@@ -125,6 +134,32 @@ test("transaction audit falls back to automatic domain without an override", asy
   const record = { ...normalized, id: 8, lifeDomainOverride: null, personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" };
   assert.equal(effectiveLifeDomain(record), "food");
   assert.equal(toFinanceTransactionAuditView(record).effectiveLifeDomain, "food");
+});
+
+test("clear follows the latest automatic domain while an override survives automatic changes", async () => {
+  const [normalized] = await new QianJiJsonAdapter().parse(rows.slice(0, 1));
+  const overridden = { ...normalized, id: 8, lifeDomain: "entertainment", lifeDomainOverride: "daily_life", personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" };
+  assert.equal(effectiveLifeDomain(overridden), "daily_life");
+  assert.equal(effectiveLifeDomain({ ...overridden, lifeDomainOverride: null }), "entertainment");
+});
+
+test("effective domain moves expense and refund categories without changing accounting totals", async () => {
+  const normalized = await new QianJiJsonAdapter().parse(rows.slice(0, 2));
+  const original = normalized.map((item, index) => ({ ...item, id: index + 1, lifeDomainOverride: null, personId: null, projectId: null, assetId: null, eventId: null, placeId: null, semanticNote: "" }));
+  const corrected = [
+    { ...original[0], lifeDomainOverride: "family" },
+    { ...original[1], lifeDomainOverride: "family" },
+  ];
+  const before = summarizeLifeFinance(original, 2026, "2026-12-31");
+  const after = summarizeLifeFinance(corrected, 2026, "2026-12-31");
+  assert.deepEqual(
+    { count: after.transactionCount, income: after.incomeCents, gross: after.expenseCents, refund: after.refundCents, net: after.netExpenseCents },
+    { count: before.transactionCount, income: before.incomeCents, gross: before.expenseCents, refund: before.refundCents, net: before.netExpenseCents },
+  );
+  assert.equal(before.familySupportCents, 0);
+  assert.equal(after.familySupportCents, 9_000);
+  assert.equal(after.personalExpenseCents, 0);
+  assert.deepEqual(after.domains.map(({ domain, amountCents }) => ({ domain, amountCents })), [{ domain: "family", amountCents: 9_000 }]);
 });
 
 test("transaction list is newest first, stable, and paginated without mutating records", async () => {

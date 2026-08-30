@@ -19,7 +19,7 @@ import {
   validSalaryRecord,
 } from "../app/api/validation.ts";
 import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
-import { hasDashboardAccess } from "../app/api/access.ts";
+import { hasDashboardAccess, hasDashboardMutationOrigin } from "../app/api/access.ts";
 import { validNormalizedFinanceTransaction } from "../app/features/finance/import-service.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -34,6 +34,16 @@ test("dashboard access rejects forged headers on the public workers.dev host", (
     headers: { "Cf-Access-Jwt-Assertion": "access-protected" },
   })), true);
   assert.equal(hasDashboardAccess(new Request("http://localhost/api/salary")), true);
+  assert.equal(hasDashboardAccess(new Request("http://192.168.1.20:3000/api/finance")), true);
+});
+
+test("dashboard mutations require the exact production or same local development origin", () => {
+  assert.equal(hasDashboardMutationOrigin(new Request("https://pulse.sophier.org/api/finance", { headers: { Origin: "https://pulse.sophier.org" } })), true);
+  assert.equal(hasDashboardMutationOrigin(new Request("https://pulse.sophier.org/api/finance", { headers: { Origin: "https://evil.example" } })), false);
+  assert.equal(hasDashboardMutationOrigin(new Request("https://pulse.sophier.org/api/finance")), false);
+  assert.equal(hasDashboardMutationOrigin(new Request("http://localhost:3000/api/finance", { headers: { Origin: "http://localhost:3000" } })), true);
+  assert.equal(hasDashboardMutationOrigin(new Request("http://localhost:3000/api/finance", { headers: { Origin: "http://127.0.0.1:3000" } })), false);
+  assert.equal(hasDashboardMutationOrigin(new Request("http://192.168.1.20:3000/api/finance", { headers: { Origin: "http://192.168.1.20:3000" } })), true);
 });
 
 test("calendar accepts only canonical month and date values", () => {

@@ -72,6 +72,7 @@ export function sortFinanceTransactionsNewest(transactions: FinanceTransactionRe
 
 export function toFinanceTransactionAuditView(transaction: FinanceTransactionRecord): FinanceTransactionAuditView {
   return {
+    id: transaction.id,
     key: `${transaction.source}:${transaction.sourceId}`,
     source: transaction.source,
     sourceId: transaction.sourceId,

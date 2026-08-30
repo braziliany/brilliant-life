@@ -141,6 +141,22 @@ test("important annual expenses are bounded, ordered, and exclude provenance ide
   }
 });
 
+test("Annual uses effective domains while preserving Finance totals and annual-summary-v3 shape", () => {
+  const expense = { ...transaction(1, "2026-08-10T08:00:00+08:00", "expense", 60_000, "food", "合成重要支出"), lifeDomainOverride: "family" };
+  const refund = { ...transaction(2, "2026-08-11T08:00:00+08:00", "refund", 10_000, "food", "合成退款"), lifeDomainOverride: "family" };
+  const automatic = summarizeAnnualLifeFinance(2026, [{ ...expense, lifeDomainOverride: null }, { ...refund, lifeDomainOverride: null }], "2026-08-14", 8, "in-progress");
+  const corrected = summarizeAnnualLifeFinance(2026, [expense, refund], "2026-08-14", 8, "in-progress");
+  assert.deepEqual(
+    { records: corrected.facts.recordCount, gross: corrected.facts.grossExpenseCents, refunds: corrected.facts.refundsCents, net: corrected.facts.netExpenseCents, income: corrected.facts.incomeCents },
+    { records: automatic.facts.recordCount, gross: automatic.facts.grossExpenseCents, refunds: automatic.facts.refundsCents, net: automatic.facts.netExpenseCents, income: automatic.facts.incomeCents },
+  );
+  assert.equal(corrected.facts.familyExpenseCents, 50_000);
+  assert.equal(corrected.facts.personalExpenseCents, 0);
+  assert.deepEqual(corrected.facts.domainDistribution.map(({ domain, amountCents }) => ({ domain, amountCents })), [{ domain: "family", amountCents: 50_000 }]);
+  assert.equal(corrected.facts.importantExpenses[0].category, "家庭");
+  assert.equal("schemaVersion" in corrected, false);
+});
+
 test("historical full-year Life Finance can be complete only with year boundary records", () => {
   const summary = summarizeAnnualLifeFinance(2025, [
     transaction(1, "2025-01-01T00:00:00+08:00", "income", 100, "other"),
