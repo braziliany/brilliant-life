@@ -94,6 +94,9 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;transit
   --coral:#ff786c;
   --cyan:#57d8cc;
   --violet:#a88af7;
+  --calendar-today:#c28cff;
+  --calendar-personal:#f0b34e;
+  --calendar-tools-active:#303c35;
   --shadow:0 18px 50px rgba(54,57,48,.10);
 }
 html{background:#d7d3c8}
@@ -488,3 +491,17 @@ input,textarea{caret-color:#6d8d0e}
 }
 
 .financeDomainEditor select:active,.financeDomainEditor button:active{transform:translateY(1px)}
+
+/* Calendar mobile tools and distinct personal-status indicators */
+.days>button.personalWork:before,.days>button.personalRest:before{background:var(--calendar-personal)}
+.calendarLegend .personalLine{background:var(--calendar-personal)}
+.calendar .darkTools[open] summary{background:var(--calendar-tools-active);color:var(--panel)}
+.calendar .darkTools summary:active{background:var(--calendar-tools-active);color:var(--panel)}
+.days>button.today:before{background:var(--calendar-today)}
+.calendarLegend .todayLine{background:var(--calendar-today)}
+.days>button.today.personalWork:after,.days>button.today.personalRest:after{content:"";position:absolute;right:3px;top:3px;display:block;width:5px;height:5px;border-radius:50%;background:var(--calendar-personal);box-shadow:0 0 0 2px var(--ink)}
+@media (max-width:560px){
+  .calendar .darkTools{z-index:30}
+  .calendar .darkTools summary{display:grid;min-width:44px;min-height:44px;place-items:center;padding:7px 10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+  .calendar .moduleTools>div{position:absolute;right:0;top:calc(100% + 6px);bottom:auto;left:auto;z-index:31}
+}

@@ -157,11 +157,23 @@ test("calendar uses natural height and a compact unclipped mobile grid", () => {
   assert.doesNotMatch(mobilePolish, /\.grid>\.calendar\{[^}]*overflow-y:auto/);
 });
 
-test("calendar today accent is purple and overrides ordinary day indicators", () => {
-  assert.match(styles, /\.days>button\.today:before\{background:#c28cff\}/);
-  assert.match(styles, /\.calendarLegend \.todayLine\{background:#c28cff\}/);
+test("calendar mobile tools retain the working details path with a visible touch menu", () => {
+  const mobileTools = styles.slice(styles.indexOf("/* Calendar mobile tools"));
+
+  assert.match(calendar, /<details className="moduleTools darkTools"><summary>工具<\/summary>/);
+  assert.match(mobileTools, /\.calendar \.darkTools summary\{[^}]*min-width:44px;min-height:44px[^}]*touch-action:manipulation/);
+  assert.match(mobileTools, /\.calendar \.moduleTools>div\{position:absolute;right:0;top:calc\(100% \+ 6px\);bottom:auto;left:auto;z-index:31\}/);
+  assert.match(mobileTools, /\.calendar \.darkTools\[open\] summary\{background:var\(--calendar-tools-active\);color:var\(--panel\)\}/);
+});
+
+test("calendar today and personal override use distinct simultaneous indicators", () => {
+  assert.match(styles, /\.days>button\.today:before\{background:var\(--calendar-today\)\}/);
+  assert.match(styles, /\.calendarLegend \.todayLine\{background:var\(--calendar-today\)\}/);
+  assert.match(styles, /\.days>button\.personalWork:before,\.days>button\.personalRest:before\{background:var\(--calendar-personal\)\}/);
+  assert.match(styles, /\.calendarLegend \.personalLine\{background:var\(--calendar-personal\)\}/);
+  assert.match(styles, /\.days>button\.today\.personalWork:after,\.days>button\.today\.personalRest:after\{[^}]*background:var\(--calendar-personal\)/);
   assert.ok(
-    styles.lastIndexOf(".days>button.today:before{background:#c28cff}") >
+    styles.lastIndexOf(".days>button.today:before{background:var(--calendar-today)}") >
       styles.indexOf(".days>button.workday:before"),
   );
 });
