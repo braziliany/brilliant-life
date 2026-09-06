@@ -43,6 +43,7 @@ next-env.d.ts
 /work/
 /backups/
 /data/private/
+/data/private/reconciliation/
 /imports/
 *.private.xlsx
 *.private.json

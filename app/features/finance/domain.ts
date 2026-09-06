@@ -1,4 +1,5 @@
 import type { FinanceTransactionAuditView, FinanceTransactionRecord, FinanceTransactionType, LifeDomain, NormalizedFinanceTransaction } from "./types";
+import { sameFinanceSourceFacts } from "./source-facts.ts";
 
 export const LIFE_DOMAIN_LABELS: Record<LifeDomain, string> = {
   family: "家庭",
@@ -157,7 +158,7 @@ export function summarizeLifeFinance(transactions: FinanceTransactionRecord[], y
 }
 
 export function sameSourceFields(existing: FinanceTransactionRecord, incoming: NormalizedFinanceTransaction) {
-  return existing.occurredAt === incoming.occurredAt && existing.type === incoming.type && existing.amountCents === incoming.amountCents && existing.currency === incoming.currency && existing.rawType === incoming.rawType && existing.rawCategory === incoming.rawCategory && existing.rawSubcategory === incoming.rawSubcategory && existing.accountFrom === incoming.accountFrom && existing.accountTo === incoming.accountTo && existing.note === incoming.note && JSON.stringify(existing.tags) === JSON.stringify(incoming.tags) && existing.lifeDomain === incoming.lifeDomain;
+  return sameFinanceSourceFacts(existing, incoming);
 }
 
 export function mergeImportedSourceFields(existing: FinanceTransactionRecord, incoming: NormalizedFinanceTransaction): FinanceTransactionRecord {

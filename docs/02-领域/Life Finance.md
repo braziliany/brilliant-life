@@ -52,6 +52,14 @@ Manual Export → Upload → Incremental Import
 
 更新只覆盖来源字段和系统分类，不覆盖 `life_domain_override`、Person、Project、Asset、Event、Place 或人工语义说明。导入不会因源文件缺少记录而删除本地数据。
 
+### 钱迹历史 Reconciliation
+
+普通增量导入与历史 reconciliation 是两条严格分离的路径。普通导入继续保持 no-delete、no-rekey、no-fuzzy-match；只有用户显式声明来源、日期范围与 canonical snapshot 时，独立 reconciliation planner 才会生成 scoped diff。
+
+Reconciliation 默认只运行 dry-run，并记录 canonical 文件 SHA-256、适配器 commit、范围、记录数、生产前置投影 hash 与分类计数。canonical 内重复 identity 会直接阻塞。缺失记录、rekey、疑似重复和歧义项都必须进入私有 resolution manifest 人工审核；apply 只接受完整 reviewed manifest，并在 snapshot fingerprint、scope、resolution coverage 或前置 hash 变化时阻塞。
+
+本工具不改变数据库 schema。批准的 one-to-one rekey 原地更新既有数据库 row，以保留数值 ID、创建时间、`life_domain_override`、`semantic_note` 与 dormant relation IDs。删除必须精确指向经审核的单行，禁止按日期范围广泛删除。真实 diff 与 manifest 只保存在 Git 忽略的 `data/private/reconciliation/`；生产 apply 当前硬禁用。
+
 ## 统计口径
 
 - 净消费 = expense − refund。

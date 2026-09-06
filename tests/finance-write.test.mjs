@@ -111,6 +111,16 @@ test("real D1 conflict updates preserve override and semantic note while automat
     assert.equal(cleared.changed, true);
     assert.equal(cleared.transaction.effectiveLifeDomain, "entertainment");
     assert.equal(cleared.transaction.lifeDomainOverride, null);
+
+    await db.insert(financeTransactions).values({ ...incoming({ sourceId: "missing-from-next-normal-import" }), tags: "[]", semanticNote: "必须保留" });
+    const rekeyLike = incoming({ sourceId: "new-source-id-with-same-facts" });
+    const ordinaryImport = await importFinanceTransactions(db, [rekeyLike]);
+    assert.deepEqual(ordinaryImport, { read: 1, inserted: 1, updated: 0, skipped: 0, failed: 0 });
+    const allRows = await db.select().from(financeTransactions);
+    assert.equal(allRows.length, 3);
+    assert.equal(allRows.some((item) => item.sourceId === "missing-from-next-normal-import" && item.semanticNote === "必须保留"), true);
+    assert.equal(allRows.some((item) => item.sourceId === incoming().sourceId), true);
+    assert.equal(allRows.some((item) => item.sourceId === rekeyLike.sourceId), true);
   } finally {
     await miniflare.dispose();
   }
