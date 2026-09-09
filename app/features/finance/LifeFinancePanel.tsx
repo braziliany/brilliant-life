@@ -24,27 +24,81 @@ type FinanceSummary = {
 
 type Props = { active: boolean; year: number };
 type LoadStatus = "loading" | "ready" | "error";
+type ImportStage = "idle" | "validating" | "ready" | "importing" | "complete" | "error";
 const emptyReport = (): FinanceImportReport => ({ read: 0, inserted: 0, updated: 0, skipped: 0, failed: 0 });
+const safeImportErrors = [
+  "无法读取钱迹文件结构",
+  "钱迹文件缺少必要表头",
+  "存在缺少账单 ID 的记录",
+  "存在重复账单 ID",
+  "存在无法识别的交易时间",
+  "存在无法识别的金额",
+  "存在不支持的交易类型",
+  "文件格式不受支持，请选择钱迹 JSON 或 Excel",
+  "导入失败，请检查文件或登录状态",
+];
+const importErrorCopy = (error: unknown, fallback: string) => error instanceof Error && safeImportErrors.includes(error.message) ? error.message : fallback;
 const shortDate = (date: string) => {
   const [, month, day] = date.split("-").map(Number);
   return `${month} 月 ${day} 日`;
 };
 
-function FinanceImportTools({ importing, inputRef, onImport }: { importing: boolean; inputRef: RefObject<HTMLInputElement | null>; onImport: (file: File) => void }) {
-  return <details className="financeImportTools">
-    <summary>导入数据</summary>
-    <div>
-      <p>支持钱迹 JSON 与 Excel。重复导入会补充或更新，不会删除记录。</p>
-      <input ref={inputRef} type="file" accept=".json,.xlsx" disabled={importing} onChange={(event) => { const file = event.target.files?.[0]; if (file) onImport(file); }} />
-      {importing && <span>正在读取并导入…</span>}
+function FinanceImportTools({ stage, selectedFile, validation, report, error, inputRef, onSelect, onImport }: {
+  stage: ImportStage;
+  selectedFile: File | null;
+  validation: FinanceImportValidation | null;
+  report: FinanceImportReport | null;
+  error: string;
+  inputRef: RefObject<HTMLInputElement | null>;
+  onSelect: (file: File) => void;
+  onImport: () => void;
+}) {
+  const busy = stage === "validating" || stage === "importing";
+  const canImport = Boolean(selectedFile && validation?.valid) && !busy;
+  const statusMessage = stage === "validating"
+    ? "正在验证账单…"
+    : stage === "ready" && validation
+      ? qianJiValidationSummary(validation)
+      : stage === "importing"
+        ? "正在导入账单…"
+        : stage === "complete" && report
+          ? `导入完成 · 新增 ${report.inserted} · 更新 ${report.updated} · 已存在 ${report.skipped}`
+          : "";
+
+  return <div className="financeImportTools" data-state={stage}>
+    <div className="financeImportIntro">
+      <strong>导入钱迹账单</strong>
+      <span>支持钱迹 JSON / Excel</span>
+      <p>重复导入会自动补充或更新，不会删除已有记录。</p>
     </div>
-  </details>;
+    <div className="financeImportSelection" aria-live="polite">
+      {selectedFile ? <><small>已选择</small><b title={selectedFile.name}>{selectedFile.name}</b></> : <span>未选择文件</span>}
+    </div>
+    <div className="financeImportActions">
+      <label className="financeFileButton">
+        <span>{selectedFile ? "更换文件" : "选择文件"}</span>
+        <input
+          ref={inputRef}
+          className="financeFileInput"
+          type="file"
+          accept=".json,.xlsx"
+          aria-label={selectedFile ? "更换钱迹账单文件" : "选择钱迹账单文件"}
+          disabled={busy}
+          onChange={(event) => { const file = event.target.files?.[0]; if (file) onSelect(file); }}
+        />
+      </label>
+      <button className="financeImportSubmit" type="button" disabled={!canImport} onClick={onImport}>{stage === "importing" ? "导入中…" : "导入"}</button>
+    </div>
+    {statusMessage && <span className="financeImportStatus" role="status">{statusMessage}</span>}
+    {error && <span className="financeImportError" role="alert">{error}</span>}
+  </div>;
 }
 
 export function LifeFinancePanel({ active, year }: Props) {
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [status, setStatus] = useState<LoadStatus>("loading");
-  const [importing, setImporting] = useState(false);
+  const [importStage, setImportStage] = useState<ImportStage>("idle");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [report, setReport] = useState<FinanceImportReport | null>(null);
   const [validation, setValidation] = useState<FinanceImportValidation | null>(null);
   const [importError, setImportError] = useState("");
@@ -63,16 +117,35 @@ export function LifeFinancePanel({ active, year }: Props) {
 
   useEffect(() => load(), [load]);
 
-  const importFile = async (file: File) => {
-    setImporting(true);
+  const selectImportFile = async (file: File) => {
+    setSelectedFile(file);
+    setImportStage("validating");
     setImportError("");
     setReport(null);
     setValidation(null);
     try {
-      const adapter = file.name.toLowerCase().endsWith(".json") ? new QianJiJsonAdapter() : new QianJiExcelAdapter();
+      const name = file.name.toLowerCase();
+      if (!name.endsWith(".json") && !name.endsWith(".xlsx")) throw new Error("文件格式不受支持，请选择钱迹 JSON 或 Excel");
+      const adapter = name.endsWith(".json") ? new QianJiJsonAdapter() : new QianJiExcelAdapter();
       const inspection = adapter instanceof QianJiJsonAdapter ? await adapter.inspect(await file.text()) : await adapter.inspect(await file.arrayBuffer());
-      const transactions = trustedQianJiTransactions(inspection);
+      trustedQianJiTransactions(inspection);
       setValidation(inspection);
+      setImportStage("ready");
+    } catch (error) {
+      setImportError(importErrorCopy(error, "无法读取这个文件"));
+      setImportStage("error");
+    } finally {
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  };
+
+  const importSelectedFile = async () => {
+    if (!validation?.valid) return;
+    setImportStage("importing");
+    setImportError("");
+    setReport(null);
+    try {
+      const transactions = trustedQianJiTransactions(validation);
       const combined = emptyReport();
       for (let index = 0; index < transactions.length; index += 200) {
         const response = await fetch("/api/finance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactions: transactions.slice(index, index + 200) }) });
@@ -81,13 +154,23 @@ export function LifeFinancePanel({ active, year }: Props) {
         for (const key of Object.keys(combined) as Array<keyof FinanceImportReport>) combined[key] += batch[key];
       }
       setReport(combined);
+      setImportStage("complete");
       load();
     } catch (error) {
-      setImportError(error instanceof Error ? error.message : "导入失败");
-    } finally {
-      setImporting(false);
-      if (inputRef.current) inputRef.current.value = "";
+      setImportError(importErrorCopy(error, "导入失败，请稍后重试"));
+      setImportStage("error");
     }
+  };
+
+  const importToolsProps = {
+    stage: importStage,
+    selectedFile,
+    validation,
+    report,
+    error: importError,
+    inputRef,
+    onSelect: (file: File) => { void selectImportFile(file); },
+    onImport: () => { void importSelectedFile(); },
   };
 
   const monthlyMax = Math.max(1, ...(summary?.monthly.map((item) => item.netExpenseCents) ?? []));
@@ -98,9 +181,6 @@ export function LifeFinancePanel({ active, year }: Props) {
         <div><p className="eyebrow">财务记录</p><h2>{year} 财务记录</h2>{summary && <p>统计截至 {summary.asOfDate}</p>}</div>
       </header>
 
-      {validation && <div className="financeImportReport" role="status">{qianJiValidationSummary(validation)}{report && <> · 新增 {report.inserted} · 更新 {report.updated} · 已存在 {report.skipped} · 失败 {report.failed}</>}</div>}
-      {importError && <div className="financeImportError" role="alert">{importError}</div>}
-
       {status === "loading" ? <div className="moduleState"><span className="statePulse" /><p>正在读取财务记录…</p></div> : status === "error" ? <div className="moduleState" role="alert"><p>财务记录读取失败。</p><button type="button" onClick={load}>重新加载</button></div> : summary && (
         <>
           <div className="lifeFinanceSummary">
@@ -110,7 +190,7 @@ export function LifeFinancePanel({ active, year }: Props) {
             <div><span>个人消费</span><strong>¥{centsToYuan(summary.personalExpenseCents)}</strong><small>除家庭支出外的个人净消费</small></div>
           </div>
 
-          {summary.transactionCount === 0 ? <div className="lifeFinanceEmpty"><strong>今年还没有财务记录</strong><span>导入钱迹 JSON 或 Excel 后，这里会显示今年的收支。</span><FinanceImportTools importing={importing} inputRef={inputRef} onImport={(file) => void importFile(file)} /></div> : (
+          {summary.transactionCount === 0 ? <div className="lifeFinanceEmpty"><strong>今年还没有财务记录</strong><span>导入钱迹 JSON 或 Excel 后，这里会显示今年的收支。</span><FinanceImportTools {...importToolsProps} /></div> : (
             <div className="lifeFinanceBody">
               <section className="financeMonths" aria-labelledby="finance-months-title">
                 <div><h3 id="finance-months-title">每月净消费</h3><span>{Number(summary.asOfDate.slice(5, 7))} 月 · 截至 {shortDate(summary.asOfDate)}</span></div>
@@ -127,7 +207,7 @@ export function LifeFinancePanel({ active, year }: Props) {
               <a className="financeTransactionsEntry" href="/finance/transactions" onClick={() => window.history.replaceState(window.history.state, "", "/#life-finance")}>
                 <div><h3>查看交易记录</h3><span>查看 {summary.transactionCount.toLocaleString("zh-CN")} 条生活收支记录</span></div><b aria-hidden="true">→</b>
               </a>
-              <section className="financeDataTools" aria-label="数据管理"><div><span>数据管理</span><small>导入或更新钱迹记录</small></div><FinanceImportTools importing={importing} inputRef={inputRef} onImport={(file) => void importFile(file)} /></section>
+              <section className="financeDataTools" aria-label="数据管理"><div className="financeDataToolsHead"><span>数据管理</span><small>导入或更新钱迹记录</small></div><FinanceImportTools {...importToolsProps} /></section>
             </div>
           )}
         </>

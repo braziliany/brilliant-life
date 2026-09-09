@@ -66,7 +66,10 @@ test("life finance presents personal records with secondary data management", ()
   assert.match(lifeFinance, /金额较高的支出记录/);
   assert.doesNotMatch(lifeFinance, /\{category\} · 钱迹/);
   assert.match(lifeFinance, /financeDataTools[\s\S]*数据管理/);
-  assert.match(lifeFinance, /<summary>导入数据<\/summary>/);
+  assert.match(lifeFinance, /financeImportTools[\s\S]*导入钱迹账单[\s\S]*支持钱迹 JSON \/ Excel/);
+  assert.match(lifeFinance, /financeFileButton[\s\S]*financeFileInput[\s\S]*aria-label=/);
+  assert.match(lifeFinance, /disabled=\{!canImport\}/);
+  assert.doesNotMatch(lifeFinance, /<details className="financeImportTools"|<summary>导入数据<\/summary>/);
   assert.match(lifeFinance, /adapter\.inspect/);
   assert.match(lifeFinance, /trustedQianJiTransactions\(inspection\)/);
   assert.match(lifeFinance, /qianJiValidationSummary\(validation\)/);
@@ -167,6 +170,27 @@ test("calendar mobile tools retain the working details path with a visible touch
   assert.match(mobileTools, /\.calendar \.darkTools summary\{[^}]*min-width:44px;min-height:44px[^}]*touch-action:manipulation/);
   assert.match(mobileTools, /\.calendar \.moduleTools>div\{position:absolute;right:0;top:calc\(100% \+ 6px\);bottom:auto;left:auto;z-index:31\}/);
   assert.match(mobileTools, /\.calendar \.darkTools\[open\] summary\{background:var\(--calendar-tools-active\);color:var\(--panel\)\}/);
+});
+
+test("health mobile tools reuse the native details path without fixed-position clipping", () => {
+  const mobileTools = styles.slice(styles.indexOf("/* Health mobile tools"));
+
+  assert.match(health, /<details className="moduleTools"><summary>工具<\/summary>/);
+  assert.match(mobileTools, /\.activity \.moduleTools summary\{[^}]*min-width:44px;min-height:44px[^}]*touch-action:manipulation/);
+  assert.match(mobileTools, /\.activity \.moduleTools>div\{position:absolute;right:0;top:calc\(100% \+ 6px\);bottom:auto;left:auto;z-index:31\}/);
+  assert.doesNotMatch(mobileTools, /\.activity \.moduleTools>div\{[^}]*position:fixed/);
+});
+
+test("finance import uses an accessible custom picker and validates before enabling import", () => {
+  assert.match(lifeFinance, /type ImportStage = "idle" \| "validating" \| "ready" \| "importing" \| "complete" \| "error"/);
+  assert.match(lifeFinance, /if \(!name\.endsWith\("\.json"\) && !name\.endsWith\("\.xlsx"\)\)[\s\S]*文件格式不受支持/);
+  assert.match(lifeFinance, /trustedQianJiTransactions\(inspection\)[\s\S]*setValidation\(inspection\)[\s\S]*setImportStage\("ready"\)/);
+  assert.match(lifeFinance, /if \(!validation\?\.valid\) return;[\s\S]*trustedQianJiTransactions\(validation\)[\s\S]*fetch\("\/api\/finance"/);
+  assert.match(lifeFinance, /<label className="financeFileButton">[\s\S]*<input[\s\S]*className="financeFileInput"[\s\S]*aria-label=/);
+  assert.match(styles, /\.financeFileInput\{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0/);
+  assert.match(styles, /\.financeFileButton:has\(\.financeFileInput:focus-visible\),\.financeImportSubmit:focus-visible/);
+  assert.match(styles, /\.financeImportSelection b\{[^}]*overflow:hidden[^}]*text-overflow:ellipsis;white-space:nowrap/);
+  assert.match(styles, /\.financeFileButton,\.financeImportSubmit\{[^}]*min-height:44px/);
 });
 
 test("calendar today and personal override use distinct simultaneous indicators", () => {
