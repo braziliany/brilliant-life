@@ -67,6 +67,9 @@ test("life finance presents personal records with secondary data management", ()
   assert.doesNotMatch(lifeFinance, /\{category\} · 钱迹/);
   assert.match(lifeFinance, /financeDataTools[\s\S]*数据管理/);
   assert.match(lifeFinance, /<summary>导入数据<\/summary>/);
+  assert.match(lifeFinance, /adapter\.inspect/);
+  assert.match(lifeFinance, /trustedQianJiTransactions\(inspection\)/);
+  assert.match(lifeFinance, /qianJiValidationSummary\(validation\)/);
   assert.doesNotMatch(lifeFinance, /生命财务|财务轨迹|资源投入|这些钱意味着什么|来源：钱迹|每月记录/);
   assert.match(lifeFinance, /financeTransactionsEntry[\s\S]*href="\/finance\/transactions"[\s\S]*查看交易记录/);
   assert.match(lifeFinance, /查看 \{summary\.transactionCount\.toLocaleString\("zh-CN"\)\} 条生活收支记录/);

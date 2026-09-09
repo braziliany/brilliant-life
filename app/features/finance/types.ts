@@ -33,6 +33,32 @@ export type FinanceImportReport = {
   failed: number;
 };
 
+export type FinanceImportValidationIssueCode =
+  | "invalid_structure"
+  | "missing_required_header"
+  | "empty_id"
+  | "duplicate_id"
+  | "invalid_date"
+  | "invalid_amount"
+  | "unsupported_type";
+
+export type FinanceImportValidationIssue = {
+  code: FinanceImportValidationIssueCode;
+  row?: number;
+  field?: string;
+};
+
+export type FinanceImportValidation = {
+  source: "qianji";
+  format: "xlsx" | "json";
+  valid: boolean;
+  records: number;
+  duplicateIds: number;
+  invalidRecords: number;
+  issues: FinanceImportValidationIssue[];
+  transactions: NormalizedFinanceTransaction[];
+};
+
 export type FinanceTransactionRecord = NormalizedFinanceTransaction & {
   id: number;
   lifeDomainOverride: LifeDomain | null;
@@ -65,5 +91,6 @@ export type FinanceTransactionAuditView = {
 
 export interface FinanceSourceAdapter<TInput = unknown> {
   readonly source: string;
+  inspect(input: TInput): Promise<FinanceImportValidation>;
   parse(input: TInput): Promise<NormalizedFinanceTransaction[]>;
 }

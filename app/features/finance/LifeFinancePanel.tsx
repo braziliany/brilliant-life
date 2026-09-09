@@ -4,7 +4,8 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from "react"
 import { QianJiExcelAdapter } from "./adapters/qianji-excel";
 import { QianJiJsonAdapter } from "./adapters/qianji-json";
 import { centsToYuan, LIFE_DOMAIN_LABELS } from "./domain";
-import type { FinanceImportReport, FinanceTransactionRecord, LifeDomain } from "./types";
+import { qianJiValidationSummary, trustedQianJiTransactions } from "./trusted-import";
+import type { FinanceImportReport, FinanceImportValidation, FinanceTransactionRecord, LifeDomain } from "./types";
 
 type FinanceSummary = {
   year: number;
@@ -45,6 +46,7 @@ export function LifeFinancePanel({ active, year }: Props) {
   const [status, setStatus] = useState<LoadStatus>("loading");
   const [importing, setImporting] = useState(false);
   const [report, setReport] = useState<FinanceImportReport | null>(null);
+  const [validation, setValidation] = useState<FinanceImportValidation | null>(null);
   const [importError, setImportError] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -65,10 +67,12 @@ export function LifeFinancePanel({ active, year }: Props) {
     setImporting(true);
     setImportError("");
     setReport(null);
+    setValidation(null);
     try {
       const adapter = file.name.toLowerCase().endsWith(".json") ? new QianJiJsonAdapter() : new QianJiExcelAdapter();
-      const transactions = adapter instanceof QianJiJsonAdapter ? await adapter.parse(await file.text()) : await adapter.parse(await file.arrayBuffer());
-      if (!transactions.length) throw new Error("没有读取到受支持的钱迹记录");
+      const inspection = adapter instanceof QianJiJsonAdapter ? await adapter.inspect(await file.text()) : await adapter.inspect(await file.arrayBuffer());
+      const transactions = trustedQianJiTransactions(inspection);
+      setValidation(inspection);
       const combined = emptyReport();
       for (let index = 0; index < transactions.length; index += 200) {
         const response = await fetch("/api/finance", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ transactions: transactions.slice(index, index + 200) }) });
@@ -94,7 +98,7 @@ export function LifeFinancePanel({ active, year }: Props) {
         <div><p className="eyebrow">财务记录</p><h2>{year} 财务记录</h2>{summary && <p>统计截至 {summary.asOfDate}</p>}</div>
       </header>
 
-      {report && <div className="financeImportReport" role="status">读取 {report.read} 条 · 新增 {report.inserted} · 更新 {report.updated} · 已存在 {report.skipped} · 失败 {report.failed}</div>}
+      {validation && <div className="financeImportReport" role="status">{qianJiValidationSummary(validation)}{report && <> · 新增 {report.inserted} · 更新 {report.updated} · 已存在 {report.skipped} · 失败 {report.failed}</>}</div>}
       {importError && <div className="financeImportError" role="alert">{importError}</div>}
 
       {status === "loading" ? <div className="moduleState"><span className="statePulse" /><p>正在读取财务记录…</p></div> : status === "error" ? <div className="moduleState" role="alert"><p>财务记录读取失败。</p><button type="button" onClick={load}>重新加载</button></div> : summary && (

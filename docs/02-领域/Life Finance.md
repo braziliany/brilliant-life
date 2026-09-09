@@ -52,6 +52,24 @@ Manual Export → Upload → Incremental Import
 
 更新只覆盖来源字段和系统分类，不覆盖 `life_domain_override`、Person、Project、Asset、Event、Place 或人工语义说明。导入不会因源文件缺少记录而删除本地数据。
 
+### QianJi Trusted Import Contract
+
+Normal Import 是日常默认路径。网页选择钱迹 XLSX 或 JSON 后，先由对应的现有 adapter 在浏览器内完成轻量校验，再把同一解析结果分批写入；也可运行 finance:validate 脚本做纯本地校验。校验只报告记录数、重复 ID 与无效记录，不生成 reconciliation manifest，也不执行 missing、rekey、duplicate candidate 或 precondition 分析。
+
+可信文件必须满足：
+
+- workbook / JSON 容器可读，Excel 第一个账单工作表可读；
+- ID、交易时间、交易类型与金额表头或字段存在；
+- 每条记录都有非空、文件内唯一的显式钱迹 ID；
+- 时间和金额可解析，交易类型属于 expense、income、refund、transfer、repayment 的既有钱迹表达；
+- adapter 输出固定为 source=qianji。
+
+重复 ID、空 ID、无法解析的时间或金额、不支持的交易类型、必要表头缺失或文件结构损坏都会在任何 API 写入前阻塞，不猜测、不修复。钱迹 XLSX 的 shared-string 单元格按 OOXML 索引解释；当数值 23 指向空 shared string 时，二级分类、目标账户、备注保持空字符串，标签保持空数组，不把 23 当来源事实。
+
+通过校验后的 Normal Import 规则是：同 sourceId 且来源事实不变则跳过；同 sourceId 且来源事实变化则原地更新；新显式 sourceId 则新增；数据库记录未出现在文件中则忽略并保留；所有人工字段继续保留。
+
+Normal Import 不做 fuzzy rekey，也不会因为文件缺少旧记录而阻塞、删除或自动进入 reconciliation。只有用户明确声明某一日期范围的文件是 canonical 历史快照，并需要处理删除、换 ID、重复或历史替换时，才使用独立的 Historical Reconciliation。
+
 ### 钱迹历史 Reconciliation
 
 普通增量导入与历史 reconciliation 是两条严格分离的路径。普通导入继续保持 no-delete、no-rekey、no-fuzzy-match；只有用户显式声明来源、日期范围与 canonical snapshot 时，独立 reconciliation planner 才会生成 scoped diff。
@@ -59,6 +77,8 @@ Manual Export → Upload → Incremental Import
 Reconciliation 默认只运行 dry-run，并记录 canonical 文件 SHA-256、适配器 commit、范围、记录数、生产前置投影 hash 与分类计数。canonical 内重复 identity 会直接阻塞。缺失记录、rekey、疑似重复和歧义项都必须进入私有 resolution manifest 人工审核；apply 只接受完整 reviewed manifest，并在 snapshot fingerprint、scope、resolution coverage 或前置 hash 变化时阻塞。
 
 本工具不改变数据库 schema。批准的 one-to-one rekey 原地更新既有数据库 row，以保留数值 ID、创建时间、`life_domain_override`、`semantic_note` 与 dormant relation IDs。删除必须精确指向经审核的单行，禁止按日期范围广泛删除。真实 diff 与 manifest 只保存在 Git 忽略的 `data/private/reconciliation/`；生产 apply 当前硬禁用。
+
+2026 canonical 基线仍属于一次性历史重建，当前人工审核材料保持 12 UPDATE、51 INSERT、18 MISSING 与 5 REKEY candidates。它不构成未来日常导入模板；完成该次历史重建后，后续钱迹导出继续走 Trusted Validation → Normal Import。
 
 ## 统计口径
 

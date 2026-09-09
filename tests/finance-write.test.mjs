@@ -126,6 +126,45 @@ test("real D1 conflict updates preserve override and semantic note while automat
   }
 });
 
+test("trusted normal import is idempotent, updates same-ID facts, inserts new IDs, and retains missing rows", { timeout: 30_000 }, async () => {
+  const { miniflare, db } = await createFinanceDb();
+  try {
+    const original = [
+      incoming({ sourceId: "normal-amount" }),
+      incoming({ sourceId: "normal-account" }),
+      incoming({ sourceId: "normal-category" }),
+      incoming({ sourceId: "normal-missing" }),
+    ];
+    assert.deepEqual(await importFinanceTransactions(db, original), { read: 4, inserted: 4, updated: 0, skipped: 0, failed: 0 });
+    assert.deepEqual(await importFinanceTransactions(db, original), { read: 4, inserted: 0, updated: 0, skipped: 4, failed: 0 });
+
+    const [categoryRow] = await db.select().from(financeTransactions).where(eq(financeTransactions.sourceId, "normal-category"));
+    await db.update(financeTransactions).set({ lifeDomainOverride: "family", semanticNote: "人工语义保留" }).where(eq(financeTransactions.id, categoryRow.id));
+
+    const corrections = [
+      incoming({ sourceId: "normal-amount", amountCents: 2_500 }),
+      incoming({ sourceId: "normal-account", accountFrom: "修正后的合成账户" }),
+      incoming({ sourceId: "normal-category", rawCategory: "娱乐", rawSubcategory: "电影", lifeDomain: "entertainment" }),
+      incoming({ sourceId: "normal-new" }),
+    ];
+    assert.deepEqual(await importFinanceTransactions(db, corrections), { read: 4, inserted: 1, updated: 3, skipped: 0, failed: 0 });
+
+    const rows = await db.select().from(financeTransactions);
+    assert.equal(rows.length, 5);
+    assert.equal(rows.find((row) => row.sourceId === "normal-amount")?.amountCents, 2_500);
+    assert.equal(rows.find((row) => row.sourceId === "normal-account")?.accountFrom, "修正后的合成账户");
+    const correctedCategory = rows.find((row) => row.sourceId === "normal-category");
+    assert.equal(correctedCategory?.rawCategory, "娱乐");
+    assert.equal(correctedCategory?.lifeDomain, "entertainment");
+    assert.equal(correctedCategory?.lifeDomainOverride, "family");
+    assert.equal(correctedCategory?.semanticNote, "人工语义保留");
+    assert.equal(rows.some((row) => row.sourceId === "normal-missing"), true);
+    assert.equal(rows.some((row) => row.sourceId === "normal-new"), true);
+  } finally {
+    await miniflare.dispose();
+  }
+});
+
 test("same override and null override are no-ops that preserve updatedAt", { timeout: 30_000 }, async () => {
   const { miniflare, db } = await createFinanceDb();
   try {

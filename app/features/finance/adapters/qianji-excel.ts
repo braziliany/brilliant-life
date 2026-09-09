@@ -1,6 +1,6 @@
 import { strFromU8, unzipSync } from "fflate";
-import type { FinanceSourceAdapter, NormalizedFinanceTransaction } from "../types.ts";
-import { normalizeQianJiRow } from "./shared.ts";
+import type { FinanceImportValidation, FinanceImportValidationIssue, FinanceSourceAdapter, NormalizedFinanceTransaction } from "../types.ts";
+import { inspectQianJiRows, missingQianJiHeaders, normalizeQianJiRow } from "./shared.ts";
 
 const decodeXml = (value: string) => value.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'");
 const columnIndex = (reference: string) => [...reference.replace(/\d/g, "")].reduce((value, character) => value * 26 + character.charCodeAt(0) - 64, 0) - 1;
@@ -28,16 +28,34 @@ function sheetRows(xml: string, strings: string[]) {
   });
 }
 
+function workbookRows(input: ArrayBuffer | Uint8Array) {
+  const files = unzipSync(input instanceof Uint8Array ? input : new Uint8Array(input));
+  const strings = sharedStrings(files["xl/sharedStrings.xml"] ? strFromU8(files["xl/sharedStrings.xml"]) : "");
+  const sheet = files["xl/worksheets/sheet1.xml"];
+  if (!sheet) throw new Error("Excel 中没有可读取的第一个工作表");
+  const rows = sheetRows(strFromU8(sheet), strings);
+  const headers = rows.shift()?.map((value) => String(value ?? "").trim()) ?? [];
+  const records = rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, header.includes("时间") && typeof values[index] === "number" ? excelDate(values[index] as number) : values[index]])));
+  return { headers, records };
+}
+
 export class QianJiExcelAdapter implements FinanceSourceAdapter<ArrayBuffer | Uint8Array> {
   readonly source = "qianji";
 
+  async inspect(input: ArrayBuffer | Uint8Array): Promise<FinanceImportValidation> {
+    try {
+      const { headers, records } = workbookRows(input);
+      const missing = missingQianJiHeaders(headers);
+      const issues: FinanceImportValidationIssue[] = missing.map((field) => ({ code: "missing_required_header", field }));
+      if (!headers.length || !records.length) issues.unshift({ code: "invalid_structure" as const });
+      return inspectQianJiRows(records, "xlsx", issues);
+    } catch {
+      return inspectQianJiRows([], "xlsx", [{ code: "invalid_structure" }]);
+    }
+  }
+
   async parse(input: ArrayBuffer | Uint8Array): Promise<NormalizedFinanceTransaction[]> {
-    const files = unzipSync(input instanceof Uint8Array ? input : new Uint8Array(input));
-    const strings = sharedStrings(files["xl/sharedStrings.xml"] ? strFromU8(files["xl/sharedStrings.xml"]) : "");
-    const sheet = files["xl/worksheets/sheet1.xml"];
-    if (!sheet) throw new Error("Excel 中没有可读取的第一个工作表");
-    const rows = sheetRows(strFromU8(sheet), strings);
-    const headers = rows.shift()?.map((value) => String(value ?? "").trim()) ?? [];
-    return rows.map((values) => Object.fromEntries(headers.map((header, index) => [header, header.includes("时间") && typeof values[index] === "number" ? excelDate(values[index] as number) : values[index]]))).map(normalizeQianJiRow).filter((item): item is NormalizedFinanceTransaction => item !== null);
+    const { records } = workbookRows(input);
+    return records.map(normalizeQianJiRow).filter((item): item is NormalizedFinanceTransaction => item !== null);
   }
 }
