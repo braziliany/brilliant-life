@@ -359,8 +359,6 @@ export default function Home() {
   const salaryRecordMismatch = holidayCalendarConfigured && isCurrentCalendarMonth && selectedSalaryRecord
     ? selectedSalaryRecord.workdays !== workdays || Math.abs(selectedSalaryRecord.netSalary - netSalary) >= 0.01
     : false;
-  const salaryTrend = [...salaryRecords].sort((a, b) => a.month.localeCompare(b.month)).slice(-6);
-  const salaryTrendMax = Math.max(1, ...salaryTrend.map((record) => record.grossSalary));
   const salaryYearFacts = summarizeSavedSalaryYear(salaryRecords, today.year);
   const currentCareer = selectCurrentCareerStage(workExperiences, currentMonthKey);
   const money = (value: number) =>
@@ -762,8 +760,6 @@ export default function Home() {
               yearTotalNetSalary={salaryYearFacts.totalNetSalary}
               yearTotalIncomeTax={salaryYearFacts.totalIncomeTax}
               salaryLoadStatus={salaryLoadStatus}
-              salaryTrend={salaryTrend}
-              salaryTrendMax={salaryTrendMax}
               isCurrentCalendarMonth={isCurrentCalendarMonth}
               holidayCalendarConfigured={holidayCalendarConfigured}
               money={money}

@@ -132,12 +132,13 @@ test("all existing tools remain reachable with lower visual priority", () => {
 });
 
 test("salary history emphasizes saved net pay and keeps full details expandable", () => {
-  assert.match(salary, /本月预计实发[\s\S]*按当前工作日历计算/);
-  assert.doesNotMatch(salary, /当前日历预计实发|今年已保存/);
+  assert.match(salary, /累计工资[\s\S]*本月预计工资[\s\S]*按当前工作日历计算/);
+  assert.match(salary, /工资 = 工作日 × 日薪 \+ 额外收入 \+ 奖金 − 固定扣除 − 请假扣款 − 个税/);
+  assert.doesNotMatch(salary, /实发|今年已保存/);
   assert.match(salary, /<details className=\{`salaryRecord/);
-  assert.match(salary, /<span>实发<\/span><strong>¥\{money\(record\.netSalary\)\}<\/strong>/);
-  assert.doesNotMatch(salary, /已保存实发/);
+  assert.match(salary, /<strong>¥\{money\(record\.netSalary\)\}<\/strong>/);
   assert.doesNotMatch(salary, /仅工资快照|实时计算/);
+  assert.match(salary, /应发工资[\s\S]*全部扣除[\s\S]*计税收入[\s\S]*个人所得税/);
   assert.match(salary, /salaryRecordDetails[\s\S]*应发[\s\S]*固定扣除[\s\S]*请假扣款[\s\S]*个税[\s\S]*额外收入[\s\S]*奖金/);
 });
 

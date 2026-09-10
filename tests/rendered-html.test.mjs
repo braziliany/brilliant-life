@@ -105,7 +105,7 @@ test("renders the current Brilliant Life dashboard in the local Workers runtime"
   assert.match(html, /今日步数/);
   assert.match(html, /健康趋势/);
   assert.match(html, /本月工作/);
-  assert.match(html, /预计实发/);
+  assert.match(html, /预计工资/);
   assert.match(html, /职业经历/);
   assert.doesNotMatch(html, /网站导航|升级计划|我的习惯|健康生活仪表盘|codex-preview|SkeletonPreview/);
 });

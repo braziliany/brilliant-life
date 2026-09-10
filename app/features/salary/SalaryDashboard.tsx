@@ -1,4 +1,5 @@
 import type { SalaryRecord } from "../../page-view.types";
+import { buildSalaryTrendPoints } from "./trend";
 
 type Props = {
   active: boolean;
@@ -22,8 +23,6 @@ type Props = {
   yearTotalNetSalary: number;
   yearTotalIncomeTax: number;
   salaryLoadStatus: "loading" | "ready" | "error";
-  salaryTrend: SalaryRecord[];
-  salaryTrendMax: number;
   isCurrentCalendarMonth: boolean;
   holidayCalendarConfigured: boolean;
   money: (value: number) => string;
@@ -32,7 +31,9 @@ type Props = {
   onReload: () => void;
 };
 
-export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays, dailyRate, deductions, taxThreshold, taxRate, leaveDeduction, grossSalary, taxableIncome, incomeTax, netSalary, salaryRecordMismatch, selectedSalaryRecord, salaryStatus, salaryRecords, yearSavedMonths, yearTotalNetSalary, yearTotalIncomeTax, salaryLoadStatus, salaryTrend, salaryTrendMax, isCurrentCalendarMonth, holidayCalendarConfigured, money, onSave, onExport, onReload }: Props) {
+export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays, dailyRate, deductions, taxThreshold, taxRate, leaveDeduction, grossSalary, taxableIncome, incomeTax, netSalary, salaryRecordMismatch, selectedSalaryRecord, salaryStatus, salaryRecords, yearSavedMonths, yearTotalNetSalary, yearTotalIncomeTax, salaryLoadStatus, isCurrentCalendarMonth, holidayCalendarConfigured, money, onSave, onExport, onReload }: Props) {
+  const salaryTrendPoints = buildSalaryTrendPoints(salaryRecords);
+  const trendLine = salaryTrendPoints.map((point) => `${point.x},${point.y}`).join(" ");
   return (
     <article id="finance" className={`card salary${active ? " sectionActive" : ""}`}>
       <div className="salaryIntro">
@@ -43,9 +44,9 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         </div>
         <label className="workdayInput"><span>{monthLabel}工作日</span><input type="number" readOnly value={workdays} /><b>天</b></label>
       </div>
-      <div className="salaryYearFacts"><div><span>已保存月份</span><strong>{yearSavedMonths}</strong><small>个月</small></div><div><span>累计实发</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalNetSalary)}` : "—"}</strong><small>来自已保存记录</small></div><div><span>累计个税</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalIncomeTax)}` : "—"}</strong><small>来自已保存记录</small></div></div>
+      <div className="salaryYearFacts"><div><span>已保存月份</span><strong>{yearSavedMonths}</strong><small>个月</small></div><div><span>累计工资</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalNetSalary)}` : "—"}</strong><small>来自已保存记录</small></div><div><span>累计个税</span><strong>{yearSavedMonths ? `¥ ${money(yearTotalIncomeTax)}` : "—"}</strong><small>来自已保存记录</small></div></div>
       <div className="salarySummary">
-        <div className="netPay"><span>{holidayCalendarConfigured ? "本月预计实发" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按当前工作日历计算 · {workdays} 个工作日</small></div>
+        <div className="netPay"><span>{holidayCalendarConfigured ? "本月预计工资" : "非官方日历估算"}</span><strong>¥ {money(netSalary)}</strong><small>按当前工作日历计算 · {workdays} 个工作日</small></div>
         <div className="salaryMetrics">
           <div><span>应发工资</span><b>¥ {money(grossSalary)}</b><small>工作日 × 日薪</small></div>
           <div><span>全部扣除</span><b>− ¥ {money(deductions + leaveDeduction)}</b><small>固定扣除</small></div>
@@ -53,10 +54,10 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
           <div><span>个人所得税</span><b>− ¥ {money(incomeTax)}</b><small>计税收入 × {taxRate}%</small></div>
         </div>
       </div>
-      <div className="salaryFormula"><span>计算公式</span><code>实发 = 工作日 × 日薪 + 额外收入 + 奖金 − 固定扣除 − 请假扣款 − 个税</code></div>
+      <div className="salaryFormula"><span>计算公式</span><code>工资 = 工作日 × 日薪 + 额外收入 + 奖金 − 固定扣除 − 请假扣款 − 个税</code></div>
       {salaryRecordMismatch && selectedSalaryRecord && (
         <div className="salaryMismatch" role="status">
-          <div><b>{monthLabel}的日历与已保存工资不一致</b><span>当前日历 {workdays} 天，预计实发 ¥{money(netSalary)}；历史记录 {selectedSalaryRecord.workdays} 天，实发 ¥{money(selectedSalaryRecord.netSalary)}。</span></div>
+          <div><b>{monthLabel}的日历与已保存工资不一致</b><span>当前日历 {workdays} 天，预计工资 ¥{money(netSalary)}；历史记录 {selectedSalaryRecord.workdays} 天，工资 ¥{money(selectedSalaryRecord.netSalary)}。</span></div>
           <button type="button" onClick={onSave} disabled={salaryStatus === "saving"}>{salaryStatus === "saving" ? "同步中…" : `同步为 ${workdays} 天`}</button>
         </div>
       )}
@@ -68,21 +69,19 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         </div>
       </div>
       {salaryStatus === "error" && <p className="salaryError" role="alert">保存失败，请稍后再试。</p>}
-      {salaryTrend.length > 0 && (
-        <section className="salaryTrend" aria-label="最近六个月工资趋势">
-          <div className="trendLegend"><span><i className="grossKey" />应发</span><span><i className="deductionKey" />扣除</span><span><i className="taxKey" />个税</span><span><i className="netKey" />实发</span></div>
-          <div className="trendPlot">
-            {salaryTrend.map((record) => (
-              <div className="trendMonth" key={record.month}>
-                <div className="trendBars" aria-label={`${record.month}：应发${money(record.grossSalary)}元，扣除${money(record.deductions)}元，个税${money(record.incomeTax)}元，实发${money(record.netSalary)}元`}>
-                  <i className="grossBar" style={{ height: `${Math.max(4, record.grossSalary / salaryTrendMax * 100)}%` }} />
-                  <i className="deductionBar" style={{ height: `${Math.max(4, record.deductions / salaryTrendMax * 100)}%` }} />
-                  <i className="taxBar" style={{ height: `${Math.max(4, record.incomeTax / salaryTrendMax * 100)}%` }} />
-                  <i className="netBar" style={{ height: `${Math.max(4, record.netSalary / salaryTrendMax * 100)}%` }} />
-                </div>
-                <b>{Number(record.month.slice(5))}月</b>
-              </div>
-            ))}
+      {salaryTrendPoints.length > 0 && (
+        <section className="salaryTrend" aria-label="已保存工资变化趋势">
+          <div className="salaryLinePlot">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              {salaryTrendPoints.length > 1 && <polyline className="salaryTrendLine" points={trendLine} vectorEffect="non-scaling-stroke" />}
+            </svg>
+            {salaryTrendPoints.map((point) => {
+              const label = `${point.month.slice(0, 4)}年${Number(point.month.slice(5))}月，工资 ¥${money(point.value)}`;
+              return <span className="salaryTrendPoint" key={point.month} style={{ left: `${point.x}%`, top: `${point.y}%` }} role="img" aria-label={label} title={label}><i aria-hidden="true" /></span>;
+            })}
+          </div>
+          <div className="salaryTrendMonths" style={{ gridTemplateColumns: `repeat(${salaryTrendPoints.length}, minmax(0, 1fr))` }} aria-hidden="true">
+            {salaryTrendPoints.map((point) => <b key={point.month}>{point.showMonth ? `${Number(point.month.slice(5))}月` : ""}</b>)}
           </div>
         </section>
       )}
@@ -97,7 +96,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
           <details className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
             <summary>
               <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 额外收入 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
-              <span>实发</span><strong>¥{money(record.netSalary)}</strong>
+              <strong>¥{money(record.netSalary)}</strong>
             </summary>
             <div className="salaryRecordDetails" aria-label={`${record.month} 工资详情`}>
               <span>应发<b>¥{money(record.grossSalary)}</b></span>
