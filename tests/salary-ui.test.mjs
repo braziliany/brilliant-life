@@ -39,15 +39,31 @@ test("one saved salary month stays exact and renders as one centered point", () 
   ]);
 });
 
-test("two saved months keep the normal multi-point trend scale", () => {
+test("multiple saved salaries use a padded dynamic domain centered on their real range", () => {
   const points = buildSalaryTrendPoints([
-    salary("2026-06", 0),
-    salary("2026-07", 100),
+    salary("2026-09", 5892.4),
+    salary("2026-06", 6493.8),
+    salary("2026-07", 7114.6),
   ]);
-  assert.deepEqual(points.map(({ month, value, x, y }) => ({ month, value, x, y })), [
-    { month: "2026-06", value: 0, x: 4, y: 88 },
-    { month: "2026-07", value: 100, x: 96, y: 8 },
+  assert.deepEqual(points.map(({ month, value }) => ({ month, value })), [
+    { month: "2026-06", value: 6493.8 },
+    { month: "2026-07", value: 7114.6 },
+    { month: "2026-09", value: 5892.4 },
   ]);
+  const highest = points.find((point) => point.value === 7114.6);
+  const lowest = points.find((point) => point.value === 5892.4);
+  assert.ok(highest.y > 10 && highest.y < 50, "highest salary keeps upper padding");
+  assert.ok(lowest.y > 50 && lowest.y < 90, "lowest salary keeps lower padding");
+  assert.ok(Math.abs((highest.y + lowest.y) / 2 - 50) < 0.000001, "salary range is visually centered");
+});
+
+test("equal and near-equal salaries remain visually stable", () => {
+  const equal = buildSalaryTrendPoints([salary("2026-06", 6000), salary("2026-07", 6000)]);
+  assert.deepEqual(equal.map(({ y }) => y), [50, 50]);
+
+  const nearEqual = buildSalaryTrendPoints([salary("2026-06", 6000), salary("2026-07", 6001)]);
+  assert.ok(nearEqual.every((point) => point.y > 49 && point.y < 51));
+  assert.ok(Math.abs(nearEqual[0].y - nearEqual[1].y) < 1, "a one-yuan change is not exaggerated");
 });
 
 test("multiple saved snapshots are chronological without synthesizing missing months", () => {
