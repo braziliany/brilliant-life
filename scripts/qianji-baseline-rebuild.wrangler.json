@@ -1,0 +1,14 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "qianji-baseline-rebuild-admin",
+  "compatibility_date": "2026-07-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "pulse-health-dashboard-db",
+      "database_id": "556b490d-99c9-4901-bffc-ee0b8c2f8a62",
+      "remote": true
+    }
+  ]
+}
