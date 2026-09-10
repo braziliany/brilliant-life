@@ -27,7 +27,7 @@ export function buildSalaryTrendPoints(records: SalaryRecord[]): SalaryTrendPoin
     month: record.month,
     value: record.netSalary,
     x: ordered.length === 1 ? 50 : LEFT + (RIGHT - LEFT) * index / (ordered.length - 1),
-    y: TOP + (maximum - record.netSalary) / range * (BOTTOM - TOP),
+    y: ordered.length === 1 ? 50 : TOP + (maximum - record.netSalary) / range * (BOTTOM - TOP),
     showMonth: ordered.length <= 8 || index === 0 || index === ordered.length - 1 || index % monthStep === 0,
   }));
 }
