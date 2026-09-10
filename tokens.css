@@ -1,0 +1,27 @@
+:root {
+  --color-timeline-paper: var(--paper);
+  --color-timeline-panel: var(--panel);
+  --color-timeline-ink: var(--ink);
+  --color-timeline-muted: var(--muted);
+  --color-timeline-rule: var(--line);
+  --color-timeline-accent: var(--lime);
+  --color-timeline-focus: oklch(52% 0.12 245);
+  --font-timeline-display: "LXGW WenKai", "霞鹜文楷", serif;
+  --font-timeline-body: var(--font-geist), Arial, sans-serif;
+  --space-timeline-xs: 4px;
+  --space-timeline-sm: 8px;
+  --space-timeline-md: 16px;
+  --space-timeline-lg: 24px;
+  --space-timeline-xl: 40px;
+  --text-timeline-xs: 0.75rem;
+  --text-timeline-sm: 0.875rem;
+  --text-timeline-md: 1rem;
+  --text-timeline-lg: 1.375rem;
+  --text-timeline-display: clamp(2rem, 6vw, 3.5rem);
+  --ease-timeline-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-timeline-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-timeline-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --dur-timeline-short: 160ms;
+  --rule-timeline: 1px solid var(--color-timeline-rule);
+  --radius-timeline-page: 24px;
+}

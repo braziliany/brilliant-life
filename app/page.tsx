@@ -76,6 +76,7 @@ const genshinQuotes = [
 
 export default function Home() {
   const [sitePage, setSitePage] = useState<SitePage>("home");
+  const [annualYear, setAnnualYear] = useState<number | null>(null);
   const [activeSection, setActiveSection] = useState("data-overview");
   const [health, setHealth] = useState<HealthDaily | null>(null);
   const [healthHistory, setHealthHistory] = useState<HealthDaily[]>([]);
@@ -86,10 +87,23 @@ export default function Home() {
 
   useEffect(() => {
     const openLinkedSection = () => {
-      if (window.location.hash !== "#life-finance") return;
-      setSitePage("dashboard");
-      setActiveSection("life-finance");
-      window.requestAnimationFrame(() => document.getElementById("life-finance")?.scrollIntoView({ behavior: "auto", block: "center" }));
+      const sectionByHash = {
+        "#life-finance": "life-finance",
+        "#career": "career",
+        "#finance": "finance",
+      } as const;
+      const section = sectionByHash[window.location.hash as keyof typeof sectionByHash];
+      if (section) {
+        setSitePage("dashboard");
+        setActiveSection(section);
+        window.requestAnimationFrame(() => document.getElementById(section)?.scrollIntoView({ behavior: "auto", block: "center" }));
+        return;
+      }
+      if (window.location.hash === "#annual") {
+        const requestedYear = Number(new URL(window.location.href).searchParams.get("annual"));
+        setAnnualYear(Number.isInteger(requestedYear) && requestedYear >= 2000 && requestedYear <= 2100 ? requestedYear : null);
+        setSitePage("annual");
+      }
     };
     openLinkedSection();
     window.addEventListener("hashchange", openLinkedSection);
@@ -594,7 +608,7 @@ export default function Home() {
             onOpenAnnual={() => setSitePage("annual")}
           />
         ) : sitePage === "annual" ? (
-          <AnnualReportPage initialYear={today.year} />
+          <AnnualReportPage initialYear={annualYear ?? today.year} />
         ) : (
         <div className="content">
           <DashboardHeader today={today} />

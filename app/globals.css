@@ -1,9 +1,11 @@
+@import "../tokens.css";
 @import "tailwindcss";
 
 :root { --ink:#22252b; --muted:#777970; --paper:#f7f5ef; --panel:#fff; --line:#ebe9e2; --lime:#dfff54; --coral:#ff7668; }
 * { box-sizing:border-box; }
 html { background:#d9d5cd; }
 body { margin:0; color:var(--ink); font-family:var(--font-geist),Arial,sans-serif; background:radial-gradient(circle at 50% 45%,#f4f0e7 0,#e5e0d7 45%,#d3cec5 100%); min-height:100vh; }
+html,body { overflow-x:clip; }
 button,input { font:inherit; }
 button { cursor:pointer; }
 .pageShell { min-height:100vh; display:grid; place-items:center; padding:5vh 4vw; }
@@ -510,4 +512,16 @@ input,textarea{caret-color:#6d8d0e}
   .activity .moduleTools{z-index:30}
   .activity .moduleTools summary{display:grid;min-width:44px;min-height:44px;place-items:center;padding:7px 10px;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
   .activity .moduleTools>div{position:absolute;right:0;top:calc(100% + 6px);bottom:auto;left:auto;z-index:31}
+}
+
+/* Life Timeline Phase 1 · derived read-only route */
+.siteNavigation nav button,.siteNavigation nav a{white-space:nowrap}
+.siteNavigation nav a{position:relative;display:grid;min-height:44px;place-items:center;border-radius:0;padding:12px 17px;background:transparent;color:var(--color-timeline-muted);font-size:12px;font-weight:750;text-decoration:none}
+.siteNavigation nav a.active{color:var(--color-timeline-ink)}
+.siteNavigation nav a.active:after{content:"";position:absolute;right:17px;bottom:1px;left:17px;height:4px;border-radius:3px;background:var(--color-timeline-accent)}
+.siteNavigation nav a:focus-visible{outline:3px solid var(--color-timeline-focus);outline-offset:2px}
+.timelineShell{align-items:start}.timelineDashboard{min-height:calc(100vh - 64px)}
+@media (max-width:560px){
+  .siteNavigation nav a{padding:9px 6px;font-size:9px}
+  .siteNavigation nav a.active:after{right:6px;left:6px}
 }

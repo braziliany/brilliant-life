@@ -1,0 +1,9 @@
+{
+  "date": "2026-09-10",
+  "framework": "Next.js 16 App Router via vinext",
+  "fontStack": "Geist + LXGW WenKai",
+  "palette": "Existing Pulse warm paper, ink, lime, cyan, violet tokens in app/globals.css",
+  "motion": "motion-cut; no animation library",
+  "spacing": "existing compact 4px-derived spacing",
+  "preserve": ["font stack", "palette", "spacing scale", "application shell"]
+}

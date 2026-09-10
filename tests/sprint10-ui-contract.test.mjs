@@ -14,10 +14,11 @@ test("Shanghai time greeting preserves the five factual time periods", () => {
   assert.equal(getTimeGreeting(new Date("2026-08-11T12:00:00Z")), "晚上");
 });
 
-test("top shell contains only the clickable brand", () => {
+test("top shell keeps the clickable brand and the approved primary routes only", () => {
   assert.match(navigation, /siteBrand/);
   assert.match(navigation, /璀璨人生/);
-  assert.doesNotMatch(navigation, /<nav|首页<|数据中心<|年度档案<|siteProfile/);
+  assert.match(navigation, /<nav.*首页<.*href="\/timeline".*时间线/s);
+  assert.doesNotMatch(navigation, /数据中心<|年度档案<|siteProfile/);
 });
 
 test("welcome header stays personal and non-commercial", () => {
