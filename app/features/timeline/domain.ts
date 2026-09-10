@@ -38,7 +38,7 @@ const salaryItem = (record: SalaryRecord): TimelineItem => {
     datePrecision: "month",
     year,
     month,
-    title: `实发 ¥${money(record.netSalary)}`,
+    title: `¥${money(record.netSalary)}`,
     summary: `${record.workdays} 个工作日`,
     source: "salary_records",
     href: "/#finance",

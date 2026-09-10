@@ -30,7 +30,7 @@ test("salary items use only saved snapshot values without policy calculation", (
     annualSummaries: [],
   });
   assert.deepEqual(items.map(({ title, summary }) => ({ title, summary })), [{
-    title: "实发 ¥6,159.15",
+    title: "¥6,159.15",
     summary: "23 个工作日",
   }]);
 });
