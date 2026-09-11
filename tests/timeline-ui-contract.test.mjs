@@ -33,7 +33,7 @@ test("timeline UI groups years and renders month, career, salary, annual, empty 
   assert.match(model, /href: "\/#career"/);
   assert.match(model, /href: "\/#finance"/);
   assert.match(model, /annual=\$\{summary\.year\}#annual/);
-  assert.match(nav, /href="\/timeline"[\s\S]*时间线/);
+  assert.match(nav, /label: "时间线", href: "\/timeline"/);
 });
 
 test("timeline layout keeps a restrained index and collapses cleanly on mobile", () => {

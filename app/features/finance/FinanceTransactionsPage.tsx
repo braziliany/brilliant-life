@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { SiteNavigation } from "../../components/shell/SiteNavigation";
 import { centsToYuan, LIFE_DOMAIN_LABELS, resolveFinancePageForYear } from "./domain";
 import { FinanceTransactionDetail } from "./FinanceTransactionDetail";
 import type { FinanceTransactionAuditView, FinanceTransactionType } from "./types";
@@ -75,9 +76,7 @@ export function FinanceTransactionsPage({ initialYear }: { initialYear: number }
 
   return <main className="pageShell financeTransactionsShell">
     <section className="dashboard financeTransactionsDashboard">
-      <header className="siteNavigation">
-        <a className="siteBrand" href="/#life-finance" aria-label="璀璨人生首页"><span className="brandMark" aria-hidden="true" /><b>璀璨人生</b></a>
-      </header>
+      <SiteNavigation activePage="finance-records" />
       <div className="financeTransactionsPage">
         <a className="financeTransactionsBack" href="/#life-finance">← 财务记录</a>
         <header className="financeTransactionsPageHead">

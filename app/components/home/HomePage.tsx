@@ -2,7 +2,7 @@ import type { HealthLoadStatus, ShanghaiDate } from "../../page-view.types";
 
 type Props = {
   today: ShanghaiDate;
-  dailyQuote: { text: string; source: string };
+  dailyQuote: { text: string; speaker: string; majorSeries: string };
   healthLoadStatus: HealthLoadStatus;
   steps: number | null;
   stepGoal: number;
@@ -25,7 +25,7 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
         <div>
           <p className="eyebrow">{today.weekday} · {today.month + 1}月{today.day}日</p>
           <h1 className="dailyQuote">“{dailyQuote.text}”</h1>
-          <p className="quoteSource">— {dailyQuote.source} · 《原神》每日一言</p>
+          <p className="quoteSource">— {dailyQuote.speaker} ·《原神》{dailyQuote.majorSeries}</p>
           <p>把健康、工作、收入与职业经历放在同一个地方，清楚看见生活正在如何向前。</p>
           <div className="homeHeroActions">
             <button type="button" onClick={() => onOpenDashboard()}>进入数据中心 <span>→</span></button>

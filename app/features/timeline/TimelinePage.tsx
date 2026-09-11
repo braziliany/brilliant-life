@@ -41,7 +41,7 @@ export function TimelinePage() {
   return (
     <main className="pageShell timelineShell">
       <section className="dashboard timelineDashboard">
-        <SiteNavigation activePage="timeline" onChange={() => { window.location.href = "/"; }} />
+        <SiteNavigation activePage="timeline" />
         <div className={styles.page}>
           <header className={styles.intro}>
             <h1>我的时间线</h1>

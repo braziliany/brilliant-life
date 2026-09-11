@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import { HomePage } from "./components/home/HomePage";
 import { DashboardHeader } from "./components/shell/DashboardHeader";
-import { DataQuickNav } from "./components/shell/DataQuickNav";
 import { DataCenterOverview } from "./components/shell/DataCenterOverview";
-import { SiteNavigation } from "./components/shell/SiteNavigation";
+import { SiteNavigation, type PrimaryNavigationKey } from "./components/shell/SiteNavigation";
+import { selectGenshinQuote } from "./features/home/genshin-quote";
 import { HealthOverviewCard } from "./features/health/HealthOverviewCard";
 import { DailyGoalsColumn } from "./features/health/DailyGoalsColumn";
 import {
@@ -66,13 +66,14 @@ const getShanghaiDate = (value = new Date()) => {
   };
 };
 
-const genshinQuotes = [
-  { text: "旅程总有一天会迎来终点，不必匆忙。", source: "钟离" },
-  { text: "我们终将重逢。", source: "旅行者" },
-  { text: "向着星辰与深渊！", source: "凯瑟琳" },
-  { text: "在黎明到来之前，必须有人稍微照亮黑暗。", source: "迪卢克" },
-  { text: "风带来了故事的种子，时间使之发芽。", source: "蒙德古语" },
-] as const;
+const DASHBOARD_NAVIGATION: Record<string, PrimaryNavigationKey> = {
+  "data-overview": "home",
+  health: "health",
+  time: "time",
+  career: "career",
+  "life-finance": "finance-records",
+  finance: "salary",
+};
 
 export default function Home() {
   const [sitePage, setSitePage] = useState<SitePage>("home");
@@ -91,6 +92,8 @@ export default function Home() {
         "#life-finance": "life-finance",
         "#career": "career",
         "#finance": "finance",
+        "#health": "health",
+        "#time": "time",
       } as const;
       const section = sectionByHash[window.location.hash as keyof typeof sectionByHash];
       if (section) {
@@ -103,7 +106,11 @@ export default function Home() {
         const requestedYear = Number(new URL(window.location.href).searchParams.get("annual"));
         setAnnualYear(Number.isInteger(requestedYear) && requestedYear >= 2000 && requestedYear <= 2100 ? requestedYear : null);
         setSitePage("annual");
+        return;
       }
+      setAnnualYear(null);
+      setActiveSection("data-overview");
+      setSitePage("home");
     };
     openLinkedSection();
     window.addEventListener("hashchange", openLinkedSection);
@@ -141,8 +148,12 @@ export default function Home() {
     return { year: now.year, month: now.month };
   });
   const today = getShanghaiDate();
-  const quoteDay = Math.floor(Date.UTC(today.year, today.month, today.day) / 86_400_000);
-  const dailyQuote = genshinQuotes[quoteDay % genshinQuotes.length];
+  const dailyQuote = selectGenshinQuote();
+  const activeNavigation = sitePage === "annual"
+    ? "annual"
+    : sitePage === "dashboard"
+      ? DASHBOARD_NAVIGATION[activeSection] ?? "home"
+      : "home";
   const todayKey = calendarDateKey(today.year, today.month, today.day);
   const { calendarDays, calendarRows } = getCalendarMonthShape(calendarMonth.year, calendarMonth.month);
   const calendarDayViews: CalendarDayView[] = calendarDays.map((day, index) => {
@@ -586,7 +597,7 @@ export default function Home() {
   return (
     <main className="pageShell">
       <section className="dashboard">
-        <SiteNavigation onChange={setSitePage} />
+        <SiteNavigation activePage={activeNavigation} />
         {sitePage === "home" ? (
           <HomePage
             today={today}
@@ -610,7 +621,6 @@ export default function Home() {
         ) : (
         <div className="content">
           <DashboardHeader today={today} />
-          <DataQuickNav activeSection={activeSection} onOpen={openDashboard} />
 
           <DataCenterOverview
             active={activeSection === "data-overview"}

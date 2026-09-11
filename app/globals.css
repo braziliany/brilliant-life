@@ -80,8 +80,6 @@ h1,h2,p { margin:0; } h1 { font-size:28px; letter-spacing:-1.1px; } h2 { font-si
 @media (max-width:560px){.calendarActions{gap:4px}.calendarActions>.annualCalendarButton,.calendarActions>.calendarNotesButton,.calendarActions>.editCalendar{padding:6px 7px;font-size:9px}.calendarNotesForm{gap:5px;margin-top:9px}.calendarNotesForm>p{font-size:8px}.calendarNotesForm textarea{height:123px;padding:7px;font-size:8px}.calendarNotesFooter{gap:7px}.calendarNotesFooter button{padding:6px 9px}}
 @media (max-width:560px){.siteNavigation{height:58px;margin-bottom:16px}.siteBrand b{font-size:12px}.siteBrand .brandMark{width:32px;height:32px}.siteNavigation nav button{padding:8px 11px;font-size:10px}.homePage{min-height:0}.homeHero{padding:30px 22px 22px;border-radius:22px}.homeHero h1{font-size:35px;letter-spacing:-1.8px}.homeHero>div>p:not(.eyebrow){font-size:11px}.homePulse{height:300px}.homePulseCore{width:155px;height:155px}.homePulseCore strong{font-size:30px}.orbitOne{width:225px;height:225px}.orbitTwo{width:280px;height:280px}.homeFloatCard{min-width:92px;padding:10px}.homeFloatCard.energy{right:-4%}.homeFloatCard.work{left:-3%}.homeHighlights{grid-template-columns:1fr;gap:9px}.homeHighlights button{padding:13px 15px}.homeHighlights i{height:38px}}
 @media (max-width:560px){.siteNavigation nav button.active:after{left:11px;right:11px;bottom:0}.homeHero{padding:32px 22px 22px}.homeHero h1{font-size:36px}.homeHero h1 span{text-decoration-thickness:5px}.homeSnapshot{min-height:310px;margin-top:28px;padding:21px;border-radius:20px}.snapshotPrimary strong{font-size:34px}.homeHighlights button{background:#f0ece3}}
-.dataQuickNav{display:flex;gap:7px;margin:-8px 0 16px;padding:5px;border:1px solid #e4dfd4;border-radius:17px;background:#f1eee6;overflow-x:auto;scrollbar-width:none}.dataQuickNav::-webkit-scrollbar{display:none}.dataQuickNav button{flex:1;min-width:max-content;border:0;border-radius:12px;background:transparent;padding:9px 15px;color:#77746c;font-size:10px;font-weight:750}.dataQuickNav button:hover{background:#fff;color:var(--ink)}.dataQuickNav button.active{background:var(--ink);color:var(--lime);box-shadow:0 5px 14px #25272b20}
-@media (max-width:560px){.dataQuickNav{margin-top:-2px;margin-inline:-2px;padding:4px}.dataQuickNav button{flex:0 0 auto;padding:9px 13px;font-size:10px}}
 button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:filter .15s ease,box-shadow .15s ease,background-color .15s ease,color .15s ease}button:not(:disabled):active{filter:brightness(.9)}button:focus-visible{outline:3px solid #b9d936;outline-offset:3px}
 @media (max-width:560px){.homeHero .dailyQuote{font-size:32px;line-height:1.18}.homeHero p.quoteSource{font-size:9px}.homeHero p.quoteSource+p{margin-top:18px}}
 
@@ -209,14 +207,6 @@ body{
 .search{border-color:rgba(255,255,255,.08);background:rgba(255,255,255,.08);color:#fff}
 .search input{color:#fff}.search input::placeholder{color:#929b94}
 .actions>button{background:var(--lime);color:var(--ink)}
-.dataQuickNav{
-  margin:0 0 18px;
-  padding:6px;
-  border:0;
-  border-radius:18px;
-  background:#e9e6dc;
-}
-.dataQuickNav button{padding:11px 16px;font-size:11px}.dataQuickNav button.active{box-shadow:0 7px 18px rgba(24,34,29,.16)}
 .grid{grid-template-columns:1.05fr 1.45fr;gap:18px}
 .card{
   border:1px solid rgba(24,34,29,.07);
@@ -391,7 +381,6 @@ input,textarea{caret-color:#6d8d0e}
   .homeHighlights{gap:10px}.homeHighlights button{min-height:88px;padding:15px}
   .topbar{min-height:0;margin-bottom:13px;padding:18px;border-radius:20px}
   .topbar h1{font-size:25px}.topbar .subtitle{font-size:11px}.actions>button{padding:10px 13px;font-size:10px}
-  .dataQuickNav{margin:0 -2px 14px}.dataQuickNav button{padding:10px 13px}
   .card{padding:19px;border-radius:21px}.card h2{font-size:19px}
   .activity,.calendar{height:365px}
   .healthViewActions{gap:4px}.healthTrendToggle{padding:6px 8px;font-size:9px}
@@ -441,7 +430,6 @@ input,textarea{caret-color:#6d8d0e}
 .calendarFacts{display:grid;grid-template-columns:repeat(3,auto) 1fr;align-items:center;gap:12px;margin:12px 0 5px;padding:11px 14px;border:1px solid #39463f;border-radius:15px;background:#18201c}.calendarFacts span{color:#9ca69f;font-size:9px}.calendarFacts b{margin-right:3px;color:var(--lime);font-size:16px}.calendarFacts small{justify-self:end;color:#89938c;font-size:8px}
 .careerCurrent{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;margin:15px 0 10px;padding:17px;border:1px solid #d7d5cc;border-radius:17px;background:#fff}.careerCurrent span{grid-column:1/-1;color:#727970;font-size:8px;font-weight:800;letter-spacing:.06em}.careerCurrent strong{font-size:18px}.careerCurrent b{align-self:center;color:#555d56;font-size:11px}.careerCurrent small{grid-column:1/-1;color:#737a73;font-size:9px}.secondaryAction{background:#efede6!important;color:#404740!important;box-shadow:none!important}
 .salaryYearFacts{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:15px 0}.salaryYearFacts>div{border:1px solid #dad8cf;border-radius:17px;background:#fff;padding:16px}.salaryYearFacts span,.salaryYearFacts small{display:block;color:#697069;font-size:9px}.salaryYearFacts strong{display:block;margin:7px 0 4px;font-size:18px}
-.dataQuickNav{overflow-x:auto;scrollbar-width:none}.dataQuickNav::-webkit-scrollbar{display:none}.dataQuickNav button{flex:0 0 auto}
 .dataOverviewFacts button:focus-visible,.moduleTools summary:focus-visible,.moduleTools button:focus-visible{outline:3px solid #7096d1;outline-offset:2px}
 @media (max-width:900px){.dataOverviewFacts{grid-template-columns:1fr 1fr}.calendarFacts{grid-template-columns:repeat(3,1fr)}.calendarFacts small{grid-column:1/-1;justify-self:start}.salaryYearFacts{grid-template-columns:1fr 1fr}.salaryYearFacts>div:last-child{grid-column:1/-1}}
 @media (max-width:560px){.dataCenterOverview{padding:20px;border-radius:20px}.dataOverviewHead{align-items:flex-start;flex-direction:column;gap:4px}.dataOverviewFacts{gap:7px}.dataOverviewFacts button{min-height:112px;padding:14px}.dataOverviewFacts strong{font-size:18px}.calendarFacts{gap:7px;padding:10px}.calendarFacts b{display:block;font-size:14px}.moduleTools>div{position:fixed;right:18px;top:auto;bottom:24px;left:18px}.salaryYearFacts{grid-template-columns:1fr}.salaryYearFacts>div:last-child{grid-column:auto}}
@@ -514,14 +502,32 @@ input,textarea{caret-color:#6d8d0e}
   .activity .moduleTools>div{position:absolute;right:0;top:calc(100% + 6px);bottom:auto;left:auto;z-index:31}
 }
 
-/* Life Timeline Phase 1 · derived read-only route */
-.siteNavigation nav button,.siteNavigation nav a{white-space:nowrap}
-.siteNavigation nav a{position:relative;display:grid;min-height:44px;place-items:center;border-radius:0;padding:12px 17px;background:transparent;color:var(--color-timeline-muted);font-size:12px;font-weight:750;text-decoration:none}
-.siteNavigation nav a.active{color:var(--color-timeline-ink)}
-.siteNavigation nav a.active:after{content:"";position:absolute;right:17px;bottom:1px;left:17px;height:4px;border-radius:3px;background:var(--color-timeline-accent)}
-.siteNavigation nav a:focus-visible{outline:3px solid var(--color-timeline-focus);outline-offset:2px}
+/* Hallmark · component: primary navigation · genre: editorial · theme: existing Pulse Almanac
+ * interaction: native disclosure on compact widths · motion: cut · contrast: preserved
+ */
+.siteNavigation{position:relative;display:flex;align-items:center;justify-content:space-between;overflow:visible}
+.siteNavigation .siteBrand{flex:0 0 auto;text-decoration:none}
+.primaryNavigation{margin-left:auto}
+.primaryNavigation>summary{display:none}
+.primaryNavigation:not([open])>nav,.primaryNavigation>nav{display:flex;align-items:center;gap:4px}
+.primaryNavigation nav a{position:relative;display:grid;min-height:44px;place-items:center;padding:12px 10px;color:var(--color-timeline-muted);font-size:11px;font-weight:750;text-decoration:none;white-space:nowrap}
+.primaryNavigation nav a.active{color:var(--color-timeline-ink)}
+.primaryNavigation nav a.active:after{content:"";position:absolute;right:10px;bottom:1px;left:10px;height:4px;border-radius:3px;background:var(--color-timeline-accent)}
+.primaryNavigation nav a:focus-visible,.primaryNavigation>summary:focus-visible{outline:3px solid var(--color-timeline-focus);outline-offset:2px}
+.homeHero .dailyQuote,.homeHero .quoteSource{min-width:0;overflow-wrap:anywhere}
 .timelineShell{align-items:start}.timelineDashboard{min-height:calc(100vh - 64px)}
-@media (max-width:560px){
-  .siteNavigation nav a{padding:9px 6px;font-size:9px}
-  .siteNavigation nav a.active:after{right:6px;left:6px}
+@media (max-width:900px){
+  .siteNavigation{height:auto;min-height:62px;flex-wrap:wrap}
+  .primaryNavigation>summary{display:flex;min-width:44px;min-height:44px;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:0 11px;color:var(--ink);font-size:11px;font-weight:750;list-style:none;white-space:nowrap;touch-action:manipulation}
+  .primaryNavigation>summary::-webkit-details-marker{display:none}
+  .primaryNavigation>summary:active,.primaryNavigation[open]>summary{background:#eeebe3}
+  .primaryNavigation[open]{width:100%;flex:1 0 100%;margin-left:0}
+  .primaryNavigation[open]>summary{position:absolute;top:9px;right:0}
+  .primaryNavigation:not([open])>nav{display:none}
+  .primaryNavigation[open]>nav{display:grid;width:100%;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 16px;margin:6px 0 12px;border-top:1px solid var(--line);padding-top:8px}
+  .primaryNavigation nav a{justify-items:start;padding:10px 4px;font-size:12px}
+  .primaryNavigation nav a.active:after{right:4px;left:4px}
+}
+@media (max-width:360px){
+  .primaryNavigation[open]>nav{column-gap:8px}
 }

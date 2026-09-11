@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const page = read("app/page.tsx");
-const nav = read("app/components/shell/DataQuickNav.tsx");
+const nav = read("app/components/shell/SiteNavigation.tsx");
 const overview = read("app/components/shell/DataCenterOverview.tsx");
 const health = read("app/features/health/HealthOverviewCard.tsx");
 const dailyGoals = read("app/features/health/DailyGoalsColumn.tsx");
@@ -22,14 +22,14 @@ const financeTransactionDetail = read("app/features/finance/FinanceTransactionDe
 const financeTransactionsRoute = read("app/finance/transactions/page.tsx");
 const styles = read("app/globals.css");
 
-test("data center exposes overview and life domains", () => {
-  assert.match(nav, /data-overview[\s\S]*总览/);
+test("formal navigation exposes life domains without a second overview strip", () => {
   assert.match(nav, /health[\s\S]*健康/);
   assert.match(nav, /time[\s\S]*时间/);
   assert.match(nav, /career[\s\S]*职业/);
-  assert.match(nav, /finance[\s\S]*财务/);
-  assert.match(nav, /life-finance[\s\S]*财务记录/);
-  assert.doesNotMatch(nav, /每日目标|工作经历/);
+  assert.match(nav, /finance-records[\s\S]*财务记录/);
+  assert.match(nav, /salary[\s\S]*工资/);
+  assert.doesNotMatch(nav, /总览|每日目标|工作经历/);
+  assert.doesNotMatch(page, /DataQuickNav/);
 });
 
 test("overview uses existing facts and domain summaries without extra requests", () => {
@@ -145,7 +145,7 @@ test("salary history emphasizes saved net pay and keeps full details expandable"
 test("responsive facts layout and compact tools preserve mobile readability", () => {
   assert.match(styles, /\.dataOverviewFacts\{display:grid/);
   assert.match(styles, /@media \(max-width:560px\)[\s\S]*\.dataOverviewFacts/);
-  assert.match(styles, /\.dataQuickNav\{overflow-x:auto/);
+  assert.match(styles, /\.primaryNavigation\[open\]>nav\{display:grid/);
   assert.match(styles, /\.moduleTools:not\(\[open\]\)>div\{display:none\}/);
   assert.match(styles, /\.dashboard\{width:100%;min-width:0;max-width:100%/);
   assert.match(styles, /:focus-visible/);
