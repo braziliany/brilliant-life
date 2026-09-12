@@ -51,6 +51,11 @@ export type SalaryPolicy = {
   leaveDeduction: number;
 };
 
+export type SalaryRecordInput = SalaryPolicy & {
+  month: string;
+  workdays: number;
+};
+
 export type WorkExperience = {
   id: number;
   company: string;

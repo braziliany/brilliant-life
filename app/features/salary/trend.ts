@@ -36,8 +36,8 @@ export function buildSalaryTrendAreaPath(points: SalaryTrendPoint[]): string {
   return `${buildSalaryTrendPath(points)} L ${last.x} ${BOTTOM} L ${first.x} ${BOTTOM} Z`;
 }
 
-const LEFT = 4;
-const RIGHT = 96;
+const LEFT = 9;
+const RIGHT = 91;
 const TOP = 10;
 const BOTTOM = 90;
 const DOMAIN_PADDING_RATIO = 0.2;
@@ -57,13 +57,11 @@ export function buildSalaryTrendPoints(records: SalaryRecord[]): SalaryTrendPoin
   const minimumSpan = Math.max(MINIMUM_DOMAIN_SPAN, Math.abs(midpoint) * MINIMUM_DOMAIN_RATIO);
   const domainSpan = Math.max(paddedSpan, minimumSpan);
   const domainMaximum = midpoint + domainSpan / 2;
-  const monthStep = Math.max(1, Math.ceil(ordered.length / 8));
-
   return ordered.map((record, index) => ({
     month: record.month,
     value: record.netSalary,
     x: ordered.length === 1 ? 50 : LEFT + (RIGHT - LEFT) * index / (ordered.length - 1),
     y: ordered.length === 1 ? 50 : TOP + (domainMaximum - record.netSalary) / domainSpan * (BOTTOM - TOP),
-    showMonth: ordered.length <= 8 || index === 0 || index === ordered.length - 1 || index % monthStep === 0,
+    showMonth: true,
   }));
 }

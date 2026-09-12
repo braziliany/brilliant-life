@@ -5,10 +5,12 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { buildSalaryTrendAreaPath, buildSalaryTrendPath, buildSalaryTrendPoints } from "../app/features/salary/trend.ts";
+import { mergeSavedSalaryRecord, salaryInputFromRecord } from "../app/features/salary/history.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
 const dashboard = read("app/features/salary/SalaryDashboard.tsx");
+const editor = read("app/features/salary/SalaryHistoryEditor.tsx");
 const page = read("app/page.tsx");
 const styles = read("app/globals.css");
 
@@ -93,7 +95,7 @@ test("salary trend uses a smooth real-value path with an area guide", () => {
     salary("2026-09", 5892.4),
   ]);
   assert.match(buildSalaryTrendPath(points), /^M [\d.]+ [\d.]+ C /);
-  assert.match(buildSalaryTrendAreaPath(points), / L 96 90 L 4 90 Z$/);
+  assert.match(buildSalaryTrendAreaPath(points), / L 91 90 L 9 90 Z$/);
   assert.match(styles, /\.salaryTrendArea\{fill:var\(--lime\);fill-opacity:\.13/);
   assert.match(styles, /\.salaryTrendGuide\{stroke:var\(--line\)/);
 });
@@ -106,7 +108,49 @@ test("salary history omits extra income presentation but keeps its calculation c
 
 test("salary trend stays compact and width-safe on mobile", () => {
   assert.match(styles, /\.salaryLinePlot\{[^}]*height:112px/);
-  assert.match(styles, /\.salaryTrendMonths\{display:grid;min-width:0/);
+  assert.match(styles, /\.salaryTrendMonths\{position:relative;display:block;height:20px;min-width:0/);
   assert.match(styles, /@media \(max-width:560px\)[^\n]*\.salaryTrend\{padding:8px 12px 4px\}\.salaryLinePlot\{height:96px\}/);
   assert.doesNotMatch(styles, /\.salaryTrend[^\n]*(overflow-x:auto|overflow-x:scroll)/);
+});
+
+test("each saved salary owns one anchored point, guide, amount, and month label", () => {
+  const points = buildSalaryTrendPoints([
+    salary("2026-09", 5892.4),
+    salary("2026-06", 6493.8),
+    salary("2026-07", 7114.6),
+  ]);
+  assert.equal(points.length, 3);
+  assert.equal(points.every((point) => point.showMonth), true);
+  assert.deepEqual(points.map((point) => point.x), [9, 50, 91]);
+  assert.match(dashboard, /salaryTrendPoints\.map\(\(point\) => <line className="salaryTrendAnchor"[^>]*x1=\{point\.x\}[^>]*x2=\{point\.x\}[^>]*y1=\{point\.y\}[^>]*y2="90"/);
+  assert.match(dashboard, /className="salaryTrendMonths"[\s\S]*salaryTrendPoints\.map\(\(point\) => <b[^>]*left: `\$\{point\.x\}%`/);
+  assert.match(styles, /\.salaryTrendAnchor\{[^}]*stroke-dasharray:2 2/);
+  assert.match(styles, /\.salaryTrendPoint\.first small,\.salaryTrendPoint\.last small\{right:auto;left:50%;transform:translateX\(-50%\)\}/);
+});
+
+test("history editor preserves saved inputs and merging updates only one month", () => {
+  const june = salary("2026-06", 6493.8);
+  const july = { ...salary("2026-07", 7114.6), workdays: 23, dailyRate: 280, deductions: 140, taxThreshold: 5000, taxRate: 3, extraIncome: 100, bonus: 200, leaveDeduction: 50 };
+  assert.deepEqual(salaryInputFromRecord(july), {
+    month: "2026-07", workdays: 23, dailyRate: 280, deductions: 140, taxThreshold: 5000,
+    taxRate: 3, extraIncome: 100, bonus: 200, leaveDeduction: 50,
+  });
+  const corrected = { ...july, workdays: 22, netSalary: 6800 };
+  const merged = mergeSavedSalaryRecord([july, june], corrected);
+  assert.deepEqual(merged.map((record) => record.month), ["2026-07", "2026-06"]);
+  assert.equal(merged[0].netSalary, 6800);
+  assert.deepEqual(merged[1], june);
+});
+
+test("salary history offers scoped add and edit controls with non-optimistic saving", () => {
+  assert.match(dashboard, /补录月份/);
+  assert.match(dashboard, /openHistoryEditor\("edit", record\)/);
+  assert.match(dashboard, /await onSaveHistory\(historyEditor\.draft, historyEditor\.mode\)/);
+  assert.match(page, /method: mode === "create" \? "POST" : "PUT"/);
+  assert.match(page, /setSalaryRecords\(\(records\) => mergeSavedSalaryRecord\(records, record\)\)/);
+  assert.match(dashboard, /historyEditor\?\.mode === "edit" && historyEditor\.draft\.month === record\.month && historyEditorView/);
+  for (const field of ["月份", "工作日", "日薪", "额外收入", "奖金", "固定扣除", "请假扣款", "起征点", "税率 (%)"]) assert.match(editor, new RegExp(field.replace(/[()]/g, "\\$&")));
+  assert.match(editor, /readOnly=\{mode === "edit"\}/);
+  assert.match(editor, /saving \? "保存中…"/);
+  assert.doesNotMatch(dashboard, /删除工资|deleteSalary|bulk/i);
 });

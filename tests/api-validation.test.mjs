@@ -48,6 +48,8 @@ test("dashboard mutations require the exact production or same local development
 
 test("calendar accepts only canonical month and date values", () => {
   assert.equal(validMonth("2026-07"), true);
+  assert.equal(validMonth("2026-13"), false);
+  assert.equal(validMonth("2026-00"), false);
   assert.equal(validMonth("2026-7"), false);
   assert.equal(validMonth("July"), false);
   assert.equal(validDate("2026-07-28"), true);

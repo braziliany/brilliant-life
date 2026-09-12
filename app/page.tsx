@@ -45,9 +45,10 @@ import {
 } from "./features/career/domain";
 import { SalaryDashboard } from "./features/salary/SalaryDashboard";
 import { calculateSalarySummary, summarizeSavedSalaryYear } from "./features/salary/domain";
+import { mergeSavedSalaryRecord } from "./features/salary/history";
 import { AnnualReportPage } from "./features/annual/AnnualReportPage";
 import { LifeFinancePanel } from "./features/finance/LifeFinancePanel";
-import type { CalendarDayView, CalendarNote, HealthDaily, HealthIngestionRun, HealthMetric, SalaryPolicy, SalaryRecord, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
+import type { CalendarDayView, CalendarNote, HealthDaily, HealthIngestionRun, HealthMetric, SalaryPolicy, SalaryRecord, SalaryRecordInput, SitePage, WorkExperience, WorkExperienceDraft } from "./page-view.types";
 
 const getShanghaiDate = (value = new Date()) => {
   const parts = new Intl.DateTimeFormat("zh-CN", {
@@ -492,6 +493,35 @@ export default function Home() {
     }
   };
 
+  const saveSalaryHistory = async (input: SalaryRecordInput, mode: "create" | "edit") => {
+    try {
+      const response = await fetch("/api/salary", {
+        method: mode === "create" ? "POST" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      if (!response.ok) {
+        const error = response.status === 409
+          ? "该月份已经有工资记录"
+          : response.status === 404
+            ? "这条工资记录已不存在，请刷新后重试"
+            : response.status === 401
+              ? "登录状态已失效，请重新登录"
+              : response.status === 403
+                ? "当前页面无法保存，请重新打开后再试"
+                : response.status === 400 || response.status === 415
+                  ? "请检查月份和工资字段"
+                  : "无法保存工资记录，请稍后重试";
+        return { ok: false as const, error };
+      }
+      const { record } = await response.json() as { record: SalaryRecord };
+      setSalaryRecords((records) => mergeSavedSalaryRecord(records, record));
+      return { ok: true as const };
+    } catch {
+      return { ok: false as const, error: "无法保存工资记录，请检查网络后重试" };
+    }
+  };
+
   const exportSalaryRecords = () => {
     if (salaryRecords.length === 0) return;
     const headers = ["月份", "工作日", "日薪", "固定扣除", "起征点", "税率(%)", "额外收入", "奖金", "请假扣款", "应发工资", "计税收入", "个人所得税", "实发工资"];
@@ -757,6 +787,8 @@ export default function Home() {
               deductions={deductions}
               taxThreshold={taxThreshold}
               taxRate={taxRate}
+              extraIncome={extraIncome}
+              bonus={bonus}
               leaveDeduction={leaveDeduction}
               grossSalary={grossSalary}
               taxableIncome={taxableIncome}
@@ -774,6 +806,7 @@ export default function Home() {
               holidayCalendarConfigured={holidayCalendarConfigured}
               money={money}
               onSave={saveSalaryRecord}
+              onSaveHistory={saveSalaryHistory}
               onExport={exportSalaryRecords}
               onReload={loadSalaryData}
             />

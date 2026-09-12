@@ -1,6 +1,8 @@
 @import "../tokens.css";
 @import "tailwindcss";
 
+/* Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4 */
+
 :root { --ink:#22252b; --muted:#777970; --paper:#f7f5ef; --panel:#fff; --line:#ebe9e2; --lime:#dfff54; --coral:#ff7668; }
 * { box-sizing:border-box; }
 html { background:#d9d5cd; }
@@ -97,6 +99,8 @@ button{touch-action:manipulation;-webkit-tap-highlight-color:transparent;transit
   --calendar-today:#c28cff;
   --calendar-personal:#f0b34e;
   --calendar-tools-active:#303c35;
+  --error:#bd493e;
+  --field-readonly:#eeebe3;
   --shadow:0 18px 50px rgba(54,57,48,.10);
 }
 html{background:#d7d3c8}
@@ -520,3 +524,43 @@ input,textarea{caret-color:#6d8d0e}
   .siteNavigation{height:auto;min-height:0;margin-bottom:12px;flex-wrap:nowrap}
   .primaryNavigation{display:none}
 }
+
+/* Hallmark · component: salary history maintenance · genre: editorial · theme: existing Pulse Almanac
+ * states: default · hover · focus · active · disabled · loading · error · success
+ * contrast: existing tokens · motion: cut · responsive: anchored chart
+ */
+.salaryHistoryActions .addSalary{min-height:44px;border:1px solid var(--line);border-radius:14px;background:transparent;padding:10px 16px;color:var(--ink);font-size:11px;font-weight:750;white-space:nowrap}
+.salaryHistoryActions .addSalary:hover{background:var(--panel)}
+.salaryHistoryActions .addSalary:focus-visible,.salaryRecordEdit:focus-visible,.salaryHistoryEditor button:focus-visible{outline:3px solid var(--lime);outline-offset:2px}.salaryHistoryEditor input:focus-visible{outline:2px solid var(--lime);outline-offset:1px}
+.salaryHistoryActions .addSalary:active,.salaryRecordEdit:active,.salaryHistoryEditor button:active{transform:translateY(1px)}
+.salaryHistoryActions .addSalary:disabled,.salaryRecordEdit:disabled,.salaryHistoryEditor button:disabled{cursor:not-allowed;opacity:.55}
+.salaryHistoryNotice{margin-top:10px;color:var(--muted);font-size:10px;font-weight:700}
+.salaryHistoryEditor{margin-top:12px;padding:16px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.salaryHistoryEditor.error{border-bottom-color:var(--error)}
+.salaryEditorHead,.salaryEditorActions{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.salaryEditorHead>div{display:grid;gap:3px}.salaryEditorHead span{color:var(--muted);font-size:9px;font-weight:750}.salaryEditorHead h4{margin:0;font-size:16px}
+.salaryEditorHead button{min-width:44px;min-height:44px;border:0;background:transparent;color:var(--muted);font-size:11px;font-weight:750}
+.salaryEditorFields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 12px;margin-top:14px}
+.salaryEditorFields label{display:grid;min-width:0;gap:5px;color:var(--muted);font-size:9px;font-weight:700}
+.salaryEditorFields input{width:100%;height:44px;border:1px solid var(--line);border-radius:12px;outline:2px solid transparent;background:var(--panel);padding:0 11px;color:var(--ink);font:inherit;font-size:12px;font-weight:700}
+.salaryEditorFields input:hover{border-color:var(--muted)}.salaryEditorFields input:read-only{background:var(--field-readonly);color:var(--muted)}.salaryHistoryEditor.error input{border-color:var(--error)}
+.salaryEditorActions{margin-top:14px}.salaryEditorActions p{min-height:1lh;color:var(--muted);font-size:9px}.salaryHistoryEditor.error .salaryEditorActions p{color:var(--error)}
+.salaryEditorActions button{min-height:44px;border:0;border-radius:14px;background:var(--ink);padding:10px 17px;color:var(--panel);font-size:11px;font-weight:800;white-space:nowrap}
+.salaryEditorActions button:not(:disabled):hover{filter:brightness(1.08)}
+.salaryHistoryEditor.error .salaryEditorActions button{background:var(--error)}.salaryHistoryNotice+.salaryHistoryEditor{margin-top:8px}
+.salaryRecordShell{position:relative;min-width:0}.salaryRecordShell .salaryRecord summary{grid-template-columns:minmax(0,1fr) auto 52px}.salaryRecordShell .salaryRecord summary>span{display:block}
+.salaryRecordEdit{position:absolute;top:10px;right:10px;z-index:1;min-width:44px;min-height:44px;border:0;border-radius:12px;background:transparent;color:var(--muted);font-size:10px;font-weight:800}
+.salaryRecordEdit:hover{background:var(--panel);color:var(--ink)}
+.salaryTrendAnchor{stroke:var(--muted);stroke-width:.7;stroke-dasharray:2 2;opacity:.55}
+.salaryTrendPoint:nth-of-type(even) small{bottom:25px}
+.salaryTrendPoint.first small,.salaryTrendPoint.last small{right:auto;left:50%;transform:translateX(-50%)}
+.salaryTrendMonths{position:relative;display:block;height:20px;min-width:0;padding-top:8px}
+.salaryTrendMonths b{position:absolute;top:8px;transform:translateX(-50%);overflow:visible;text-overflow:clip}
+@media (max-width:560px){
+  .salaryHistoryActions{display:grid;grid-template-columns:1fr 1fr}.salaryHistoryActions .saveSalary{grid-column:1/-1}
+  .salaryEditorFields{grid-template-columns:1fr 1fr;gap:9px}.salaryEditorActions{align-items:stretch;flex-direction:column}.salaryEditorActions button{width:100%}
+  .salaryRecordShell .salaryRecord summary{grid-template-columns:minmax(0,1fr) auto 48px;gap:6px;padding-right:10px}.salaryRecordEdit{right:6px}
+  .salaryTrendPoint small{font-size:7px}.salaryTrendPoint:nth-of-type(3n+2) small{bottom:24px}.salaryTrendPoint:nth-of-type(3n) small{bottom:33px}
+  .salaryTrendMonths b{font-size:8px}
+}
+@media (max-width:360px){.salaryEditorFields{grid-template-columns:1fr}.salaryRecordShell .salaryRecord summary{grid-template-columns:minmax(0,1fr) 48px}.salaryRecordShell .salaryRecord summary>strong{grid-column:1;grid-row:2;text-align:left}.salaryRecordShell .salaryRecord summary>span{grid-column:2;grid-row:1/3}}

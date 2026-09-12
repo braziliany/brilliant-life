@@ -1,9 +1,10 @@
 import { desc } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { salaryRecords } from "../../../db/schema";
-import { hasDashboardAccess } from "../access";
-import { isCurrentSalaryMonth, validSalaryRecord } from "../validation";
-import { calculateSalary, SALARY_POLICY } from "./policy";
+import { handleSalaryRecordMutation } from "../../features/salary/write-service";
+import { hasDashboardAccess, hasDashboardMutationOrigin } from "../access";
+import { isCurrentSalaryMonth } from "../validation";
+import { SALARY_POLICY } from "./policy";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
 
@@ -24,30 +25,29 @@ export async function PUT(request: Request) {
   if (!hasDashboardAccess(request)) {
     return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
   }
-
-  try {
-    const payload = (await request.json()) as Record<string, unknown>;
-    if (!validSalaryRecord(payload)) {
-      return Response.json({ error: "Invalid salary record" }, { status: 400, headers: jsonHeaders });
-    }
-    if (!isCurrentSalaryMonth(payload.month)) {
-      return Response.json({ error: "Historical salary records are immutable" }, { status: 409, headers: jsonHeaders });
-    }
-    const db = getDb();
-    const calculated = calculateSalary(payload.workdays);
-    const values = {
-      month: payload.month,
-      workdays: payload.workdays,
-      ...calculated,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await db.insert(salaryRecords).values(values).onConflictDoUpdate({
-      target: salaryRecords.month,
-      set: values,
-    });
-    return Response.json({ record: values }, { headers: jsonHeaders });
-  } catch {
-    return Response.json({ error: "Salary update failed" }, { status: 500, headers: jsonHeaders });
+  if (!hasDashboardMutationOrigin(request)) {
+    return Response.json({ error: "Salary update origin not allowed" }, { status: 403, headers: jsonHeaders });
   }
+  const clone = request.clone();
+  let payload: unknown;
+  try {
+    payload = await clone.json();
+  } catch {
+    payload = null;
+  }
+  const isQuickCurrentSave = Boolean(
+    payload && typeof payload === "object" && !Array.isArray(payload) &&
+    Object.keys(payload).length === 2 && isCurrentSalaryMonth((payload as Record<string, unknown>).month),
+  );
+  return handleSalaryRecordMutation(request, getDb(), "update", isQuickCurrentSave ? SALARY_POLICY : undefined);
+}
+
+export async function POST(request: Request) {
+  if (!hasDashboardAccess(request)) {
+    return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
+  }
+  if (!hasDashboardMutationOrigin(request)) {
+    return Response.json({ error: "Salary update origin not allowed" }, { status: 403, headers: jsonHeaders });
+  }
+  return handleSalaryRecordMutation(request, getDb(), "create");
 }
