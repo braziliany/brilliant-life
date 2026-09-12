@@ -1,5 +1,5 @@
 import type { SalaryRecord } from "../../page-view.types";
-import { buildSalaryTrendPoints } from "./trend";
+import { buildSalaryTrendAreaPath, buildSalaryTrendPath, buildSalaryTrendPoints } from "./trend";
 
 type Props = {
   active: boolean;
@@ -33,7 +33,8 @@ type Props = {
 
 export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays, dailyRate, deductions, taxThreshold, taxRate, leaveDeduction, grossSalary, taxableIncome, incomeTax, netSalary, salaryRecordMismatch, selectedSalaryRecord, salaryStatus, salaryRecords, yearSavedMonths, yearTotalNetSalary, yearTotalIncomeTax, salaryLoadStatus, isCurrentCalendarMonth, holidayCalendarConfigured, money, onSave, onExport, onReload }: Props) {
   const salaryTrendPoints = buildSalaryTrendPoints(salaryRecords);
-  const trendLine = salaryTrendPoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const trendPath = buildSalaryTrendPath(salaryTrendPoints);
+  const trendAreaPath = buildSalaryTrendAreaPath(salaryTrendPoints);
   return (
     <article id="finance" className={`card salary${active ? " sectionActive" : ""}`}>
       <div className="salaryIntro">
@@ -73,11 +74,14 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         <section className="salaryTrend" aria-label="已保存工资变化趋势">
           <div className="salaryLinePlot">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-              {salaryTrendPoints.length > 1 && <polyline className="salaryTrendLine" points={trendLine} vectorEffect="non-scaling-stroke" />}
+              {[10, 36.67, 63.33, 90].map((y) => <line className="salaryTrendGuide" key={y} x1="4" x2="96" y1={y} y2={y} vectorEffect="non-scaling-stroke" />)}
+              {salaryTrendPoints.length > 1 && <path className="salaryTrendArea" d={trendAreaPath} vectorEffect="non-scaling-stroke" />}
+              {salaryTrendPoints.length > 1 && <path className="salaryTrendLine" d={trendPath} vectorEffect="non-scaling-stroke" />}
             </svg>
-            {salaryTrendPoints.map((point) => {
+            {salaryTrendPoints.map((point, index) => {
               const label = `${point.month.slice(0, 4)}年${Number(point.month.slice(5))}月，工资 ¥${money(point.value)}`;
-              return <span className="salaryTrendPoint" key={point.month} style={{ left: `${point.x}%`, top: `${point.y}%` }} role="img" aria-label={label} title={label}><i aria-hidden="true" /></span>;
+              const edge = index === 0 ? " first" : index === salaryTrendPoints.length - 1 ? " last" : "";
+              return <span className={`salaryTrendPoint${edge}`} key={point.month} style={{ left: `${point.x}%`, top: `${point.y}%` }} role="img" aria-label={label} title={label}>{point.showMonth && <small aria-hidden="true">¥{money(point.value)}</small>}<i aria-hidden="true" /></span>;
             })}
           </div>
           <div className="salaryTrendMonths" style={{ gridTemplateColumns: `repeat(${salaryTrendPoints.length}, minmax(0, 1fr))` }} aria-hidden="true">
@@ -95,7 +99,7 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
         ) : salaryRecords.map((record) => (
           <details className={`salaryRecord${record.month === calendarMonthKey && salaryRecordMismatch ? " outOfSync" : ""}`} key={record.month}>
             <summary>
-              <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日 · 额外收入 ¥{money(record.extraIncome + record.bonus)}{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
+              <div><b>{record.month.replace("-", " 年 ")} 月</b><small>{record.workdays} 个工作日{record.month === calendarMonthKey && salaryRecordMismatch ? " · 待同步" : ""}</small></div>
               <strong>¥{money(record.netSalary)}</strong>
             </summary>
             <div className="salaryRecordDetails" aria-label={`${record.month} 工资详情`}>
@@ -103,7 +107,6 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
               <span>固定扣除<b>− ¥{money(record.deductions)}</b></span>
               <span>请假扣款<b>− ¥{money(record.leaveDeduction)}</b></span>
               <span>个税<b>− ¥{money(record.incomeTax)}</b></span>
-              <span>额外收入<b>¥{money(record.extraIncome)}</b></span>
               <span>奖金<b>¥{money(record.bonus)}</b></span>
             </div>
           </details>

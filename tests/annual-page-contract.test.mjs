@@ -83,3 +83,13 @@ test("annual responsive contract keeps mobile charts readable and honors reduced
   assert.match(styles, /\.annualFinanceSources\{grid-template-columns:1fr\}/);
   assert.match(styles, /\.annualLifeFinanceMetrics\{gap:7px\}/);
 });
+
+test("annual supporting charts follow the primary archive content", () => {
+  const chartsIndex = page.indexOf('<div className="annualCharts"');
+  assert.ok(chartsIndex > page.indexOf('<section className="annualInsights"'));
+  assert.ok(chartsIndex > page.indexOf('<section className="annualFinance"'));
+  assert.ok(chartsIndex > page.indexOf('<section className="annualCareer"'));
+  assert.ok(chartsIndex > page.indexOf('<section className="annualTrust"'));
+  assert.match(charts, /工资只沿已保存月份延伸/);
+  assert.doesNotMatch(charts, /实发工资只沿已保存月份延伸/);
+});

@@ -130,13 +130,6 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
         <article><span>截至当前已存工资</span><strong>{summary.finance.salary.coverage.availableMonths ? money(summary.finance.salary.facts.totalNetSalary) : "—"}</strong><small>{summary.finance.salary.coverage.availableMonths} / {summary.finance.salary.coverage.expectedMonths} 个已到月份 · 全年范围 {summary.finance.salary.coverage.fullYearExpectedMonths} 月</small></article>
       </div>
 
-      <div className="annualCharts" data-chart-count="6" data-color-system="porcelain">
-        <HealthBarcodeChart summary={summary} />
-        <TimeTickDonutChart summary={summary} />
-        <FinanceHairlineChart summary={summary} />
-        <CompletenessBallotChart summary={summary} />
-      </div>
-
       <section className="annualInsights" aria-labelledby="annual-insights-title">
         <div className="annualSectionHead"><div><span>INSIGHTS</span><h2 id="annual-insights-title">这一年，生活之间发生了什么</h2></div><b>截至 {summary.asOfDate}</b></div>
         <div className="annualInsightsGrid">
@@ -214,6 +207,13 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
           ))}
         </div>
       </section>
+
+      <div className="annualCharts" data-chart-count="6" data-color-system="porcelain">
+        <HealthBarcodeChart summary={summary} />
+        <TimeTickDonutChart summary={summary} />
+        <FinanceHairlineChart summary={summary} />
+        <CompletenessBallotChart summary={summary} />
+      </div>
     </section>
   );
 }

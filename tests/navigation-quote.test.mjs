@@ -39,14 +39,12 @@ test("formal navigation exposes every approved destination in fixed order", () =
   assert.match(page, /setActiveSection\("data-overview"\);\s*setSitePage\("home"\);/);
 });
 
-test("one native disclosure serves mobile and desktop navigation", () => {
+test("desktop keeps the formal navigation while mobile keeps only the brand", () => {
   assert.match(navigation, /<details className="primaryNavigation">[\s\S]*<summary>导航/);
   assert.equal((navigation.match(/<nav aria-label="主要导航">/g) ?? []).length, 1);
-  assert.match(navigation, /closest\("details"\)\?\.removeAttribute\("open"\)/);
   assert.match(styles, /\.primaryNavigation>summary\{display:none\}/);
-  assert.match(styles, /@media \(max-width:900px\)[\s\S]*\.primaryNavigation>summary\{[^}]*min-width:44px;min-height:44px/);
-  assert.match(styles, /\.primaryNavigation:not\(\[open\]\)>nav\{display:none\}/);
-  assert.match(styles, /\.primaryNavigation\[open\]>nav\{display:grid/);
+  assert.match(styles, /@media \(max-width:900px\)\{[\s\S]*\.siteNavigation\{height:auto;min-height:0;margin-bottom:12px;flex-wrap:nowrap\}[\s\S]*\.primaryNavigation\{display:none\}/);
+  assert.doesNotMatch(styles, /@media \(max-width:900px\)[\s\S]*\.primaryNavigation\[open\]>nav\{display:grid/);
   assert.match(styles, /html,body \{ overflow-x:clip; \}/);
 });
 

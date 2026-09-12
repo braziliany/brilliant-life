@@ -8,6 +8,34 @@ export type SalaryTrendPoint = {
   showMonth: boolean;
 };
 
+const coordinate = (value: number) => Number(value.toFixed(3));
+
+export function buildSalaryTrendPath(points: SalaryTrendPoint[]): string {
+  if (points.length === 0) return "";
+  if (points.length === 1) return `M ${points[0].x} ${points[0].y}`;
+  if (points.length === 2) return `M ${points[0].x} ${points[0].y} L ${points[1].x} ${points[1].y}`;
+
+  const segments = points.slice(0, -1).map((point, index) => {
+    const previous = points[index - 1] ?? point;
+    const next = points[index + 1];
+    const afterNext = points[index + 2] ?? next;
+    const control1X = coordinate(point.x + (next.x - previous.x) / 6);
+    const control1Y = coordinate(point.y + (next.y - previous.y) / 6);
+    const control2X = coordinate(next.x - (afterNext.x - point.x) / 6);
+    const control2Y = coordinate(next.y - (afterNext.y - point.y) / 6);
+    return `C ${control1X} ${control1Y}, ${control2X} ${control2Y}, ${next.x} ${next.y}`;
+  });
+
+  return `M ${points[0].x} ${points[0].y} ${segments.join(" ")}`;
+}
+
+export function buildSalaryTrendAreaPath(points: SalaryTrendPoint[]): string {
+  if (points.length < 2) return "";
+  const first = points[0];
+  const last = points[points.length - 1];
+  return `${buildSalaryTrendPath(points)} L ${last.x} ${BOTTOM} L ${first.x} ${BOTTOM} Z`;
+}
+
 const LEFT = 4;
 const RIGHT = 96;
 const TOP = 10;

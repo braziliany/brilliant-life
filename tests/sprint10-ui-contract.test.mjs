@@ -22,6 +22,8 @@ test("top shell keeps the clickable brand and the formal primary routes", () => 
 });
 
 test("welcome header stays personal and non-commercial", () => {
+  assert.match(header, /好，夜雨声烦!/);
+  assert.doesNotMatch(header, /Amanda/);
   assert.match(header, /健康、工作、工资与职业的最近记录/);
   assert.doesNotMatch(header, /升级计划|Upgrade|AI|评价|建议/);
 });

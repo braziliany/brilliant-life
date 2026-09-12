@@ -139,13 +139,14 @@ test("salary history emphasizes saved net pay and keeps full details expandable"
   assert.match(salary, /<strong>¥\{money\(record\.netSalary\)\}<\/strong>/);
   assert.doesNotMatch(salary, /仅工资快照|实时计算/);
   assert.match(salary, /应发工资[\s\S]*全部扣除[\s\S]*计税收入[\s\S]*个人所得税/);
-  assert.match(salary, /salaryRecordDetails[\s\S]*应发[\s\S]*固定扣除[\s\S]*请假扣款[\s\S]*个税[\s\S]*额外收入[\s\S]*奖金/);
+  assert.match(salary, /salaryRecordDetails[\s\S]*应发[\s\S]*固定扣除[\s\S]*请假扣款[\s\S]*个税[\s\S]*奖金/);
+  assert.doesNotMatch(salary.slice(salary.indexOf('<div className="salaryHistory">')), /额外收入/);
 });
 
 test("responsive facts layout and compact tools preserve mobile readability", () => {
   assert.match(styles, /\.dataOverviewFacts\{display:grid/);
   assert.match(styles, /@media \(max-width:560px\)[\s\S]*\.dataOverviewFacts/);
-  assert.match(styles, /\.primaryNavigation\[open\]>nav\{display:grid/);
+  assert.match(styles, /@media \(max-width:900px\)[\s\S]*\.primaryNavigation\{display:none\}/);
   assert.match(styles, /\.moduleTools:not\(\[open\]\)>div\{display:none\}/);
   assert.match(styles, /\.dashboard\{width:100%;min-width:0;max-width:100%/);
   assert.match(styles, /:focus-visible/);

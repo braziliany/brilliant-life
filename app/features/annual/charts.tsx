@@ -146,10 +146,10 @@ export function FinanceHairlineChart({ summary }: { summary: AnnualSummaryDraft 
 
   return (
     <ChartFrame
-      title={months.length ? "实发工资只沿已保存月份延伸" : "这一年尚无已保存工资月份"}
+      title={months.length ? "工资只沿已保存月份延伸" : "这一年尚无已保存工资月份"}
       subtitle="每个点是一份已保存月度快照 · 缺失月份断开且不补 ¥0"
     >
-      <svg viewBox="0 0 400 320" role="img" aria-label="年度已保存月度实发工资">
+      <svg viewBox="0 0 400 320" role="img" aria-label="年度已保存月度工资">
         <line x1="24" y1="245" x2="376" y2="245" stroke={porcelain.grid} strokeWidth="1.4" />
         {Array.from({ length: 12 }, (_, index) => {
           const x = 32 + index * 30.5;

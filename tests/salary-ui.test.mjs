@@ -4,7 +4,7 @@ import { resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { buildSalaryTrendPoints } from "../app/features/salary/trend.ts";
+import { buildSalaryTrendAreaPath, buildSalaryTrendPath, buildSalaryTrendPoints } from "../app/features/salary/trend.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const read = (path) => readFileSync(resolve(root, path), "utf8");
@@ -79,10 +79,29 @@ test("multiple saved snapshots are chronological without synthesizing missing mo
 
 test("salary history is one saved-final-salary line with no legend or component series", () => {
   assert.match(dashboard, /buildSalaryTrendPoints\(salaryRecords\)/);
-  assert.match(dashboard, /salaryTrendPoints\.length > 1 && <polyline className="salaryTrendLine"/);
+  assert.match(dashboard, /salaryTrendPoints\.length > 1 && <path className="salaryTrendArea"/);
+  assert.match(dashboard, /salaryTrendPoints\.length > 1 && <path className="salaryTrendLine"/);
   assert.match(dashboard, /salaryTrendPoint[\s\S]*point\.value/);
   assert.doesNotMatch(dashboard, /trendLegend|grossBar|deductionBar|taxBar|netBar|grossKey|deductionKey|taxKey|netKey/);
   assert.doesNotMatch(page, /salaryTrendMax|slice\(-6\)/);
+});
+
+test("salary trend uses a smooth real-value path with an area guide", () => {
+  const points = buildSalaryTrendPoints([
+    salary("2026-06", 6493.8),
+    salary("2026-07", 7114.6),
+    salary("2026-09", 5892.4),
+  ]);
+  assert.match(buildSalaryTrendPath(points), /^M [\d.]+ [\d.]+ C /);
+  assert.match(buildSalaryTrendAreaPath(points), / L 96 90 L 4 90 Z$/);
+  assert.match(styles, /\.salaryTrendArea\{fill:var\(--lime\);fill-opacity:\.13/);
+  assert.match(styles, /\.salaryTrendGuide\{stroke:var\(--line\)/);
+});
+
+test("salary history omits extra income presentation but keeps its calculation concept", () => {
+  const history = dashboard.slice(dashboard.indexOf('<div className="salaryHistory">'));
+  assert.doesNotMatch(history, /额外收入/);
+  assert.match(dashboard, /工资 = 工作日 × 日薪 \+ 额外收入 \+ 奖金/);
 });
 
 test("salary trend stays compact and width-safe on mobile", () => {
