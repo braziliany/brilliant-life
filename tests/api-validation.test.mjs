@@ -24,6 +24,8 @@ import { validNormalizedFinanceTransaction } from "../app/features/finance/impor
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const healthRoute = readFileSync(resolve(root, "app/api/health/route.ts"), "utf8");
+const healthIngestApi = readFileSync(resolve(root, "app/features/health/ingest-api.ts"), "utf8");
+const healthIngestHandler = readFileSync(resolve(root, "app/api/health/ingest-handler.ts"), "utf8");
 
 test("dashboard access rejects forged headers on the public workers.dev host", () => {
   assert.equal(hasDashboardAccess(new Request("https://pulse-health-dashboard.leopardser.workers.dev/api/salary", {
@@ -89,13 +91,14 @@ test("health upload requires an exact independent API key", () => {
 });
 
 test("health ingest records server-proven success metadata and date-level coverage", () => {
-  assert.match(healthRoute, /const receivedAt = new Date\(\)\.toISOString\(\)/);
-  assert.match(healthRoute, /AUTO_EXPORT_HEALTH_SOURCE = "Auto Export Health"/);
-  assert.match(healthRoute, /coveredDates: JSON\.stringify\(rows\.map/);
-  assert.match(healthRoute, /importedDays: rows\.length[\s\S]*status: "success"/);
-  assert.match(healthRoute, /rowsInserted[\s\S]*rowsUpdated[\s\S]*dataDateStart[\s\S]*dataDateEnd/);
-  assert.match(healthRoute, /mergeHealthMetricCoverage/);
-  assert.match(healthRoute, /metricCoverage/);
+  assert.match(healthIngestApi, /const receivedAt = \(dependencies\.now\?\.\(\) \?\? new Date\(\)\)\.toISOString\(\)/);
+  assert.match(healthIngestHandler, /AUTO_EXPORT_HEALTH_SOURCE = "Auto Export Health"/);
+  assert.match(healthIngestHandler, /coveredDates: JSON\.stringify\(rows\.map/);
+  assert.match(healthIngestHandler, /importedDays: rows\.length[\s\S]*status: "success"/);
+  assert.match(healthIngestHandler, /rowsInserted[\s\S]*rowsUpdated[\s\S]*dataDateStart[\s\S]*dataDateEnd/);
+  assert.match(healthIngestHandler, /mergeHealthMetricCoverage/);
+  assert.match(healthIngestHandler, /metricCoverage/);
+  assert.match(healthRoute, /export const POST = handleHealthIngest/);
 });
 
 test("optional health numbers preserve absence and explicit zero", () => {
