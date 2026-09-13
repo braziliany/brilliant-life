@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "project": {
+    "id": "brilliant-life",
+    "name": "璀璨人生",
+    "version": "v1.5",
+    "repository": "braziliany/brilliant-life",
+    "branch": "main",
+    "head": "a53fd7a60415069f2ac7d1693f0835cce55ed55a"
+  },
+  "status": "in_progress",
+  "progress": null,
+  "updated_at": "2026-09-13T09:15:15+08:00",
+  "current": {
+    "title": "Calendar Widget Phase 1 已完成并通过生产验收",
+    "summary": "PHASE 1 PRODUCTION ACCEPTANCE = PASS；production commit a53fd7a60415069f2ac7d1693f0835cce55ed55a，Worker version 8544d2b0-e347-4dbb-a6c7-bf9a45d3b390；security gate、workers.dev bypass 与 preview URL bypass 均已关闭。"
+  },
+  "completed": [
+    "v1.4 领域化、D1 可靠性和统一验证基线",
+    "v1.5 年度档案、实际财务流水、健康同步可信语义与 Life Insights Phase 1",
+    "Calendar Widget Phase 1：complete / accepted / PASS；独立 token 与父级 Access 隔离通过，workers.dev 和 Preview URL 已关闭"
+  ],
+  "next": [
+    {
+      "id": "brilliant-life-doc-governance",
+      "title": "brilliant-life-manager",
+      "notes": "不改变产品、数据或部署。",
+      "priority": "medium",
+      "deadline": null,
+      "status": "completed"
+    },
+    {
+      "id": "brilliant-life-observe-annual-insights",
+      "title": "观察 Annual Archive 与 Life Insights 的真实使用价值",
+      "notes": "只在出现明确真实需求后评估下一阶段立项。",
+      "priority": "low",
+      "deadline": "2026-09-05",
+      "status": "open"
+    }
+  ],
+  "blocked": []
+}

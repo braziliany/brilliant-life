@@ -7,3 +7,10 @@
 Calendar domain 负责日期键、月历结构、状态解析、月份切换、月度/年度工作日统计。Salary 只消费解析后的工作日数量，不拥有日历规则。
 
 当前年度 Annual 的工作时间事实只统计 `asOf` 之前已经发生的日期；全年配置可以另行展示，但必须标明其中包含未来日期。
+
+## Calendar Widget Current Truth
+
+- Phase 1 只读端点为 `GET /api/v1/calendar/widget`，只允许上海时区当前月份及相邻月份。
+- Widget 直接复用 Calendar domain 的日期解析、官方节假日配置和个人覆盖；不维护第二份节假日或工作日真相源。
+- 返回范围只包含月度日期状态、个人覆盖标记和备注存在性摘要，不返回备注正文、其他生活领域或内部记录标识。
+- Widget 不提供 mutation endpoint；POST、PUT、PATCH、DELETE 均拒绝，Phase 1 无 migration、无 D1 写入。

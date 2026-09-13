@@ -2,14 +2,18 @@
 
 ## 当前基线
 
-- 应用：Pulse Dashboard
-- 受保护范围：`pulse.sophier.org/*`
+- 人类应用：Pulse Dashboard
+- 人类受保护范围：`pulse.sophier.org/*`
 - 日常登录：One-time PIN
 - 授权邮箱：`questioniar@outlook.com`
 - Access Policy：仅 `Allow Owner`，Include 为上述完整邮箱；无 Require、Exclude、Bypass、Everyone 或 Email Domain 放行
 - 应用 Session：`2 weeks`（14 天）
 - Instant Authentication：关闭
 - Cloudflare IdP：账户层保留，但 Pulse 应用不选用
+- 机器应用：Pulse Calendar Widget
+- 机器受保护范围：精确 `pulse.sophier.org/api/v1/calendar/widget`
+- 机器 Policy：Service Auth，仅 Include `Service Token → Pulse Calendar Widget`
+- Worker 暴露面：`workers_dev = false`、`preview_urls = false`
 
 ## 正常登录
 
@@ -37,11 +41,14 @@
 3. 确认唯一 Allow 策略是 `Allow Owner → questioniar@outlook.com`；
 4. 确认 Session 为 `2 weeks`；
 5. 用无 Cookie 浏览器验证未登录跳转，再用授权邮箱完成 OTP；
-6. 验证 `/api/finance` 未登录仍被 Access 拦截，Health Auto Export 的 `workers.dev` POST 无 Key/错 Key仍为 401。
+6. 验证 `/api/finance` 未登录仍被 Access 拦截，Calendar Widget Service Token 不能访问首页或其他 Pulse 私有 API；
+7. 通过 Cloudflare API确认 Worker subdomain 的 `enabled=false`、`previews_enabled=false`，并从独立出口黑盒验证 canonical workers.dev 与 Version/Preview URL 不能进入业务处理路径。
 
 ## 机器接口边界
 
-- Health Auto Export 固定使用 `workers.dev` 与 `X-API-Key`，不接入 OTP。
+- Calendar Widget 只接受独立 Service Token，只能读取 `GET /api/v1/calendar/widget`；匿名/错误 token 为 403，非 GET 为 405。
+- Calendar Widget token 不得加入 `Pulse Dashboard` policy，也不得用于其他 Pulse 私有路由。
+- Health Auto Export 保持独立 `X-API-Key` 鉴权，不接入 OTP，也不复用 Calendar Widget token。
 - Finance API 位于正式域名下，匿名访问由 Access 拦截；Worker 内仍保留 Access 身份校验。
 - 不在文档、Git 或 Obsidian 中保存 API Key、PIN、Access Cookie 或 JWT。
 

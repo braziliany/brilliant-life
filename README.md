@@ -9,7 +9,7 @@
 - React 19、vinext、Vite；
 - Cloudflare Workers 运行时；
 - Cloudflare D1 持久化真实个人数据；
-- Cloudflare Access 保护网页和读取接口；
+- Cloudflare Access 分别保护人类 Dashboard 与 path-scoped Calendar Widget 机器读取接口；
 - 独立 Worker Secret 验证 Health Auto Export 上传；
 - Drizzle schema 和顺序 SQL migration 管理数据库结构。
 - Life Finance 通过钱迹 JSON / Excel 适配器进行幂等增量导入，金额使用整数分保存。
@@ -70,7 +70,9 @@ npm run db:backup
 
 - `pulse.sophier.org` 由 Cloudflare Access 保护；
 - Pulse 日常登录仅使用 One-time PIN，授权邮箱由 `Allow Owner` 精确匹配，应用会话为 14 天；恢复流程见 `docs/Cloudflare Access 登录与恢复手册.md`；
-- Workers.dev 上的受保护读取接口不能依赖可伪造的 Access 请求头；
+- Calendar Widget Phase 1 只读端点为 `GET /api/v1/calendar/widget`，由独立、path-scoped 的 `Pulse Calendar Widget` Access Application 和 Service Token 保护；该 token 不能访问父级 Pulse 页面或其他私有 API；
+- 匿名或错误 Widget token 返回 403，正确 Widget token 返回受限 JSON，非 GET 方法返回 405；
+- `workers_dev = false`、`preview_urls = false`；Cloudflare 配置已关闭 canonical workers.dev 与 Version/Preview URL，外部黑盒验证确认这些地址无法进入 Worker 业务处理路径；
 - Health Auto Export 通过 `X-API-Key` 使用独立的 `HEALTH_INGEST_API_KEY` Worker Secret；
 - Secret 只能通过 Wrangler/Cloudflare 管理并写入 iPhone 客户端，不能提交到仓库；
 - 密钥轮换后必须手动同步一次，确认上传成功和连续性记录正常。
@@ -84,7 +86,7 @@ npm run verify
 npx wrangler deploy
 ```
 
-涉及 D1 schema 时，应先备份、在隔离数据库完成恢复与升级演练，再应用生产 migration，最后发布匹配的 Worker。发布后检查 Cloudflare Access 登录跳转、Workers.dev 未登录 API 返回 401，以及健康同步是否成功。
+涉及 D1 schema 时，应先备份、在隔离数据库完成恢复与升级演练，再应用生产 migration，最后发布匹配的 Worker。发布后检查 Dashboard Access 登录跳转、Calendar Widget token 的 path isolation、`workers_dev`/`preview_urls` 关闭状态，以及独立 Health 上传链路是否正常。
 
 Codex Sites 完整归档目前会超过 10 MiB 限制，因此不是本项目的正式发布路径；实际 Worker 模块体积远低于该限制。不要为了压缩归档删除业务资源或升级依赖。
 
