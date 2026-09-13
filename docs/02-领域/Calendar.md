@@ -14,3 +14,4 @@ Calendar domain 负责日期键、月历结构、状态解析、月份切换、�
 - Widget 直接复用 Calendar domain 的日期解析、官方节假日配置和个人覆盖；不维护第二份节假日或工作日真相源。
 - 返回范围只包含月度日期状态、个人覆盖标记和备注存在性摘要，不返回备注正文、其他生活领域或内部记录标识。
 - Widget 不提供 mutation endpoint；POST、PUT、PATCH、DELETE 均拒绝，Phase 1 无 migration、无 D1 写入。
+- Widget 使用独立、path-scoped 的 Cloudflare Access Application 与 Calendar Service Token；该 token 不能进入 Health Ingest、Dashboard 或其他 private read 路由。

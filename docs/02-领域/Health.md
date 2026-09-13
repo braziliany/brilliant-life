@@ -2,7 +2,9 @@
 
 ## 来源与指标
 
-唯一写入来源是经过 API Key 鉴权的 Auto Export Health payload。当前每日指标包括步数、活动能量、静息能量、锻炼分钟、训练次数、睡眠、体重与静息心率。
+唯一写入来源是 Auto Export Health 发往 `POST /api/health/ingest` 的 payload。请求先通过独立、path-scoped 的 Health Cloudflare Access Application 与 Health Service Token，再由 Worker 校验独立 `X-API-Key`。当前每日指标包括步数、活动能量、静息能量、锻炼分钟、训练次数、睡眠、体重与静息心率。
+
+`/api/health` 只用于 Dashboard/private read，继续要求 Owner Access；Calendar Service Token 与 Health Service Token 不得跨机器 endpoint。canonical workers.dev 与 Preview URLs 均不是 Health 入口。
 
 ## 存在性语义
 
@@ -15,7 +17,7 @@
 
 ## 同步边界
 
-快捷指令成功不等于服务端收到。只有 Worker 完成鉴权、解析、写入并记录成功 ingest 才算同步成功。详情见[Health 同步可靠性](../03-运维/Health同步可靠性.md)。
+快捷指令成功不等于服务端收到。只有 Access 与 Worker 应用鉴权均通过，且 Worker 完成解析、写入并记录成功 ingest，才算同步成功。详情见[Health 同步可靠性](../03-运维/Health同步可靠性.md)。
 
 ## Annual 使用
 

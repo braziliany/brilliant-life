@@ -9,8 +9,8 @@
 - React 19、vinext、Vite；
 - Cloudflare Workers 运行时；
 - Cloudflare D1 持久化真实个人数据；
-- Cloudflare Access 分别保护人类 Dashboard 与 path-scoped Calendar Widget 机器读取接口；
-- 独立 Worker Secret 验证 Health Auto Export 上传；
+- Cloudflare Access 分别保护人类 Dashboard、path-scoped Calendar Widget 机器读取接口与 path-scoped Health Ingest 机器写入接口；
+- Health Ingest 使用独立 Health Service Token 与 Worker Secret 分层验证 Auto Export Health 上传；
 - Drizzle schema 和顺序 SQL migration 管理数据库结构。
 - Life Finance 通过钱迹 JSON / Excel 适配器进行幂等增量导入，金额使用整数分保存。
 
@@ -69,11 +69,12 @@ npm run db:backup
 ## Cloudflare Access 与健康上传
 
 - `pulse.sophier.org` 由 Cloudflare Access 保护；
-- Pulse 日常登录仅使用 One-time PIN，授权邮箱由 `Allow Owner` 精确匹配，应用会话为 14 天；恢复流程见 `docs/Cloudflare Access 登录与恢复手册.md`；
+- Pulse 日常登录仅使用 One-time PIN，授权邮箱由 `Allow Owner` 精确匹配，应用会话为 14 天；恢复流程见 [Cloudflare Access](./docs/03-运维/Cloudflare%20Access.md)；
 - Calendar Widget Phase 1 只读端点为 `GET /api/v1/calendar/widget`，由独立、path-scoped 的 `Pulse Calendar Widget` Access Application 和 Service Token 保护；该 token 不能访问父级 Pulse 页面或其他私有 API；
 - 匿名或错误 Widget token 返回 403，正确 Widget token 返回受限 JSON，非 GET 方法返回 405；
+- Health Auto Export 唯一机器写入端点为 `POST /api/health/ingest`，由独立、path-scoped 的 Health Access Application、Health Service Token 与 `X-API-Key` 分层保护；`/api/health` 保留 Owner-only private read；
 - `workers_dev = false`、`preview_urls = false`；Cloudflare 配置已关闭 canonical workers.dev 与 Version/Preview URL，外部黑盒验证确认这些地址无法进入 Worker 业务处理路径；
-- Health Auto Export 通过 `X-API-Key` 使用独立的 `HEALTH_INGEST_API_KEY` Worker Secret；
+- Calendar 与 Health Service Token 不能跨机器 endpoint，且均不能进入 Dashboard/private read 路由；
 - Secret 只能通过 Wrangler/Cloudflare 管理并写入 iPhone 客户端，不能提交到仓库；
 - 密钥轮换后必须手动同步一次，确认上传成功和连续性记录正常。
 

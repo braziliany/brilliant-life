@@ -6,6 +6,8 @@
 
 Pulse 只以 Worker 完成鉴权、解析和每日汇总写入，并成功写下 `health_ingestion_runs` 成功事件作为同步成功依据。
 
+当前唯一机器入口是 `POST https://pulse.sophier.org/api/health/ingest`。Auto Export Health 必须同时携带独立 Health Service Token 的 `CF-Access-Client-Id`、`CF-Access-Client-Secret` 与 Worker 应用鉴权的 `X-API-Key`；文档、Git 与 Obsidian 只允许记录 header 名称，不得保存其值。`/api/health` 是 Owner-only private read，canonical workers.dev 与 Preview URLs 均已关闭。
+
 ## 页面语义
 
 - 今日存在服务端成功事件：显示这次或今天其他成功 payload 确实包含的指标。

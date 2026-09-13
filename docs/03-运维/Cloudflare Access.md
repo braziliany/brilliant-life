@@ -10,9 +10,12 @@
 - 应用 Session：`2 weeks`（14 天）
 - Instant Authentication：关闭
 - Cloudflare IdP：账户层保留，但 Pulse 应用不选用
-- 机器应用：Pulse Calendar Widget
-- 机器受保护范围：精确 `pulse.sophier.org/api/v1/calendar/widget`
-- 机器 Policy：Service Auth，仅 Include `Service Token → Pulse Calendar Widget`
+- Calendar 机器应用：Pulse Calendar Widget
+- Calendar 机器受保护范围：精确 `pulse.sophier.org/api/v1/calendar/widget`
+- Calendar 机器 Policy：Service Auth，仅 Include `Service Token → Pulse Calendar Widget`
+- Health 机器应用：独立 Health Ingest Access Application
+- Health 机器受保护范围：精确 `pulse.sophier.org/api/health/ingest`
+- Health 机器 Policy：Service Auth，仅 Include 独立 Health Service Token
 - Worker 暴露面：`workers_dev = false`、`preview_urls = false`
 
 ## 正常登录
@@ -41,14 +44,17 @@
 3. 确认唯一 Allow 策略是 `Allow Owner → questioniar@outlook.com`；
 4. 确认 Session 为 `2 weeks`；
 5. 用无 Cookie 浏览器验证未登录跳转，再用授权邮箱完成 OTP；
-6. 验证 `/api/finance` 未登录仍被 Access 拦截，Calendar Widget Service Token 不能访问首页或其他 Pulse 私有 API；
+6. 验证 `/api/finance` 未登录仍被 Access 拦截，Calendar 与 Health Service Token 均不能访问首页、`/api/health` 或对方的机器 endpoint；
 7. 通过 Cloudflare API确认 Worker subdomain 的 `enabled=false`、`previews_enabled=false`，并从独立出口黑盒验证 canonical workers.dev 与 Version/Preview URL 不能进入业务处理路径。
 
 ## 机器接口边界
 
 - Calendar Widget 只接受独立 Service Token，只能读取 `GET /api/v1/calendar/widget`；匿名/错误 token 为 403，非 GET 为 405。
 - Calendar Widget token 不得加入 `Pulse Dashboard` policy，也不得用于其他 Pulse 私有路由。
-- Health Auto Export 保持独立 `X-API-Key` 鉴权，不接入 OTP，也不复用 Calendar Widget token。
+- Health Auto Export 只写入 `POST /api/health/ingest`，先使用独立 Health Service Token 通过精确 path 的 Access Application，再由 Worker 校验独立 `X-API-Key`；它不接入 OTP，也不复用 Calendar Widget token。
+- Auto Export Health 必须发送 `CF-Access-Client-Id`、`CF-Access-Client-Secret` 与 `X-API-Key`；只记录 header 名称，不记录任何值。
+- `/api/health` 保留 `Pulse Dashboard` 的 Owner-only private read 边界，不能作为机器写入入口。
+- Calendar Token / Health Token 必须保持双向隔离；一个机器客户端对应一个精确 path boundary 与一个独立 Service Token。
 - Finance API 位于正式域名下，匿名访问由 Access 拦截；Worker 内仍保留 Access 身份校验。
 - 不在文档、Git 或 Obsidian 中保存 API Key、PIN、Access Cookie 或 JWT。
 
