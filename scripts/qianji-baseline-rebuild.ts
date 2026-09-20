@@ -1,6 +1,6 @@
 import { isGeneratedFinanceSourceId } from "../app/features/finance/source-facts.ts";
-import { createFinanceReconciliationSnapshot, reconciliationPreconditionHash, sha256, type ReconciliationStoredRecord } from "../app/features/finance/reconciliation.ts";
-import type { FinanceImportValidation, NormalizedFinanceTransaction } from "../app/features/finance/types.ts";
+import { createFinanceReconciliationSnapshot, reconciliationPreconditionHash, sha256, stableJson, type ReconciliationStoredRecord } from "../app/features/finance/reconciliation.ts";
+import { isLifeDomain, type FinanceImportValidation, type NormalizedFinanceTransaction } from "../app/features/finance/types.ts";
 
 export const QIANJI_BASELINE_REBUILD_CONTRACT = {
   source: "qianji",
@@ -9,6 +9,7 @@ export const QIANJI_BASELINE_REBUILD_CONTRACT = {
   firstOccurredAt: "2026-01-01T16:16:16+08:00",
   lastOccurredAt: "2026-08-31T21:43:37+08:00",
   canonicalSha256: "5d724afeadcb7b21e23529713f4921c80f6dd03694161eca1571da51cf130826",
+  executionAssetSha256: "9013fe68a71efaef4dfda643a11b3f6ed4d4c63a38c3b49e2879f2690c461d80",
   canonicalRecords: 1132,
   productionRows: 1099,
   preconditionHash: "b9ecd9ff9af06d4540663db8560d0491a797dfb2f4262d83a652a8e562a3810f",
@@ -26,6 +27,7 @@ export type QianJiBaselineContract = {
   firstOccurredAt: string;
   lastOccurredAt: string;
   canonicalSha256: string;
+  executionAssetSha256: string;
   canonicalRecords: number;
   productionRows: number;
   preconditionHash: string;
@@ -54,6 +56,17 @@ export type BaselineRunResult = {
   after?: ReturnType<typeof createFinanceReconciliationSnapshot>; timestamp: string;
 };
 
+export type QianJiBaselineExecutionAsset = {
+  executionAssetSha256: string;
+  payload: {
+    version: 1;
+    canonicalSha256: string;
+    records: number;
+    sourceIdSetHash: string;
+    transactions: NormalizedFinanceTransaction[];
+  };
+};
+
 const SELECT_SCOPED = `SELECT id, source, source_id, occurred_at, type, amount_cents, currency,
   raw_type, raw_category, raw_subcategory, account_from, account_to, note, tags,
   life_domain, life_domain_override, person_id, project_id, asset_id, event_id, place_id, semantic_note
@@ -67,6 +80,19 @@ const INSERT_COLUMNS = `source_id, occurred_at, type, amount_cents, currency, ra
 const INSERT_FIELDS = ["sourceId", "occurredAt", "type", "amountCents", "currency", "rawType", "rawCategory", "rawSubcategory", "accountFrom", "accountTo", "note", "tags", "lifeDomain"] as const;
 const block = (message: string): never => { throw new Error(`BLOCK: ${message}`); };
 const equalRecord = (value: unknown, expected: unknown) => JSON.stringify(value) === JSON.stringify(expected);
+
+function validExecutionTransaction(value: unknown): value is NormalizedFinanceTransaction {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return item.source === "qianji"
+    && typeof item.sourceId === "string" && item.sourceId.length > 0
+    && typeof item.occurredAt === "string" && /^\d{4}-\d{2}-\d{2}T/.test(item.occurredAt) && Number.isFinite(Date.parse(item.occurredAt))
+    && ["expense", "income", "refund", "transfer", "repayment"].includes(String(item.type))
+    && Number.isSafeInteger(item.amountCents) && Number(item.amountCents) >= 0
+    && ["currency", "rawType", "rawCategory", "rawSubcategory", "accountFrom", "accountTo", "note"].every((field) => typeof item[field] === "string")
+    && Array.isArray(item.tags) && item.tags.every((tag) => typeof tag === "string")
+    && isLifeDomain(item.lifeDomain);
+}
 
 function toStoredRecord(row: D1FinanceRow): ReconciliationStoredRecord {
   return {
@@ -105,6 +131,37 @@ export function validateQianJiBaselineCanonical(bytes: Uint8Array, validation: F
   const snapshot = createFinanceReconciliationSnapshot(canonicalRecords(validation.transactions));
   assertExpectedSnapshot(snapshot, contract);
   return { transactions: validation.transactions, snapshot };
+}
+
+export function createQianJiBaselineExecutionAsset(transactions: NormalizedFinanceTransaction[], contract: QianJiBaselineContract = QIANJI_BASELINE_REBUILD_CONTRACT): QianJiBaselineExecutionAsset {
+  const payload = {
+    version: 1 as const,
+    canonicalSha256: contract.canonicalSha256,
+    records: transactions.length,
+    sourceIdSetHash: createFinanceReconciliationSnapshot(canonicalRecords(transactions)).sourceIdSetHash,
+    transactions,
+  };
+  return { executionAssetSha256: sha256(stableJson(payload)), payload };
+}
+
+export function validateQianJiBaselineExecutionAsset(value: unknown, contract: QianJiBaselineContract = QIANJI_BASELINE_REBUILD_CONTRACT) {
+  if (!value || typeof value !== "object") block("canonical execution asset is invalid");
+  const asset = value as QianJiBaselineExecutionAsset;
+  if (!asset.payload || typeof asset.payload !== "object" || !Array.isArray(asset.payload.transactions)) block("canonical execution asset is invalid");
+  if (asset.payload.version !== 1) block("canonical execution asset version differs");
+  if (asset.payload.canonicalSha256 !== contract.canonicalSha256) block("canonical SHA-256 differs");
+  if (asset.payload.records !== contract.canonicalRecords || asset.payload.transactions.length !== contract.canonicalRecords) block("canonical record count differs");
+  if (asset.payload.sourceIdSetHash !== contract.sourceIdSetHash) block("canonical sourceId set differs");
+  if (asset.executionAssetSha256 !== contract.executionAssetSha256 || sha256(stableJson(asset.payload)) !== contract.executionAssetSha256) block("canonical execution asset SHA-256 differs");
+  if (!asset.payload.transactions.every(validExecutionTransaction)) block("canonical contains invalid records");
+  if (asset.payload.transactions.some((item) => isGeneratedFinanceSourceId(item.sourceId))) block("canonical contains generated source IDs");
+  const identities = asset.payload.transactions.map((item) => `${item.source}:${item.sourceId}`);
+  if (new Set(identities).size !== identities.length) block("canonical contains duplicate source IDs");
+  const dates = asset.payload.transactions.map((item) => item.occurredAt).sort();
+  if (dates[0] !== contract.firstOccurredAt || dates.at(-1) !== contract.lastOccurredAt) block("canonical date range differs");
+  const snapshot = createFinanceReconciliationSnapshot(canonicalRecords(asset.payload.transactions));
+  assertExpectedSnapshot(snapshot, contract);
+  return { transactions: asset.payload.transactions, snapshot };
 }
 
 export async function loadQianJiBaselineScope(database: BaselineD1Database, contract: QianJiBaselineContract = QIANJI_BASELINE_REBUILD_CONTRACT) {
