@@ -13,7 +13,7 @@
   "updated_at": "2026-09-27T16:36:25+08:00",
   "current": {
     "title": "QianJi canonical baseline 已完成并关闭一次性维护设施",
-    "summary": "QIANJI CANONICAL BASELINE REBUILD = PASS；production before=1099、canonical target=1132，execution exactly once；temporary endpoint、executor、maintenance secret dependency 与临时 Access 设施已移除，workers.dev 与 preview URLs 继续关闭。"
+    "summary": "QIANJI CANONICAL BASELINE REBUILD = PASS；production before=1099、canonical target=1132，execution exactly once；temporary endpoint、executor 与 maintenance secret dependency 已移除，临时 Cloudflare Access 对象待按精确对象 ID 手工清理，workers.dev 与 preview URLs 继续关闭。"
   },
   "completed": [
     "v1.4 领域化、D1 可靠性和统一验证基线",
