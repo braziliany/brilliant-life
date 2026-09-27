@@ -78,7 +78,7 @@ Reconciliation 默认只运行 dry-run，并记录 canonical 文件 SHA-256、�
 
 本工具不改变数据库 schema。批准的 one-to-one rekey 原地更新既有数据库 row，以保留数值 ID、创建时间、`life_domain_override`、`semantic_note` 与 dormant relation IDs。删除必须精确指向经审核的单行，禁止按日期范围广泛删除。真实 diff 与 manifest 只保存在 Git 忽略的 `data/private/reconciliation/`；生产 apply 当前硬禁用。
 
-2026 canonical 基线仍属于一次性历史重建，不构成未来日常导入模板。用于精确范围删除并插入 canonical snapshot 的 guarded executor 与事务回滚测试已经就绪，但生产 preflight 被 Cloudflare remote D1 只读 internal error 阻塞；baseline rebuild 尚未执行，生产写入为 0。平台读取恢复后仍须重新通过 canonical、前置 hash、人工资产和备份 Gate，并获得独立生产批准。日常钱迹导出始终继续走 Trusted Validation → Normal Import。
+2026 canonical 基线已完成一次性历史重建，不构成未来日常导入模板。Production before 为 1,099 条 QianJi 记录，canonical target 为 1,132 条；执行严格限定在 2026-01-01 至 2026-08-31，DELETE 1,099、INSERT 1,132，并已验证 QianJi=1,132、non-QianJi=0。执行后 one-time Worker executor、维护入口、maintenance secret dependency 与临时 Access 设施均已拆除。日常钱迹导出始终继续走 Trusted Validation → Normal Import。
 
 ## 统计口径
 

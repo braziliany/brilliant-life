@@ -10,15 +10,16 @@
   },
   "status": "in_progress",
   "progress": null,
-  "updated_at": "2026-09-13T09:15:15+08:00",
+  "updated_at": "2026-09-27T16:36:25+08:00",
   "current": {
-    "title": "Calendar Widget Phase 1 已完成并通过生产验收",
-    "summary": "PHASE 1 PRODUCTION ACCEPTANCE = PASS；production commit a53fd7a60415069f2ac7d1693f0835cce55ed55a，Worker version 8544d2b0-e347-4dbb-a6c7-bf9a45d3b390；security gate、workers.dev bypass 与 preview URL bypass 均已关闭。"
+    "title": "QianJi canonical baseline 已完成并关闭一次性维护设施",
+    "summary": "QIANJI CANONICAL BASELINE REBUILD = PASS；production before=1099、canonical target=1132，execution exactly once；temporary endpoint、executor、maintenance secret dependency 与临时 Access 设施已移除，workers.dev 与 preview URLs 继续关闭。"
   },
   "completed": [
     "v1.4 领域化、D1 可靠性和统一验证基线",
     "v1.5 年度档案、实际财务流水、健康同步可信语义与 Life Insights Phase 1",
-    "Calendar Widget Phase 1：complete / accepted / PASS；独立 token 与父级 Access 隔离通过，workers.dev 和 Preview URL 已关闭"
+    "Calendar Widget Phase 1：complete / accepted / PASS；独立 token 与父级 Access 隔离通过，workers.dev 和 Preview URL 已关闭",
+    "2026 QianJi canonical baseline replacement：DELETE 1099 / INSERT 1132；canonical facts verified；one-time maintenance infrastructure closed without migration or retry"
   ],
   "next": [
     {
