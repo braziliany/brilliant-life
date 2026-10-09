@@ -25,7 +25,7 @@ test("annual page declares AnnualSummaryDraft as its only factual payload", () =
 });
 
 test("annual Insights remain a four-item editorial section without scoring or causal copy", () => {
-  assert.match(page, /这一年，生活之间发生了什么/);
+  assert.match(page, /这一年的记录与比较/);
   assert.match(page, /账单现金流结余/);
   assert.match(page, /只比较已保存的工资记录，不包含预计工资/);
   assert.doesNotMatch(page, /人生评分|健康评分|财务评分|工作导致|储蓄率|财富增长|可信度\s*\d|confidence/i);
@@ -34,10 +34,10 @@ test("annual Insights remain a four-item editorial section without scoring or ca
 
 test("annual page preserves in-progress, independent finance, and empty career states", () => {
   assert.match(page, /\{summary\.year\} 年度档案 · \{periodLabel\}/);
-  assert.match(page, /截至 \{summary\.asOfDate\}/);
+  assert.match(page, /截至 \$\{summary\.asOfDate\}/);
   assert.doesNotMatch(page, /个人数字生命档案|实时草稿|AnnualSummaryDraft<|当前草稿|实时汇总|事实层|事实摘要/);
   assert.doesNotMatch(page, /\{summary\.calculationVersion\}/);
-  assert.match(page, /summary\.finance\.salary\.coverage\.availableMonths \? money/);
+  assert.match(page, /累计工资/);
   assert.match(page, /summary\.finance\.lifeFinance\.facts\.recordCount/);
   assert.match(page, /两类记录分别保存，不自动合计/);
   assert.match(charts, /缺失月份断开且不补 ¥0/);
@@ -46,7 +46,7 @@ test("annual page preserves in-progress, independent finance, and empty career s
 });
 
 test("annual report extends the audited Lieflat porcelain set without adding a chart library", () => {
-  assert.match(page, /data-chart-count="6"/);
+  assert.doesNotMatch(page, /<CompletenessBallotChart/);
   assert.match(page, /data-color-system="porcelain"/);
   assert.match(implementationRecord, /模板编号：L3/);
   assert.match(implementationRecord, /模板编号：F4/);
@@ -84,12 +84,10 @@ test("annual responsive contract keeps mobile charts readable and honors reduced
   assert.match(styles, /\.annualLifeFinanceMetrics\{gap:7px\}/);
 });
 
-test("annual supporting charts follow the primary archive content", () => {
-  const chartsIndex = page.indexOf('<div className="annualCharts"');
-  assert.ok(chartsIndex > page.indexOf('<section className="annualInsights"'));
-  assert.ok(chartsIndex > page.indexOf('<section className="annualFinance"'));
-  assert.ok(chartsIndex > page.indexOf('<section className="annualCareer"'));
-  assert.ok(chartsIndex > page.indexOf('<section className="annualTrust"'));
+test("annual factual sections precede comparisons and collapsed source notes", () => {
+  const sections = ["health", "career", "salary", "life-finance", "time", "insights", "coverage"].map((name) => page.indexOf(`data-annual-section="${name}"`));
+  assert.ok(sections.every((index, i) => index >= 0 && (!i || index > sections[i - 1])));
+  assert.match(page, /<details className="annualRecordDetails"><summary>记录说明与来源/);
   assert.match(charts, /工资只沿已保存月份延伸/);
   assert.doesNotMatch(charts, /实发工资只沿已保存月份延伸/);
 });

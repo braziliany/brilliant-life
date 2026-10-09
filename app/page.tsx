@@ -11,6 +11,7 @@ import { DailyGoalsColumn } from "./features/health/DailyGoalsColumn";
 import {
   calculateHealthSummary,
   calculateHealthTrend,
+  healthCsvRows,
   calculateHealthIngestionContinuity,
   findLatestSuccessfulIngestionForDate,
   findLatestSuccessfulHealthIngestion,
@@ -197,7 +198,7 @@ export default function Home() {
     sleepMinutes: { label: "睡眠时长", unit: "小时", color: "#768cff" },
     restingHeartRateBpm: { label: "静息心率", unit: "次/分", color: "#ff7aa2" },
   }[healthMetric];
-  const { metricHistory: healthMetricHistory, metricMax: healthMetricMax, metricAverageLabel: healthMetricAverageLabel } = calculateHealthTrend(healthHistory, healthPeriod, healthMetric);
+  const { metricHistory: healthMetricHistory, metricMax: healthMetricMax, metricAverageLabel: healthMetricAverageLabel, unknownCoverageDays } = calculateHealthTrend(healthHistory, healthPeriod, healthMetric, todayKey);
   const healthMetricValue = (item: HealthDaily) => getHealthMetricValue(item, healthMetric);
   const latestSyncedHealth = healthHistory.at(-1) ?? null;
   const latestHealthIngestion = findLatestSuccessfulHealthIngestion(healthIngestions);
@@ -555,20 +556,8 @@ export default function Home() {
 
   const exportHealthRecords = () => {
     if (healthHistory.length === 0) return;
-    const headers = ["日期", "步数", "活动能量(kcal)", "静息能量(kcal)", "总能量(kcal)", "锻炼(分钟)", "睡眠(分钟)", "静息心率(次/分)", "体重(kg)", "来源", "更新时间"];
-    const rows = healthHistory.map((record) => [
-      record.date,
-      record.steps,
-      record.activeEnergyKcal,
-      record.restingEnergyKcal,
-      record.activeEnergyKcal + record.restingEnergyKcal,
-      record.exerciseMinutes,
-      record.sleepMinutes ?? "",
-      record.restingHeartRateBpm ?? "",
-      record.weightKg ?? "",
-      record.source,
-      record.updatedAt,
-    ]);
+    const headers = ["日期", "步数", "活动能量(kcal)", "静息能量(kcal)", "总能量(kcal)", "锻炼(分钟)", "睡眠(分钟)", "静息心率(次/分)", "体重(kg)", "来源", "更新时间", "指标记录说明"];
+    const rows = healthCsvRows(healthHistory);
     const escapeCsv = (value: string | number) => `"${String(value).replaceAll('"', '""')}"`;
     const csv = [headers, ...rows].map((row) => row.map(escapeCsv).join(",")).join("\r\n");
     const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
@@ -686,6 +675,7 @@ export default function Home() {
               healthMetric={healthMetric}
               healthPeriod={healthPeriod}
               healthMetricAverageLabel={healthMetricAverageLabel}
+              unknownCoverageDays={unknownCoverageDays}
               healthMetricConfig={healthMetricConfig}
               healthMetricHistory={healthMetricHistory}
               healthMetricMax={healthMetricMax}

@@ -6,7 +6,6 @@ import {
   type AnnualSummaryDraft,
 } from "./domain";
 import {
-  CompletenessBallotChart,
   FinanceHairlineChart,
   HealthBarcodeChart,
   LifeFinanceDomainChart,
@@ -53,9 +52,9 @@ function AnnualInsightItem({ insight }: { insight: LifeInsight }) {
   }
   return <article>
     <span>工资记录</span>
-    <h3>{insight.value ? `已保存 ${insight.value.savedMonthCount} 个月工资记录` : insight.coverage.available ? "工资记录还不足以形成趋势" : "今年还没有工资记录"}</h3>
+    <h3>{insight.value ? `已保存 ${insight.value.savedMonthCount} 个月工资记录` : insight.coverage.available ? "工资记录还不足以形成趋势" : "这一年还没有工资记录"}</h3>
     {insight.value ? <>
-      <strong>{insight.value.difference === 0 ? "首末记录实发相同" : `最新实发比最早${insight.value.difference > 0 ? "高" : "低"} ${money(Math.abs(insight.value.difference))}`}</strong>
+      <strong>{insight.value.difference === 0 ? "最早与最新记录的工资相同" : `最新记录的工资比最早记录${insight.value.difference > 0 ? "高" : "低"} ${money(Math.abs(insight.value.difference))}`}</strong>
       <p>{shortMonth(insight.value.firstMonth)} {money(insight.value.firstNetSalary)} · {shortMonth(insight.value.latestMonth)} {money(insight.value.latestNetSalary)}</p>
     </> : <p>{insight.explanation}</p>}
     <small>只比较已保存的工资记录，不包含预计工资</small>
@@ -95,6 +94,10 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
     return <section className="annualReport annualLoading" aria-live="polite"><p>年度记录读取失败。</p><button type="button" onClick={() => setReloadKey((value) => value + 1)}>重新加载</button></section>;
   }
 
+  return <AnnualArchiveContent summary={summary} onChangeYear={setYear} />;
+}
+
+export function AnnualArchiveContent({ summary, onChangeYear }: { summary: AnnualSummaryDraft; onChangeYear: (year: number) => void }) {
   const healthTrust = explainAnnualDomain(summary.health);
   const timeTrust = explainAnnualDomain(summary.time);
   const salaryTrust = explainAnnualDomain(summary.finance.salary);
@@ -108,49 +111,61 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
     ["职业", careerTrust],
   ] as const;
   const periodLabel = summary.periodStatus === "in-progress" ? "进行中" : summary.periodStatus === "not-started" ? "尚未开始" : "已结束";
+  const healthMetrics = [
+    ["steps", "已记录步数", number(summary.health.facts.totalSteps), "步"],
+    ["exerciseMinutes", "已记录锻炼时间", number(summary.health.facts.totalExerciseMinutes), "分钟"],
+    ["sleepMinutes", "平均睡眠", summary.health.facts.sleep.averageMinutes === null ? null : number(summary.health.facts.sleep.averageMinutes), "分钟"],
+    ["weightKg", "最新记录体重", summary.health.facts.weight.lastKg === null ? null : number(summary.health.facts.weight.lastKg), "kg"],
+    ["restingHeartRateBpm", "平均静息心率", summary.health.facts.restingHeartRate.averageBpm === null ? null : number(summary.health.facts.restingHeartRate.averageBpm), "次 / 分钟"],
+  ] as const;
+  // Existing aggregate facts can include legacy observations; never label a mixed aggregate as trusted.
+  const trustedMetric = (metric: typeof healthMetrics[number][0]) => summary.health.coverage.legacyUnknownDays === 0 && summary.health.facts.metricAvailableDays[metric] > 0 && summary.health.facts.trustedMetricAvailableDays[metric] >= summary.health.facts.metricAvailableDays[metric];
+  const visibleInsights = summary.insights.slice(0, 4).filter((insight) => insight.availability !== "unavailable" && insight.value !== null);
 
   return (
     <section className="annualReport" data-annual-summary-source="AnnualSummaryDraft">
       <header className="annualHero">
         <div>
           <h1>我的 {summary.year}</h1>
-          <p>{summary.year} 年度档案 · {periodLabel}<br />截至 {summary.asOfDate}</p>
+          <p>{summary.year} 年度档案 · {periodLabel}<br />{summary.periodStatus === "complete" ? `${summary.year}-01-01 — ${summary.year}-12-31` : `截至 ${summary.asOfDate}`}</p>
         </div>
         <div className="annualYearSwitcher" aria-label="切换年度">
-          <button type="button" onClick={() => setYear((value) => value - 1)} aria-label="上一年">‹</button>
+          <button type="button" onClick={() => onChangeYear(summary.year - 1)} aria-label="上一年">‹</button>
           <strong>{summary.year}</strong>
-          <button type="button" onClick={() => setYear((value) => value + 1)} aria-label="下一年">›</button>
+          <button type="button" onClick={() => onChangeYear(summary.year + 1)} aria-label="下一年">›</button>
         </div>
       </header>
 
-      <div className="annualFacts" aria-label="年度概览">
-        <article><span>健康记录</span><strong>{summary.health.coverage.availableDays}</strong><small>/ 截至今日 {summary.health.coverage.expectedDays} 天 · 全年 {summary.health.coverage.fullYearExpectedDays} 天{summary.health.coverage.legacyUnknownDays ? ` · ${summary.health.coverage.legacyUnknownDays} 天为早期记录` : ""}</small></article>
-        <article><span>全年步数</span><strong>{summary.health.facts.metricAvailableDays.steps ? number(summary.health.facts.totalSteps) : "—"}</strong><small>{summary.health.facts.metricAvailableDays.steps ? "步" : "没有记录"}</small></article>
-        <article><span>全年配置工作日</span><strong>{summary.time.coverage.officialCalendarConfigured ? summary.time.facts.actualWorkdays : "—"}</strong><small>{summary.time.coverage.officialCalendarConfigured ? (summary.time.coverage.includesFutureDates ? "天 · 含未来日期" : "天 · 全年已结束") : "日历未配置"}</small></article>
-        <article><span>截至当前已存工资</span><strong>{summary.finance.salary.coverage.availableMonths ? money(summary.finance.salary.facts.totalNetSalary) : "—"}</strong><small>{summary.finance.salary.coverage.availableMonths} / {summary.finance.salary.coverage.expectedMonths} 个已到月份 · 全年范围 {summary.finance.salary.coverage.fullYearExpectedMonths} 月</small></article>
-      </div>
-
-      <section className="annualInsights" aria-labelledby="annual-insights-title">
-        <div className="annualSectionHead"><div><span>INSIGHTS</span><h2 id="annual-insights-title">这一年，生活之间发生了什么</h2></div><b>截至 {summary.asOfDate}</b></div>
-        <div className="annualInsightsGrid">
-          {summary.insights.slice(0, 4).map((insight) => <AnnualInsightItem key={insight.id} insight={insight} />)}
-        </div>
+      <section className="annualHealth" data-annual-section="health" aria-labelledby="annual-health-title">
+        <div className="annualSectionHead"><div><span>健康</span><h2 id="annual-health-title">这一年的健康记录</h2></div></div>
+        <p>{summary.health.coverage.availableDays ? `${summary.health.coverage.availableDays} 个日期有记录` : "这一年暂无健康记录。"}{summary.health.coverage.legacyUnknownDays ? ` · ${summary.health.coverage.legacyUnknownDays} 天为早期记录，指标是否完整尚不能确认` : ""}</p>
+        {summary.health.coverage.availableDays > 0 && <div className="annualFacts" aria-label="健康记录摘要">
+          {healthMetrics.map(([metric, label, value, unit]) => <article key={metric}><span>{label}</span><strong>{trustedMetric(metric) && value !== null ? value : "—"}</strong><small>{trustedMetric(metric) && value !== null ? `${unit} · ${summary.health.facts.metricAvailableDays[metric]} 天有可信记录` : "暂无可确认的汇总"}</small></article>)}
+        </div>}
+        {trustedMetric("steps") && <div className="annualCharts"><HealthBarcodeChart summary={summary} /></div>}
       </section>
 
-      <section className="annualFinance" aria-labelledby="annual-finance-title">
+      <section className="annualCareer" data-annual-section="career" aria-labelledby="annual-career-title">
+        <div className="annualSectionHead"><div><span>职业</span><h2 id="annual-career-title">这一年的职业阶段</h2></div><b>{summary.career.facts.stageCount} 段</b></div>
+        {summary.career.facts.stages.length ? <ol>{summary.career.facts.stages.map((stage) => <li key={stage.id}><i aria-hidden="true" /><div><strong>{stage.role}</strong><span>{stage.company}</span><small>年内记录范围 {stage.startMonth} — {stage.endMonth} · {stage.months} 个月</small></div></li>)}</ol> : <p className="annualEmpty">这一年没有与之重叠的职业经历记录。</p>}
+      </section>
+
+      <section className="annualSalary" data-annual-section="salary" aria-labelledby="annual-salary-title">
+        <div className="annualSectionHead"><div><span>工资</span><h2 id="annual-salary-title">这一年已保存的工资</h2></div></div>
+        {summary.finance.salary.coverage.availableMonths ? <>
+          <div className="annualFinanceSources"><article><span>累计工资</span><strong>{money(summary.finance.salary.facts.totalNetSalary)}</strong><small>{summary.finance.salary.facts.savedMonthCount} 个已保存月份 · 个税 {money(summary.finance.salary.facts.totalIncomeTax)}</small></article></div>
+          <p>只包含已保存月份，不包含预计工资，也不会随当前工资规则自动重算。</p>
+          <div className="annualCharts"><FinanceHairlineChart summary={summary} /></div>
+        </> : <p className="annualEmpty">这一年暂无已保存工资记录。</p>}
+      </section>
+
+      <section className="annualFinance" data-annual-section="life-finance" aria-labelledby="annual-finance-title">
         <div className="annualSectionHead">
-          <div><span>FINANCE</span><h2 id="annual-finance-title">这一年的工资与生活收支</h2></div>
+          <div><span>财务记录</span><h2 id="annual-finance-title">这一年的生活收支</h2></div>
           <b>两类记录分别保存，不自动合计</b>
         </div>
 
         <div className="annualFinanceSources">
-          <article>
-            <span>工资记录</span>
-            {summary.finance.salary.coverage.availableMonths ? <>
-              <strong>{money(summary.finance.salary.facts.totalNetSalary)}</strong>
-              <small>{summary.finance.salary.facts.savedMonthCount} 个已保存月份 · 个税 {money(summary.finance.salary.facts.totalIncomeTax)}</small>
-            </> : <><strong>—</strong><small>这一年暂无已保存工资记录</small></>}
-          </article>
           <article>
             <span>生活收支</span>
             {summary.finance.lifeFinance.facts.recordCount ? <>
@@ -162,12 +177,14 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
 
         {summary.finance.lifeFinance.facts.recordCount ? <>
           <div className="annualLifeFinanceMetrics" aria-label="年度生活收支摘要">
-            <article><span>今年收入</span><strong>{centsMoney(summary.finance.lifeFinance.facts.incomeCents)}</strong><small>实际账单收入</small></article>
+            <article><span>年度账单收入</span><strong>{centsMoney(summary.finance.lifeFinance.facts.incomeCents)}</strong><small>实际账单收入</small></article>
+            <article><span>支出</span><strong>{centsMoney(summary.finance.lifeFinance.facts.grossExpenseCents)}</strong><small>退款前的账单支出</small></article>
+            <article><span>退款</span><strong>{centsMoney(summary.finance.lifeFinance.facts.refundsCents)}</strong><small>账单退款</small></article>
             <article><span>净消费</span><strong>{centsMoney(summary.finance.lifeFinance.facts.netExpenseCents)}</strong><small>支出减去退款</small></article>
             <article><span>家庭支出</span><strong>{centsMoney(summary.finance.lifeFinance.facts.familyExpenseCents)}</strong><small>与家庭相关的支出</small></article>
             <article><span>个人消费</span><strong>{centsMoney(summary.finance.lifeFinance.facts.personalExpenseCents)}</strong><small>家庭支出以外的个人净消费</small></article>
           </div>
-          <p className="annualFinanceCutoff">年度档案截至 {shortDate(summary.asOfDate)} · 财务记录截至 {shortDate(summary.finance.lifeFinance.facts.dateEnd!)}</p>
+          <p className="annualFinanceCutoff">{summary.periodStatus === "complete" ? `${summary.year} 全年范围` : `年度档案截至 ${shortDate(summary.asOfDate)}`} · 财务记录截至 {shortDate(summary.finance.lifeFinance.facts.dateEnd!)}</p>
           <div className="annualLifeFinanceCharts" data-color-system="porcelain">
             <LifeFinanceMonthlyChart summary={summary} />
             <LifeFinanceDomainChart summary={summary} />
@@ -178,42 +195,39 @@ export function AnnualReportPage({ initialYear }: { initialYear: number }) {
               {summary.finance.lifeFinance.facts.importantExpenses.map((item, index) => <li key={`${item.date}-${item.title}-${item.amountCents}-${index}`}>
                 <time>{item.date}</time><div><strong>{item.title}</strong><small>{item.category}</small></div><b>{centsMoney(item.amountCents)}</b>
               </li>)}
-            </ol> : <p>今年还没有重要支出记录。</p>}
+            </ol> : <p>这一年还没有重要支出记录。</p>}
           </section>
         </> : <p className="annualEmpty">暂无财务记录。工资记录仍会独立保留。</p>}
       </section>
 
-      <section className="annualCareer" aria-labelledby="annual-career-title">
-        <div className="annualSectionHead"><div><span>CAREER</span><h2 id="annual-career-title">这一年的职业阶段</h2></div><b>{summary.career.facts.stageCount} 段</b></div>
-        {summary.career.facts.stages.length ? (
-          <ol>
-            {summary.career.facts.stages.map((stage) => (
-              <li key={stage.id}><i aria-hidden="true" /><div><strong>{stage.role}</strong><span>{stage.company}</span><small>{stage.startMonth} — {stage.endMonth} · {stage.months} 个月</small></div></li>
-            ))}
-          </ol>
-        ) : <p className="annualEmpty">这一年没有与之重叠的职业经历记录。</p>}
+      <section className="annualTime" data-annual-section="time" aria-labelledby="annual-time-title">
+        <div className="annualSectionHead"><div><span>时间</span><h2 id="annual-time-title">这一年的日历安排</h2></div></div>
+        <p>这是全年日历配置，不代表已经完成的工作或休息。{summary.time.coverage.includesFutureDates ? "包含未来日期。" : ""}</p>
+        {summary.time.coverage.officialCalendarConfigured ? <div className="annualCharts"><TimeTickDonutChart summary={summary} /></div> : <p className="annualEmpty">这一年份未配置日历。</p>}
       </section>
 
-      <section className="annualTrust" aria-labelledby="annual-trust-title">
-        <div className="annualSectionHead"><div><span>记录说明</span><h2 id="annual-trust-title">今年记录得怎么样</h2></div><b>截至 {summary.asOfDate}</b></div>
+      <section className="annualInsights" data-annual-section="insights" aria-labelledby="annual-insights-title">
+        <div className="annualSectionHead"><div><span>记录比较</span><h2 id="annual-insights-title">这一年的记录与比较</h2></div></div>
+        {visibleInsights.length ? <div className="annualInsightsGrid">{visibleInsights.map((insight) => <AnnualInsightItem key={insight.id} insight={insight} />)}</div> : <p className="annualEmpty">现有记录还不足以进行比较。</p>}
+      </section>
+
+      <section className="annualTrust" data-annual-section="coverage" aria-labelledby="annual-trust-title">
+        <div className="annualSectionHead"><div><span>记录说明</span><h2 id="annual-trust-title">这一年的记录覆盖</h2></div>{summary.periodStatus === "complete" ? <b>{summary.year} 全年范围</b> : <b>截至 {summary.asOfDate}</b>}</div>
+        <p>缺失记录不计为零。工资与财务只展示已有记录；职业经历不要求每个月都有新事件。</p>
+        <details className="annualRecordDetails"><summary>记录说明与来源</summary>
+        <p>健康范围 {summary.health.coverage.expectedDays} 天 / 全年 {summary.health.coverage.fullYearExpectedDays} 天；工资范围 {summary.finance.salary.coverage.expectedMonths} 个月。</p>
         <div className="annualTrustGrid">
           {trustRows.map(([label, trust]) => (
             <article key={label}>
-              <div><strong>{label}</strong><span>{Math.round(trust.ratio * 100)}%</span></div>
-              <p>{trust.state === "complete" ? "完整覆盖" : trust.state === "partial" ? "部分覆盖" : trust.state === "unconfigured" ? "年份未配置" : "没有记录"}</p>
-              {trust.warnings.map((warning) => <small key={warning.code}>{warning.explanation}</small>)}
+              <div><strong>{label}</strong>{label !== "职业" && <span>{Math.round(trust.ratio * 100)}%</span>}</div>
+              <p>{label === "职业" ? "按经历起止月份记录" : trust.state === "complete" ? "完整覆盖" : trust.state === "partial" ? "部分覆盖" : trust.state === "unconfigured" ? "年份未配置" : "没有记录"}</p>
+              {trust.warnings.filter((warning) => label !== "职业" || warning.code !== "partial-career-year").map((warning) => <small key={warning.code}>{warning.explanation}</small>)}
               <footer>{trust.sources.map((source) => source.explanation).join(" · ")}</footer>
             </article>
           ))}
         </div>
+        </details>
       </section>
-
-      <div className="annualCharts" data-chart-count="6" data-color-system="porcelain">
-        <HealthBarcodeChart summary={summary} />
-        <TimeTickDonutChart summary={summary} />
-        <FinanceHairlineChart summary={summary} />
-        <CompletenessBallotChart summary={summary} />
-      </div>
     </section>
   );
 }

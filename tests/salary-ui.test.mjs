@@ -108,9 +108,9 @@ test("salary history omits extra income presentation but keeps its calculation c
 
 test("salary trend stays compact and width-safe on mobile", () => {
   assert.match(styles, /\.salaryLinePlot\{[^}]*height:112px/);
-  assert.match(styles, /\.salaryTrendMonths\{position:relative;display:block;height:20px;min-width:0/);
+  assert.match(styles, /\.salaryTrendMonths\{position:relative;display:block;height:38px;min-width:0/);
   assert.match(styles, /@media \(max-width:560px\)[^\n]*\.salaryTrend\{padding:8px 12px 4px\}\.salaryLinePlot\{height:96px\}/);
-  assert.doesNotMatch(styles, /\.salaryTrend[^\n]*(overflow-x:auto|overflow-x:scroll)/);
+  assert.match(styles, /\.salaryTrendViewport\{max-width:100%;min-width:0;overflow-x:auto/);
 });
 
 test("each saved salary owns one anchored point, guide, amount, and month label", () => {
@@ -123,7 +123,7 @@ test("each saved salary owns one anchored point, guide, amount, and month label"
   assert.equal(points.every((point) => point.showMonth), true);
   assert.deepEqual(points.map((point) => point.x), [9, 50, 91]);
   assert.match(dashboard, /salaryTrendPoints\.map\(\(point\) => <line className="salaryTrendAnchor"[^>]*x1=\{point\.x\}[^>]*x2=\{point\.x\}[^>]*y1=\{point\.y\}[^>]*y2="90"/);
-  assert.match(dashboard, /className="salaryTrendMonths"[\s\S]*salaryTrendPoints\.map\(\(point\) => <b[^>]*left: `\$\{point\.x\}%`/);
+  assert.match(dashboard, /className="salaryTrendMonths"[\s\S]*salaryTrendPoints\.map\(\(point, index\) => <b[^>]*left: `\$\{point\.x\}%`/);
   assert.match(styles, /\.salaryTrendAnchor\{[^}]*stroke-dasharray:2 2/);
   assert.match(styles, /\.salaryTrendPoint\.first small,\.salaryTrendPoint\.last small\{right:auto;left:50%;transform:translateX\(-50%\)\}/);
 });

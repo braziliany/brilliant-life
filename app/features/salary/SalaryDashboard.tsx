@@ -5,6 +5,7 @@ import type { SalaryRecord, SalaryRecordInput } from "../../page-view.types";
 import { newSalaryInput, salaryInputFromRecord } from "./history";
 import { SalaryHistoryEditor } from "./SalaryHistoryEditor";
 import { buildSalaryTrendAreaPath, buildSalaryTrendPath, buildSalaryTrendPoints } from "./trend";
+import { salaryTrendMonthLabel } from "./trend-labels";
 
 type Props = {
   active: boolean;
@@ -124,6 +125,9 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
       {historyEditor?.mode === "create" && historyEditorView}
       {salaryTrendPoints.length > 0 && (
         <section className="salaryTrend" aria-label="已保存工资变化趋势">
+          {salaryTrendPoints.length >= 6 && <p className="salaryTrendHint">左右滑动查看月份</p>}
+          <div className="salaryTrendViewport" tabIndex={salaryTrendPoints.length >= 6 ? 0 : undefined} aria-label="工资趋势图，月份较多时可左右滑动">
+          <div className="salaryTrendCanvas" style={{ minWidth: salaryTrendPoints.length >= 6 ? (salaryTrendPoints.length - 1) * 76 + 48 : undefined }}>
           <div className="salaryLinePlot">
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
               {[10, 36.67, 63.33, 90].map((y) => <line className="salaryTrendGuide" key={y} x1="4" x2="96" y1={y} y2={y} vectorEffect="non-scaling-stroke" />)}
@@ -138,7 +142,9 @@ export function SalaryDashboard({ active, monthLabel, calendarMonthKey, workdays
             })}
           </div>
           <div className="salaryTrendMonths" aria-hidden="true">
-            {salaryTrendPoints.map((point) => <b key={point.month} style={{ left: `${point.x}%` }}>{Number(point.month.slice(5))}月</b>)}
+            {salaryTrendPoints.map((point, index) => <b key={point.month} style={{ left: `${point.x}%` }}>{salaryTrendMonthLabel(point.month, salaryTrendPoints[index - 1]?.month)}</b>)}
+          </div>
+          </div>
           </div>
         </section>
       )}

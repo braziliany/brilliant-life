@@ -160,7 +160,7 @@ export function FinanceHairlineChart({ summary }: { summary: AnnualSummaryDraft 
         ))}
         {points.map((point) => point && (
           <g key={point.record.month} className="lieflatReveal">
-            <circle cx={point.x} cy={point.y} r="5" fill={porcelain.data}><title>{monthLabel(point.record.month)}：实发 ¥{point.record.netSalary.toFixed(2)}</title></circle>
+            <circle cx={point.x} cy={point.y} r="5" fill={porcelain.data}><title>{monthLabel(point.record.month)}：工资 ¥{point.record.netSalary.toFixed(2)}</title></circle>
             <text x={point.x} y={Math.max(18, point.y - 12)} textAnchor="middle" fill={porcelain.text} fontSize="10" fontWeight="800">¥{Math.round(point.record.netSalary)}</text>
           </g>
         ))}
@@ -186,6 +186,12 @@ export function LifeFinanceMonthlyChart({ summary }: { summary: AnnualSummaryDra
   const step = Math.min(11, 190 / maxRungs);
   const cutoff = lifeFinance.coverage.sourceCutoffDate;
   const partialMonth = cutoff?.slice(0, 7);
+
+  if (months.some((item) => item.netExpenseCents < 0)) {
+    return <ChartFrame wide title="每月净消费，按实际账单延伸" subtitle="支出减去退款；负数表示该月退款多于支出，不绘制正数阶梯">
+      <div className="financeSignedNet" aria-label="年度每月净消费（含负数）"><ol>{months.map((item) => <li key={item.month}><span>{monthLabel(item.month)}</span><strong>¥{(item.netExpenseCents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></li>)}</ol></div>
+    </ChartFrame>;
+  }
 
   return (
     <ChartFrame
@@ -221,10 +227,16 @@ export function LifeFinanceDomainChart({ summary }: { summary: AnnualSummaryDraf
   const maxTicks = Math.max(1, ...domains.map((item) => Math.ceil(item.amountCents / tickCents)));
   const tickStep = Math.min(14, 430 / maxTicks);
 
+  if (domains.some((item) => item.amountCents < 0)) {
+    return <ChartFrame wide title="各类消费的净额" subtitle="分类净额包含退款，按带符号金额显示，不计算占比">
+      <div className="financeSignedNet" aria-label="年度分类净消费（含负数）"><ol>{domains.map((item) => <li key={item.domain}><span>{item.label}</span><strong>¥{(item.amountCents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></li>)}</ol></div>
+    </ChartFrame>;
+  }
+
   return (
     <ChartFrame
       wide
-      title={domains.length ? "今年的钱主要花在了这些地方" : "支出分类尚未形成记录"}
+      title={domains.length ? "这一年的消费分类" : "支出分类尚未形成记录"}
       subtitle="一档 = ¥500 · 按净消费金额排序 · 分类沿用财务记录"
     >
       {domains.length ? <svg viewBox="0 0 800 520" role="img" aria-label="年度净消费分类分布" data-lieflat-template="F5">
@@ -240,7 +252,7 @@ export function LifeFinanceDomainChart({ summary }: { summary: AnnualSummaryDraf
               return <line key={tick} className="lieflatReveal" x1={x} y1={y + 10} x2={x} y2={y + 10 - height} stroke={porcelain.data} strokeWidth="1.5" style={{ animationDelay: `${index * 55 + tick * 9}ms` }} />;
             })}
             <text x={170 + maxTicks * tickStep} y={y + 4} fill={porcelain.text} fontSize="11" fontWeight="800">¥{(item.amountCents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</text>
-            <text x="745" y={y + 4} textAnchor="end" fill={porcelain.muted} fontSize="9" fontWeight="700">{(item.ratio * 100).toFixed(1)}%</text>
+            {summary.finance.lifeFinance.facts.netExpenseCents > 0 && <text x="745" y={y + 4} textAnchor="end" fill={porcelain.muted} fontSize="9" fontWeight="700">{(item.ratio * 100).toFixed(1)}%</text>}
           </g>;
         })}
       </svg> : <div className="annualChartEmpty">暂无财务记录</div>}

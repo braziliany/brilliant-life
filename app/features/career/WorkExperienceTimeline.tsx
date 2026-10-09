@@ -55,7 +55,7 @@ export function WorkExperienceTimeline({ active, formOpen, editingId, status, dr
                   {experience.summary && <p>{experience.summary}</p>}
                 </div>
                 <div className="experienceActions">
-                  <button type="button" onClick={() => onToggleExpanded(expanded ? null : experience.id)}>{expanded ? "收起" : "详情"}</button>
+                  {experience.summary && <button type="button" className="experienceSummaryToggle" aria-expanded={expanded} onClick={() => onToggleExpanded(expanded ? null : experience.id)}>{expanded ? "收起工作内容" : "查看工作内容"}</button>}
                   <button type="button" onClick={() => onOpenForm(experience)}>编辑</button>
                   <button type="button" className="deleteExperience" onClick={() => onDelete(experience)}>删除</button>
                 </div>

@@ -18,6 +18,7 @@ type Props = {
   healthMetric: HealthMetric;
   healthPeriod: 7 | 30;
   healthMetricAverageLabel: string;
+  unknownCoverageDays: number;
   healthMetricConfig: MetricConfig;
   healthMetricHistory: HealthDaily[];
   healthMetricMax: number;
@@ -33,7 +34,7 @@ type Props = {
   onPeriodChange: (period: 7 | 30) => void;
 };
 
-export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, healthLoadStatus, healthFreshness, todayHealthSynced, latestSyncedHealth, latestUploadLabel, ingestionContinuityLabel, todayUploadSummary, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
+export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, healthHistoryLength, healthLoadStatus, healthFreshness, todayHealthSynced, latestSyncedHealth, latestUploadLabel, ingestionContinuityLabel, todayUploadSummary, missingTodayMetrics, healthMetric, healthPeriod, healthMetricAverageLabel, unknownCoverageDays, healthMetricConfig, healthMetricHistory, healthMetricMax, totalEnergy, activeEnergy, exerciseHours, healthMetricValue, onExport, onToggleTrend, onToggleGuide, onReload, onMetricChange, onPeriodChange }: Props) {
   return (
     <article id="health" className={`card activity${active ? " sectionActive" : ""}`}>
       <div className="cardHead">
@@ -82,11 +83,12 @@ export function HealthOverviewCard({ active, showHealthGuide, showHealthTrend, h
             <div className="healthPeriodTabs"><button type="button" className={healthPeriod === 7 ? "active" : ""} onClick={() => onPeriodChange(7)}>7天</button><button type="button" className={healthPeriod === 30 ? "active" : ""} onClick={() => onPeriodChange(30)}>30天</button></div>
           </div>
           <div className="healthTrendSummary"><span>{healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? "平均" : "日均"}</span><strong>{healthMetricAverageLabel}</strong><small>{healthMetricConfig.unit}</small><span className="healthSyncStatus">{todayHealthSynced ? "今日已同步" : "今日尚未同步"}</span></div>
+          {unknownCoverageDays > 0 && <small className="healthCoverageNote">{unknownCoverageDays} 天为早期记录，指标覆盖未知；无法确认的零值不计入。</small>}
           {healthMetricHistory.length ? (
             <div className={`healthBars${healthPeriod === 30 ? " compact" : ""}`} aria-label={`最近${healthPeriod}天${healthMetricConfig.label}趋势`}>
               {healthMetricHistory.map((item) => (
                 <div className="healthBarDay" key={item.date} title={`${item.date}：${healthMetric === "weightKg" || healthMetric === "sleepMinutes" ? healthMetricValue(item).toFixed(1) : Math.round(healthMetricValue(item)).toLocaleString("zh-CN")} ${healthMetricConfig.unit}`}>
-                  <i style={{ height: `${Math.max(4, Math.round(healthMetricValue(item) / healthMetricMax * 100))}%`, background: healthMetricConfig.color }} />
+                  <i style={{ height: `${Math.round(healthMetricValue(item) / healthMetricMax * 100)}%`, minHeight: healthMetricValue(item) === 0 ? 0 : undefined, background: healthMetricConfig.color }} />
                   {(healthPeriod === 7 || item.date.endsWith("-01") || item.date.endsWith("-10") || item.date.endsWith("-20")) && <small>{Number(item.date.slice(-2))}</small>}
                 </div>
               ))}

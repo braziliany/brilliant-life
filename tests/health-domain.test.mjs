@@ -93,16 +93,16 @@ test("getHealthMetricValue preserves nullable metric and sleep conversion behavi
   assert.equal(getHealthMetricValue(healthRecord({ restingHeartRateBpm: null }), "restingHeartRateBpm"), 0);
 });
 
-test("calculateHealthTrend preserves period slicing, nullable filtering, and averages", () => {
+test("calculateHealthTrend preserves natural-day windows, nullable filtering, and averages", () => {
   const history = Array.from({ length: 10 }, (_, index) => healthRecord({
-    date: `2026-07-${String(23 + index).padStart(2, "0")}`,
+    date: new Date(Date.UTC(2026, 6, 23 + index)).toISOString().slice(0, 10),
     steps: (index + 1) * 1_000,
     weightKg: index === 5 ? null : 60 + index / 10,
     sleepMinutes: index === 5 ? null : 360 + index * 6,
     restingHeartRateBpm: index === 5 ? null : 55 + index,
   }));
 
-  const stepsTrend = calculateHealthTrend(history, 7, "steps");
+  const stepsTrend = calculateHealthTrend(history, 7, "steps", "2026-08-01");
   assert.equal(stepsTrend.visibleHistory.length, 7);
   assert.equal(stepsTrend.visibleHistory[0].steps, 4_000);
   assert.equal(stepsTrend.metricHistory.length, 7);
@@ -110,31 +110,32 @@ test("calculateHealthTrend preserves period slicing, nullable filtering, and ave
   assert.equal(stepsTrend.metricAverage, 7_000);
   assert.equal(stepsTrend.metricAverageLabel, "7,000");
 
-  const weightTrend = calculateHealthTrend(history, 7, "weightKg");
+  const weightTrend = calculateHealthTrend(history, 7, "weightKg", "2026-08-01");
   assert.equal(weightTrend.metricHistory.length, 6);
   assert.equal(weightTrend.metricHistory.some((item) => item.weightKg === null), false);
   assert.equal(weightTrend.metricAverageLabel, weightTrend.metricAverage.toFixed(1));
 
-  const sleepTrend = calculateHealthTrend(history, 30, "sleepMinutes");
+  const sleepTrend = calculateHealthTrend(history, 30, "sleepMinutes", "2026-08-01");
   assert.equal(sleepTrend.visibleHistory.length, 10);
   assert.equal(sleepTrend.metricHistory.length, 9);
   assert.equal(sleepTrend.metricAverageLabel, sleepTrend.metricAverage.toFixed(1));
 
-  const heartTrend = calculateHealthTrend(history, 30, "restingHeartRateBpm");
+  const heartTrend = calculateHealthTrend(history, 30, "restingHeartRateBpm", "2026-08-01");
   assert.equal(heartTrend.metricHistory.length, 9);
   assert.equal(heartTrend.metricAverageLabel, Math.round(heartTrend.metricAverage).toLocaleString("zh-CN"));
 
-  const energyTrend = calculateHealthTrend(history, 7, "activeEnergyKcal");
+  const energyTrend = calculateHealthTrend(history, 7, "activeEnergyKcal", "2026-08-01");
   assert.equal(energyTrend.metricHistory.length, 7);
-  const exerciseTrend = calculateHealthTrend(history, 7, "exerciseMinutes");
+  const exerciseTrend = calculateHealthTrend(history, 7, "exerciseMinutes", "2026-08-01");
   assert.equal(exerciseTrend.metricHistory.length, 7);
 
   assert.deepEqual(calculateHealthTrend([], 7, "steps"), {
     visibleHistory: [],
     metricHistory: [],
     metricMax: 1,
-    metricAverage: 0,
-    metricAverageLabel: "0",
+    metricAverage: null,
+    metricAverageLabel: "—",
+    unknownCoverageDays: 0,
   });
 });
 

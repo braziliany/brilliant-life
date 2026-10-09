@@ -152,7 +152,7 @@ export function summarizeLifeFinance(transactions: FinanceTransactionRecord[], y
     familySupportCents: domains.get("family") ?? 0,
     personalExpenseCents: netExpenseCents - (domains.get("family") ?? 0),
     monthly: [...monthly.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([month, value]) => ({ month, netExpenseCents: value.expenseCents - value.refundCents })),
-    domains: [...domains.entries()].filter(([, amountCents]) => amountCents > 0).sort((a, b) => b[1] - a[1]).map(([domain, amountCents]) => ({ domain, label: LIFE_DOMAIN_LABELS[domain], amountCents, ratio: netExpenseCents > 0 ? amountCents / netExpenseCents : 0 })),
+    domains: [...domains.entries()].sort((a, b) => b[1] - a[1]).map(([domain, amountCents]) => ({ domain, label: LIFE_DOMAIN_LABELS[domain], amountCents, ratio: netExpenseCents > 0 && ![...domains.values()].some((amount) => amount < 0) ? amountCents / netExpenseCents : 0 })),
     significantEvents: sortSignificantEvents(included.filter((item) => item.type === "expense" && item.amountCents >= significantThresholdCents)),
   };
 }

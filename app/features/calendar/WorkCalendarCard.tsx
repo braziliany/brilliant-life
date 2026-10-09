@@ -69,7 +69,7 @@ export function WorkCalendarCard({ active, calendarEditing, monthLabel, calendar
         </div>
       ) : showCalendarNotes ? (
         <form className="calendarNotesForm" onSubmit={onSaveNote}>
-          <p>{monthLabel}工作备注会自动保存在云端</p>
+          <p>{monthLabel}工作备注修改后，请点击“保存备注”。</p>
           <label><span><i className="scheduleNoteMark" />排班</span><textarea maxLength={500} rows={2} placeholder="例如：本月夜班、外出或临时排班" value={calendarNote.scheduleNote} onChange={(event) => onNoteChange("scheduleNote", event.target.value)} /></label>
           <label><span><i className="leaveNoteMark" />请假</span><textarea maxLength={500} rows={2} placeholder="例如：8月12日下午请假" value={calendarNote.leaveNote} onChange={(event) => onNoteChange("leaveNote", event.target.value)} /></label>
           <label><span><i className="overtimeNoteMark" />加班</span><textarea maxLength={500} rows={2} placeholder="例如：8月19日加班3小时" value={calendarNote.overtimeNote} onChange={(event) => onNoteChange("overtimeNote", event.target.value)} /></label>

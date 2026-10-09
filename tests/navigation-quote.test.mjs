@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import {
+  GENSHIN_CURATED_QUOTES,
   GENSHIN_QUOTE_POOLS,
   resolveGenshinMajorSeries,
   selectGenshinQuote,
@@ -73,9 +74,29 @@ test("Asia Shanghai natural date controls stable deterministic selection", () =>
 
 test("quote attribution is preserved and unknown future dates fall back safely", () => {
   const future = selectGenshinQuote(new Date("2099-01-01T00:00:00Z"));
-  assert.equal(future.majorSeries, "6.x");
-  assert.ok(GENSHIN_QUOTE_POOLS["6.x"].some(({ text, speaker }) => text === future.text && speaker === future.speaker));
+  assert.ok(GENSHIN_CURATED_QUOTES.some(({ text, speaker }) => text === future.text && speaker === future.speaker));
   assert.ok(future.speaker.length > 0);
+});
+
+test("expired version catalog rotates the full curated pool instead of three fallback quotes", () => {
+  assert.equal(resolveGenshinMajorSeries("2026-10-09"), null);
+  assert.equal(GENSHIN_CURATED_QUOTES.length, 9);
+  assert.equal(new Set(GENSHIN_CURATED_QUOTES.map(({ text }) => text)).size, 9);
+  const start = Date.parse("2026-10-09T04:00:00Z");
+  const quotes = Array.from({ length: 9 }, (_, day) => selectGenshinQuote(new Date(start + day * 86_400_000)));
+  assert.equal(new Set(quotes.map(({ text }) => text)).size, 9);
+  assert.deepEqual(selectGenshinQuote(new Date(start + 9 * 86_400_000)), quotes[0]);
+  assert.deepEqual(selectGenshinQuote(new Date("2026-10-09T00:00:00Z")), selectGenshinQuote(new Date("2026-10-09T15:59:59Z")));
+  assert.notDeepEqual(selectGenshinQuote(new Date("2026-10-09T15:59:59Z")), selectGenshinQuote(new Date("2026-10-09T16:00:00Z")));
+});
+
+test("restored quotes preserve historical text and speakers without fabricated version attribution", () => {
+  assert.deepEqual(GENSHIN_CURATED_QUOTES.slice(0, 4).map(({ speaker }) => speaker), ["钟离", "凯瑟琳", "迪卢克", "蒙德古语"]);
+  assert.ok(GENSHIN_CURATED_QUOTES.slice(0, 4).every(({ majorSeries }) => majorSeries === undefined));
+  assert.ok(GENSHIN_CURATED_QUOTES.every(({ text }) => text !== "我们终将重逢。"));
+  for (const pool of Object.values(GENSHIN_QUOTE_POOLS)) {
+    assert.ok(pool.every((quote) => GENSHIN_CURATED_QUOTES.includes(quote)));
+  }
 });
 
 test("homepage renders only speaker and quote-series attribution", () => {

@@ -174,6 +174,8 @@ export function LifeFinancePanel({ active, year }: Props) {
   };
 
   const monthlyMax = Math.max(1, ...(summary?.monthly.map((item) => item.netExpenseCents) ?? []));
+  const negativeMonths = summary?.monthly.some((item) => item.netExpenseCents < 0);
+  const negativeDomains = summary?.domains.some((item) => item.amountCents < 0);
 
   return (
     <article id="life-finance" className={`card lifeFinance${active ? " sectionActive" : ""}`}>
@@ -194,11 +196,12 @@ export function LifeFinancePanel({ active, year }: Props) {
             <div className="lifeFinanceBody">
               <section className="financeMonths" aria-labelledby="finance-months-title">
                 <div><h3 id="finance-months-title">每月净消费</h3><span>{Number(summary.asOfDate.slice(5, 7))} 月 · 截至 {shortDate(summary.asOfDate)}</span></div>
-                <div className="financeMonthBars">{summary.monthly.map((item) => <div key={item.month} className={item.month === summary.asOfDate.slice(0, 7) ? "current" : ""}><small>¥{centsToYuan(item.netExpenseCents)}</small><i style={{ height: `${Math.max(6, item.netExpenseCents / monthlyMax * 100)}%` }} /><b>{Number(item.month.slice(5))} 月</b></div>)}</div>
+                {negativeMonths ? <div className="financeSignedNet"><p>净消费为支出减去退款，负数表示退款多于支出。</p><ol>{summary.monthly.map((item) => <li key={item.month}><span>{Number(item.month.slice(5))} 月</span><strong>¥{centsToYuan(item.netExpenseCents)}</strong></li>)}</ol></div> : <div className="financeMonthBars">{summary.monthly.map((item) => <div key={item.month} className={item.month === summary.asOfDate.slice(0, 7) ? "current" : ""}><small>¥{centsToYuan(item.netExpenseCents)}</small><i style={{ height: `${item.netExpenseCents / monthlyMax * 100}%`, minHeight: item.netExpenseCents === 0 ? 0 : undefined }} /><b>{Number(item.month.slice(5))} 月</b></div>)}</div>}
               </section>
               <section className="financeDomains" aria-labelledby="finance-domains-title">
                 <h3 id="finance-domains-title">钱投入了哪里</h3>
-                <ol>{summary.domains.map((item) => <li key={item.domain}><span>{item.label} · {(item.ratio * 100).toFixed(1)}%</span><strong>¥{centsToYuan(item.amountCents)}</strong><i><b style={{ width: `${item.ratio * 100}%` }} /></i></li>)}</ol>
+                {negativeDomains && <p>分类净额包含退款，按金额显示，不计算占比。</p>}
+                <ol>{summary.domains.map((item) => <li key={item.domain}><span>{item.label}{!negativeDomains && summary.netExpenseCents > 0 && ` · ${(item.ratio * 100).toFixed(1)}%`}</span><strong>¥{centsToYuan(item.amountCents)}</strong>{!negativeDomains && summary.netExpenseCents > 0 && <i><b style={{ width: `${item.ratio * 100}%` }} /></i>}</li>)}</ol>
               </section>
               <section className="financeEvents" aria-labelledby="finance-events-title">
                 <div className="financeSectionHead"><h3 id="finance-events-title">重要支出</h3><span>金额较高的支出记录</span></div>

@@ -1,8 +1,9 @@
-import { desc } from "drizzle-orm";
+import { and, desc, gte, lte } from "drizzle-orm";
 import { getDb } from "../../../db";
 import { healthDaily, healthIngestionRuns } from "../../../db/schema";
 import { hasDashboardAccess } from "../access";
 import { handleHealthIngest } from "./ingest-handler";
+import { getRecentHealthDateKeys, healthIngestionShanghaiDate } from "../../features/health/domain";
 
 const jsonHeaders = {
   "Cache-Control": "no-store",
@@ -25,9 +26,13 @@ export async function GET(request: Request) {
   try {
     const requestedDays = Number(new URL(request.url).searchParams.get("days") ?? 1);
     const days = requestedDays === 30 ? 30 : requestedDays === 7 ? 7 : 1;
+    const today = healthIngestionShanghaiDate(new Date().toISOString())!;
+    const start = getRecentHealthDateKeys(today, days)[0];
     const db = getDb();
     const [history, ingestionRows] = await Promise.all([
-      db.select().from(healthDaily).orderBy(desc(healthDaily.date)).limit(days),
+      days === 1
+        ? db.select().from(healthDaily).orderBy(desc(healthDaily.date)).limit(1)
+        : db.select().from(healthDaily).where(and(gte(healthDaily.date, start), lte(healthDaily.date, today))).orderBy(desc(healthDaily.date)),
       db.select().from(healthIngestionRuns).orderBy(desc(healthIngestionRuns.receivedAt)).limit(100),
     ]);
     const ingestions = ingestionRows.map((run) => ({

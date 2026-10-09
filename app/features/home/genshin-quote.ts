@@ -3,7 +3,7 @@ export type GenshinMajorSeries = "5.x" | "6.x" | "7.x";
 export type GenshinQuote = {
   text: string;
   speaker: string;
-  majorSeries: "5.x" | "6.x";
+  majorSeries?: "5.x" | "6.x";
 };
 
 type ConfirmedVersionWindow = {
@@ -38,7 +38,17 @@ const PREVIOUS_MAJOR: Partial<Record<GenshinMajorSeries, "5.x" | "6.x">> = {
   "7.x": "6.x",
 };
 
-const LATEST_CONFIRMED_PREVIOUS_MAJOR: "6.x" = "6.x";
+// Restored from the pre-version-aware homepage pool. Do not assign a release
+// series to older quotes without evidence. The old “我们终将重逢” entry is omitted
+// because its attribution to the Traveler could not be verified.
+export const GENSHIN_CURATED_QUOTES: readonly GenshinQuote[] = [
+  { text: "旅程总有一天会迎来终点，不必匆忙。", speaker: "钟离" },
+  { text: "向着星辰与深渊！", speaker: "凯瑟琳" },
+  { text: "在黎明到来之前，必须有人稍微照亮黑暗。", speaker: "迪卢克" },
+  { text: "风带来了故事的种子，时间使之发芽。", speaker: "蒙德古语" },
+  ...GENSHIN_QUOTE_POOLS["5.x"],
+  ...GENSHIN_QUOTE_POOLS["6.x"],
+];
 
 export const toShanghaiNaturalDate = (value: Date) => {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -62,7 +72,7 @@ const naturalDayOrdinal = (naturalDate: string) => {
 export const selectGenshinQuote = (value: Date = new Date()): GenshinQuote => {
   const naturalDate = toShanghaiNaturalDate(value);
   const currentSeries = resolveGenshinMajorSeries(naturalDate);
-  const quoteSeries = (currentSeries && PREVIOUS_MAJOR[currentSeries]) ?? LATEST_CONFIRMED_PREVIOUS_MAJOR;
-  const pool = GENSHIN_QUOTE_POOLS[quoteSeries];
+  const quoteSeries = currentSeries && PREVIOUS_MAJOR[currentSeries];
+  const pool = quoteSeries ? GENSHIN_QUOTE_POOLS[quoteSeries] : GENSHIN_CURATED_QUOTES;
   return pool[naturalDayOrdinal(naturalDate) % pool.length];
 };

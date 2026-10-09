@@ -75,17 +75,17 @@ export const calculateHealthTrend = (
   history: HealthDaily[],
   period: 7 | 30,
   metric: HealthMetric,
+  todayKey = healthIngestionShanghaiDate(new Date().toISOString())!,
 ) => {
-  const visibleHistory = history.slice(-period);
-  const metricHistory = metric === "weightKg" || metric === "sleepMinutes" || metric === "restingHeartRateBpm"
-    ? visibleHistory.filter((item) => item[metric] !== null)
-    : visibleHistory;
+  const dates = new Set(getRecentHealthDateKeys(todayKey, period));
+  const visibleHistory = history.filter((item) => dates.has(item.date)).sort((a, b) => a.date.localeCompare(b.date));
+  const metricHistory = visibleHistory.filter((item) => readableHealthMetric(item, metric) !== null);
   const metricValues = metricHistory.map((item) => getHealthMetricValue(item, metric));
   const metricMax = Math.max(1, ...metricValues);
   const metricAverage = metricValues.length
     ? metricValues.reduce((sum, value) => sum + value, 0) / metricValues.length
-    : 0;
-  const metricAverageLabel = metric === "weightKg" || metric === "sleepMinutes"
+    : null;
+  const metricAverageLabel = metricAverage === null ? "—" : metric === "weightKg" || metric === "sleepMinutes"
     ? metricAverage.toFixed(1)
     : Math.round(metricAverage).toLocaleString("zh-CN");
 
@@ -95,8 +95,29 @@ export const calculateHealthTrend = (
     metricMax,
     metricAverage,
     metricAverageLabel,
+    unknownCoverageDays: visibleHistory.filter((item) => resolveHealthMetricAvailability(item, metric) === "legacy-unknown").length,
   };
 };
+
+// A non-zero legacy observation is retained with unknown coverage. A legacy
+// zero may be a storage default, not an observation, and is left unavailable.
+export const readableHealthMetric = (record: HealthDaily, metric: HealthCoverageMetric): number | null => {
+  const availability = resolveHealthMetricAvailability(record, metric);
+  const value = record[metric];
+  if (availability === "confirmed-missing" || value === null || !Number.isFinite(value)) return null;
+  return availability === "legacy-unknown" && value === 0 ? null : value;
+};
+
+export const healthCsvRows = (history: HealthDaily[]) => history.map((record) => {
+  const read = (metric: HealthCoverageMetric) => readableHealthMetric(record, metric) ?? "";
+  const active = readableHealthMetric(record, "activeEnergyKcal");
+  const resting = readableHealthMetric(record, "restingEnergyKcal");
+  const coverage = getHealthMetricCoverage(record);
+  return [record.date, read("steps"), read("activeEnergyKcal"), read("restingEnergyKcal"),
+    active !== null && resting !== null ? active + resting : "", read("exerciseMinutes"),
+    read("sleepMinutes"), read("restingHeartRateBpm"), read("weightKg"), record.source, record.updatedAt,
+    coverage === null ? "早期记录，指标覆盖未知；无法确认的零值留空" : "已按上传指标保留数值；未上传指标留空"];
+});
 
 export const calculateWeightTrend = (history: HealthDaily[]) => {
   const weightHistory = history.filter((item) => item.weightKg !== null);

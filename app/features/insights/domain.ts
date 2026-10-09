@@ -183,7 +183,7 @@ export function createFinanceCashFlowInsight(year: number, asOfDate: string, sum
       reasons: !hasRecords ? ["no-finance-records"] : partial ? ["finance-cutoff-before-as-of"] : [],
     },
     explanation: !hasRecords
-      ? "今年还没有财务记录。"
+      ? "这一年还没有财务记录。"
       : partial
         ? `当前账单记录截至 ${summary.facts.dateEnd}，结余只反映这段记录范围。`
         : "账单记录中的收入减去净消费，得到当前记录范围内的现金流差额。",
@@ -230,10 +230,10 @@ export function createSalaryTrendInsight(year: number, asOfDate: string, salaryR
       reasons: records.length === 0 ? ["no-salary-snapshots"] : records.length === 1 ? ["single-salary-snapshot"] : [],
     },
     explanation: records.length === 0
-      ? "今年还没有已保存的工资记录。"
+      ? "这一年还没有已保存的工资记录。"
       : records.length === 1
         ? "目前只有 1 个月工资记录，还不足以形成趋势。"
-        : `已保存 ${records.length} 个月工资记录，变化只比较最早与最新的实发快照。`,
+        : `已保存 ${records.length} 个月工资记录，只比较最早与最新记录的工资。`,
     sources: [{ domain: "salary", metric: "saved-net-salary" }],
     valueType: "saved-snapshot",
   };
