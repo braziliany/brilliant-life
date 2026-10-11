@@ -3,7 +3,7 @@ import type { AnnualSummaryDraft } from "./domain";
 const porcelain = {
   bg: "#F7F2EB",
   text: "#081F5C",
-  muted: "rgba(8,31,92,.60)",
+  muted: "rgba(8,31,92,.72)",
   grid: "rgba(8,31,92,.16)",
   data: "#334EAC",
   data2: "#7096D1",
@@ -12,70 +12,76 @@ const porcelain = {
 };
 
 const monthLabel = (month: string) => `${Number(month.slice(5))}月`;
+const money = (value: number) => `¥${value.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// Lieflat porcelain: period sections, not unrelated categorical hues.
+const periodInk = (index: number, count: number) => [porcelain.data2, porcelain.data, porcelain.text][Math.min(2, Math.floor(index * 3 / Math.max(1, count)))];
+const monthOrdinal = (month: string) => Number(month.slice(0, 4)) * 12 + Number(month.slice(5));
 
 type ChartFrameProps = {
   title: string;
   subtitle: string;
   wide?: boolean;
+  source?: string;
   children: React.ReactNode;
 };
 
-function ChartFrame({ title, subtitle, wide, children }: ChartFrameProps) {
+function ChartFrame({ title, subtitle, wide, source, children }: ChartFrameProps) {
   return (
-    <article className={`annualChartCard${wide ? " wide" : ""}`}>
+    <article className={`annualChartCard${wide ? " wide" : ""}`} data-color-system="porcelain">
       <h3>{title}</h3>
       <p>{subtitle}</p>
       <div className="annualChartCanvas">{children}</div>
+      {source && <small className="annualChartSource">{source}</small>}
     </article>
   );
 }
 
 export function HealthBarcodeChart({ summary }: { summary: AnnualSummaryDraft }) {
   const months = summary.health.facts.months;
-  const available = months.filter((month) => month.metricAvailableDays.steps > 0);
+  const available = months.filter((month) => month.trustedMetricAvailableDays.steps > 0 && month.metricAvailableDays.steps === month.trustedMetricAvailableDays.steps);
   const max = Math.max(1, ...available.map((month) => month.totalSteps));
-  const top = [...available]
-    .sort((a, b) => b.totalSteps - a.totalSteps)
-    .slice(0, 3)
-    .map((month) => month.month);
+  const width = Math.max(640, months.length * 58);
 
   return (
     <ChartFrame
       wide
-      title={available.length ? "有记录的月份，活动留下了年度纹理" : "健康月份尚未形成可读纹理"}
-      subtitle="每根发丝代表一个月份 · 实心点为已有记录 · 空月份不补零"
+      source="来源：健康已保存记录 · 月度总量与有效记录天数"
+      title={available.length ? "每月步数与记录天数" : "暂无可确认的月度步数"}
+      subtitle="月度总步数受记录天数影响，不能直接比较运动多少 · 蓝阶区分年内时段 · 空月份不补零"
     >
-      <svg viewBox="0 0 800 300" role="img" aria-label="年度每月步数与健康记录覆盖">
+      {available.length > 0 ? <>
+      <div className="annualPlotScroll" tabIndex={0} aria-label="横向查看月度步数">
+      <svg viewBox={`0 0 ${width} 250`} style={{ minWidth: width }} role="img" aria-label="年度每月步数与健康记录覆盖" data-lieflat-template="L3">
         {months.map((month, index) => {
-          const x = 35 + index * 65;
-          const hasData = month.metricAvailableDays.steps > 0;
-          const y = hasData ? 245 - (month.totalSteps / max) * 180 : 245;
+          const x = 32 + index * (width - 64) / Math.max(1, months.length - 1);
+          const hasData = month.metricAvailableDays.steps > 0 && month.metricAvailableDays.steps === month.trustedMetricAvailableDays.steps;
+          const y = hasData ? 200 - (month.totalSteps / max) * 145 : 200;
+          const ink = periodInk(index, months.length);
           return (
             <g key={month.month} className="lieflatReveal" style={{ animationDelay: `${index * 45}ms` }}>
-              <line x1={x} y1="26" x2={x} y2="245" stroke={porcelain.grid} strokeWidth="1.25" />
+              <line x1={x} y1="26" x2={x} y2="200" stroke={porcelain.grid} strokeWidth="1.25" />
               {hasData && <>
-                <line x1={x} y1={y} x2={x} y2={Math.min(245, y + 36)} stroke={porcelain.data} strokeWidth="2" />
-                <circle cx={x} cy={y} r={top.includes(month.month) ? 6 : 4} fill={porcelain.data}>
-                  <title>{monthLabel(month.month)}：{month.totalSteps.toLocaleString("zh-CN")} 步，记录 {month.metricAvailableDays.steps} 天</title>
+                <line x1={x} y1={y} x2={x} y2={Math.min(200, y + 30)} stroke={ink} strokeWidth="2" />
+                <circle cx={x} cy={y} r="4" fill={ink} stroke={porcelain.text} strokeWidth="1">
+                  <title>{`${month.month}：${month.totalSteps.toLocaleString("zh-CN")} 步，有效记录 ${month.trustedMetricAvailableDays.steps} 天`}</title>
                 </circle>
-                {top.includes(month.month) && (
-                  <text x={x} y={Math.max(16, y - 12)} textAnchor="middle" fill={porcelain.text} fontSize="12" fontWeight="800">
-                    {Math.round(month.totalSteps / 1000)}k
-                  </text>
-                )}
               </>}
-              <text x={x} y="270" textAnchor="middle" fill={hasData ? porcelain.muted : porcelain.faint} fontSize="10" fontWeight="700">
-                {index + 1}月
+              <text x={x} y="225" textAnchor="middle" fill={porcelain.muted} fontSize="12" fontWeight="700">
+                {monthLabel(month.month)}
               </text>
             </g>
           );
         })}
       </svg>
-      <div className="annualChartFacts" aria-label="年度健康记录">
-        <span>活动能量 <b>{summary.health.facts.metricAvailableDays.activeEnergyKcal ? `${Math.round(summary.health.facts.totalActiveEnergyKcal).toLocaleString("zh-CN")} kcal` : "—"}</b></span>
-        <span>锻炼 <b>{summary.health.facts.metricAvailableDays.exerciseMinutes ? `${Math.round(summary.health.facts.totalExerciseMinutes).toLocaleString("zh-CN")} 分钟` : "—"}</b></span>
-        <span>睡眠覆盖 <b>{summary.health.facts.sleep.availableDays} 天</b></span>
       </div>
+      <dl className="annualMonthReadings" aria-label="月度步数及有效记录天数">
+        {months.map(month => {
+          const count = month.trustedMetricAvailableDays.steps;
+          const known = count > 0 && count === month.metricAvailableDays.steps;
+          return <div key={month.month}><dt>{monthLabel(month.month)}</dt><dd>{known ? `${month.totalSteps.toLocaleString("zh-CN")} 步` : "—"}<small>{known ? `${count} 天有效记录` : month.metricAvailableDays.steps > 0 ? "含早期记录，覆盖未知" : "无有效步数记录"}</small></dd></div>;
+        })}
+      </dl>
+      </> : <div className="annualChartEmpty">没有有效步数记录，不绘制零值。</div>}
     </ChartFrame>
   );
 }
@@ -129,46 +135,54 @@ export function TimeTickDonutChart({ summary }: { summary: AnnualSummaryDraft })
 }
 
 export function FinanceHairlineChart({ summary }: { summary: AnnualSummaryDraft }) {
-  const months = summary.finance.salary.facts.months;
-  const byMonth = new Map(months.map((month) => [Number(month.month.slice(5)) - 1, month]));
+  const months = [...summary.finance.salary.facts.months].sort((a, b) => a.month.localeCompare(b.month));
+  const columnWidth = Math.max(100, ...months.map(month => money(month.netSalary).length * 8 + 24));
+  const width = Math.max(340, months.length * columnWidth);
+  const min = Math.min(0, ...months.map((month) => month.netSalary));
   const max = Math.max(1, ...months.map((month) => month.netSalary));
-  const points = Array.from({ length: 12 }, (_, index) => {
-    const record = byMonth.get(index);
-    return record ? { index, record, x: 32 + index * 30.5, y: 245 - (record.netSalary / max) * 170 } : null;
-  });
+  const points = months.map((record, index) => ({
+    record, x: months.length === 1 ? width / 2 : columnWidth / 2 + index * (width - columnWidth) / Math.max(1, months.length - 1),
+    y: months.length === 1 ? 115 : 185 - (record.netSalary - min) / (max - min) * 125,
+  }));
   const segments: Array<Array<NonNullable<(typeof points)[number]>>> = [];
   let segment: Array<NonNullable<(typeof points)[number]>> = [];
   points.forEach((point) => {
-    if (point) segment.push(point);
-    else if (segment.length) { segments.push(segment); segment = []; }
+    if (segment.length && monthOrdinal(point.record.month) !== monthOrdinal(segment.at(-1)!.record.month) + 1) {
+      segments.push(segment); segment = [];
+    }
+    segment.push(point);
   });
   if (segment.length) segments.push(segment);
 
   return (
     <ChartFrame
       title={months.length ? "工资只沿已保存月份延伸" : "这一年尚无已保存工资月份"}
-      subtitle="每个点是一份已保存月度快照 · 缺失月份断开且不补 ¥0"
+      source="来源：已保存工资快照 · 不按当前规则重算"
+      subtitle="每个点是一份已保存月度快照 · 缺失月份断开且不补 ¥0 · 蓝阶区分已保存记录的先后时段"
     >
-      <svg viewBox="0 0 400 320" role="img" aria-label="年度已保存月度工资">
-        <line x1="24" y1="245" x2="376" y2="245" stroke={porcelain.grid} strokeWidth="1.4" />
-        {Array.from({ length: 12 }, (_, index) => {
-          const x = 32 + index * 30.5;
-          return <g key={index}><line x1={x} y1="245" x2={x} y2="237" stroke={porcelain.grid} /><text x={x} y="268" textAnchor="middle" fill={porcelain.muted} fontSize="9" fontWeight="700">{index + 1}</text></g>;
+      {months.length > 0 ? <div className="annualPlotScroll" tabIndex={0} aria-label="横向查看已保存工资月份">
+      <svg viewBox={`0 0 ${width} 250`} style={{ minWidth: width }} role="img" aria-label="年度已保存月度工资" data-lieflat-template="F2">
+        <line x1="28" y1="200" x2={width - 28} y2="200" stroke={porcelain.grid} strokeWidth="1.4" />
+        {points.map((point, index) => {
+          const { x, record } = point;
+          const yearLabel = index === 0 || record.month.slice(0, 4) !== months[index - 1].month.slice(0, 4);
+          return <g key={record.month}><line x1={x} y1="200" x2={x} y2="192" stroke={porcelain.grid} /><text x={x} y="221" textAnchor="middle" fill={porcelain.muted} fontSize="12" fontWeight="700">{monthLabel(record.month)}</text>{yearLabel && <text x={x} y="240" textAnchor="middle" fill={porcelain.muted} fontSize="11">{record.month.slice(0, 4)}年</text>}</g>;
         })}
         {segments.filter((item) => item.length > 1).map((item, index) => (
           <path key={index} className="lieflatDraw" d={`M${item.map((point) => `${point.x} ${point.y}`).join(" L ")}`} fill="none" stroke={porcelain.data} strokeWidth="2" pathLength="1" />
         ))}
-        {points.map((point) => point && (
+        {points.map((point, index) => (
           <g key={point.record.month} className="lieflatReveal">
-            <circle cx={point.x} cy={point.y} r="5" fill={porcelain.data}><title>{monthLabel(point.record.month)}：工资 ¥{point.record.netSalary.toFixed(2)}</title></circle>
-            <text x={point.x} y={Math.max(18, point.y - 12)} textAnchor="middle" fill={porcelain.text} fontSize="10" fontWeight="800">¥{Math.round(point.record.netSalary)}</text>
+            <circle cx={point.x} cy={point.y} r="4" fill={periodInk(index, points.length)} stroke={porcelain.text} strokeWidth="1"><title>{`${point.record.month}：工资 ${money(point.record.netSalary)}`}</title></circle>
+            <text x={point.x} y={point.y - 14} textAnchor="middle" fill={porcelain.text} fontSize="12" fontWeight="800">{money(point.record.netSalary)}</text>
           </g>
         ))}
       </svg>
+      </div> : <div className="annualChartEmpty">暂无已保存工资记录</div>}
       <div className="annualChartFacts" aria-label="年度工资记录">
         <span>应发合计 <b>{months.length ? `¥${summary.finance.salary.facts.totalGrossSalary.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</b></span>
         <span>个税合计 <b>{months.length ? `¥${summary.finance.salary.facts.totalIncomeTax.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "—"}</b></span>
-        <span>截至当前覆盖 <b>{summary.finance.salary.coverage.availableMonths} / {summary.finance.salary.coverage.expectedMonths} 月</b></span>
+        <span>已保存月份 <b>{summary.finance.salary.coverage.availableMonths} / {summary.finance.salary.coverage.expectedMonths} 月</b></span>
         <span>全年范围 <b>{summary.finance.salary.coverage.fullYearExpectedMonths} 月</b></span>
       </div>
     </ChartFrame>
@@ -180,15 +194,16 @@ export function LifeFinanceMonthlyChart({ summary }: { summary: AnnualSummaryDra
   const months = lifeFinance.facts.monthlyNetExpense;
   const rungCents = 50_000;
   const maxRungs = Math.max(1, ...months.map((item) => Math.ceil(Math.max(0, item.netExpenseCents) / rungCents)));
-  const width = months.length > 8 ? 54 : 72;
-  const startX = (800 - Math.max(1, months.length) * width) / 2 + width / 2;
+  const width = Math.max(100, ...months.map(item => money(item.netExpenseCents / 100).length * 8 + 24));
+  const canvasWidth = Math.max(800, months.length * width);
+  const startX = (canvasWidth - Math.max(1, months.length) * width) / 2 + width / 2;
   const base = 270;
   const step = Math.min(11, 190 / maxRungs);
   const cutoff = lifeFinance.coverage.sourceCutoffDate;
   const partialMonth = cutoff?.slice(0, 7);
 
   if (months.some((item) => item.netExpenseCents < 0)) {
-    return <ChartFrame wide title="每月净消费，按实际账单延伸" subtitle="支出减去退款；负数表示该月退款多于支出，不绘制正数阶梯">
+    return <ChartFrame wide source="来源：财务记录 · 净消费 = 支出 − 退款" title="每月净消费，按实际账单延伸" subtitle="支出减去退款；负数表示该月退款多于支出，不绘制正数阶梯">
       <div className="financeSignedNet" aria-label="年度每月净消费（含负数）"><ol>{months.map((item) => <li key={item.month}><span>{monthLabel(item.month)}</span><strong>¥{(item.netExpenseCents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></li>)}</ol></div>
     </ChartFrame>;
   }
@@ -196,11 +211,12 @@ export function LifeFinanceMonthlyChart({ summary }: { summary: AnnualSummaryDra
   return (
     <ChartFrame
       wide
+      source="来源：财务记录 · 净消费 = 支出 − 退款"
       title={months.length ? "每月净消费，按实际账单延伸" : "这一年暂无每月消费记录"}
-      subtitle={cutoff ? `一档 = ¥500 · ${Number(cutoff.slice(5, 7))} 月截至 ${Number(cutoff.slice(5, 7))} 月 ${Number(cutoff.slice(8, 10))} 日` : "缺失月份不补 ¥0"}
+      subtitle={cutoff ? `一档 = ¥500，末档按金额比例缩短 · 蓝阶区分年内时段 · ${Number(cutoff.slice(5, 7))} 月截至 ${Number(cutoff.slice(5, 7))} 月 ${Number(cutoff.slice(8, 10))} 日` : "一档 = ¥500，末档按金额比例缩短 · 缺失月份不补 ¥0 · 蓝阶区分年内时段"}
     >
-      {months.length ? <svg viewBox="0 0 800 320" role="img" aria-label="年度每月净消费" data-lieflat-template="F1">
-        <line x1="24" y1={base + 4} x2="776" y2={base + 4} stroke={porcelain.grid} strokeWidth="1.2" />
+      {months.length ? <div className="annualPlotScroll" tabIndex={0} aria-label="横向查看月度净消费"><svg viewBox={`0 0 ${canvasWidth} 320`} style={{ minWidth: canvasWidth }} role="img" aria-label="年度每月净消费" data-lieflat-template="F1">
+        <line x1="24" y1={base + 4} x2={canvasWidth - 24} y2={base + 4} stroke={porcelain.grid} strokeWidth="1.2" />
         {months.map((item, index) => {
           const x = startX + index * width;
           const rungCount = Math.ceil(Math.max(0, item.netExpenseCents) / rungCents);
@@ -209,14 +225,15 @@ export function LifeFinanceMonthlyChart({ summary }: { summary: AnnualSummaryDra
             {Array.from({ length: rungCount }, (_, rung) => {
               const y = base - rung * step;
               const halfWidth = 13 + ((rung * 7 + index * 3) % 4);
-              return <line key={rung} className="lieflatReveal" x1={x - halfWidth} y1={y} x2={x + halfWidth} y2={y} stroke={porcelain.data} strokeWidth="1.6" style={{ animationDelay: `${index * 70 + rung * 12}ms` }} />;
+              const fraction = Math.min(1, item.netExpenseCents / rungCents - rung);
+              return <line key={rung} className="lieflatReveal" x1={x - halfWidth * fraction} y1={y} x2={x + halfWidth * fraction} y2={y} stroke={periodInk(index, months.length)} strokeWidth="2.9" style={{ animationDelay: `${index * 70 + rung * 12}ms` }} />;
             })}
-            <text x={x} y={Math.max(28, base - Math.max(1, rungCount) * step - 13)} textAnchor="middle" fill={porcelain.text} fontSize="11" fontWeight="800">¥{Math.round(amount).toLocaleString("zh-CN")}</text>
+            <text x={x} y={Math.max(28, base - Math.max(1, rungCount) * step - 13)} textAnchor="middle" fill={porcelain.text} fontSize="12" fontWeight="800">{money(amount)}</text>
             <text x={x} y="296" textAnchor="middle" fill={item.month === partialMonth ? porcelain.data : porcelain.muted} fontSize="10" fontWeight="800">{Number(item.month.slice(5))}月</text>
-            <title>{monthLabel(item.month)}：净消费 ¥{amount.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</title>
+            <title>{`${item.month}：净消费 ${money(amount)}`}</title>
           </g>;
         })}
-      </svg> : <div className="annualChartEmpty">暂无财务记录</div>}
+      </svg></div> : <div className="annualChartEmpty">暂无财务记录</div>}
     </ChartFrame>
   );
 }
@@ -228,7 +245,7 @@ export function LifeFinanceDomainChart({ summary }: { summary: AnnualSummaryDraf
   const tickStep = Math.min(14, 430 / maxTicks);
 
   if (domains.some((item) => item.amountCents < 0)) {
-    return <ChartFrame wide title="各类消费的净额" subtitle="分类净额包含退款，按带符号金额显示，不计算占比">
+    return <ChartFrame wide source="来源：财务记录 · 分类沿用当前生效分类" title="各类消费的净额" subtitle="分类净额包含退款，按带符号金额显示，不计算占比">
       <div className="financeSignedNet" aria-label="年度分类净消费（含负数）"><ol>{domains.map((item) => <li key={item.domain}><span>{item.label}</span><strong>¥{(item.amountCents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></li>)}</ol></div>
     </ChartFrame>;
   }
@@ -236,10 +253,11 @@ export function LifeFinanceDomainChart({ summary }: { summary: AnnualSummaryDraf
   return (
     <ChartFrame
       wide
+      source="来源：财务记录 · 分类沿用当前生效分类"
       title={domains.length ? "这一年的消费分类" : "支出分类尚未形成记录"}
-      subtitle="一档 = ¥500 · 按净消费金额排序 · 分类沿用财务记录"
+      subtitle="一档 = ¥500，末档按金额比例缩短 · 按净消费金额排序 · 蓝阶区分每行队列的前、中、后段"
     >
-      {domains.length ? <svg viewBox="0 0 800 520" role="img" aria-label="年度净消费分类分布" data-lieflat-template="F5">
+      {domains.length ? <div className="annualPlotScroll" tabIndex={0} aria-label="横向查看消费分类"><svg viewBox={`0 0 800 ${Math.max(120, domains.length * 42 + 60)}`} role="img" aria-label="年度净消费分类分布" data-lieflat-template="F5">
         {domains.map((item, index) => {
           const y = 40 + index * 42;
           const count = Math.ceil(item.amountCents / tickCents);
@@ -249,13 +267,15 @@ export function LifeFinanceDomainChart({ summary }: { summary: AnnualSummaryDraf
             {Array.from({ length: count }, (_, tick) => {
               const x = 150 + tick * tickStep + tickStep / 2;
               const height = 11 + ((tick * 5 + index * 3) % 5);
-              return <line key={tick} className="lieflatReveal" x1={x} y1={y + 10} x2={x} y2={y + 10 - height} stroke={porcelain.data} strokeWidth="1.5" style={{ animationDelay: `${index * 55 + tick * 9}ms` }} />;
+              const fraction = Math.min(1, item.amountCents / tickCents - tick);
+              const ink = tick < count / 3 ? porcelain.text : tick < count * 2 / 3 ? porcelain.data : porcelain.data2;
+              return <line key={tick} className="lieflatReveal" x1={x} y1={y + 10} x2={x} y2={y + 10 - height * fraction} stroke={ink} strokeWidth="2.7" style={{ animationDelay: `${index * 55 + tick * 9}ms` }} />;
             })}
             <text x={170 + maxTicks * tickStep} y={y + 4} fill={porcelain.text} fontSize="11" fontWeight="800">¥{(item.amountCents / 100).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</text>
             {summary.finance.lifeFinance.facts.netExpenseCents > 0 && <text x="745" y={y + 4} textAnchor="end" fill={porcelain.muted} fontSize="9" fontWeight="700">{(item.ratio * 100).toFixed(1)}%</text>}
           </g>;
         })}
-      </svg> : <div className="annualChartEmpty">暂无财务记录</div>}
+      </svg></div> : <div className="annualChartEmpty">暂无财务记录</div>}
     </ChartFrame>
   );
 }

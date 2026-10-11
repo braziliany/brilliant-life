@@ -574,6 +574,23 @@ input,textarea{caret-color:#6d8d0e}
 .annualHealth,.annualSalary,.annualTime{min-width:0;margin-top:32px}
 .annualHealth>p,.annualSalary>p,.annualTime>p,.annualTrust>p{color:var(--muted);font-size:12px;line-height:1.7}
 .annualReport .annualCharts{margin-top:18px;grid-template-columns:minmax(0,1fr)}
+.annualReport .annualChartCard,.annualReport .annualChartCard.wide,.annualReport .annualLifeFinanceCharts .annualChartCard:last-child{min-height:0;gap:12px}
+.annualReport .annualChartCard h3{line-height:1.4;overflow-wrap:anywhere}
+.annualReport .annualChartCard>p{margin:0;font-size:12px;line-height:1.7;color:#081F5C}
+.annualReport .annualChartCanvas{display:flex;flex-direction:column;align-items:stretch;min-width:0;min-height:0;gap:16px;overflow:visible}
+.annualPlotScroll{width:100%;max-width:100%;min-width:0;overflow-x:auto;overscroll-behavior-x:contain;border-radius:8px}
+.annualPlotScroll:focus-visible{outline:2px solid #334EAC;outline-offset:3px}
+.annualReport .annualChartCanvas>svg{width:100%;max-width:100%;height:auto}
+.annualReport .annualPlotScroll svg,.annualReport .annualChartCard.wide .annualPlotScroll svg,.annualReport .annualLifeFinanceCharts .annualChartCard:last-child .annualPlotScroll svg{width:100%;min-width:800px;max-width:none;height:auto;overflow:hidden}
+.annualReport .annualPlotScroll svg[data-lieflat-template="L3"],.annualReport .annualPlotScroll svg[data-lieflat-template="F2"]{height:250px}
+.annualMonthReadings{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0 16px;margin:0}
+.annualMonthReadings>div{min-width:0;border-top:1px solid var(--annual-grid);padding:12px 0}
+.annualMonthReadings dt{font-size:11px;color:#081F5C}.annualMonthReadings dd{margin:5px 0 0;font-size:14px;font-weight:700;color:#081F5C;overflow-wrap:anywhere;font-variant-numeric:tabular-nums}
+.annualMonthReadings small{display:block;margin-top:4px;font-size:11px;font-weight:400;color:#081F5C;line-height:1.5}
+.annualReport .annualChartSource{font-size:11px;line-height:1.6;letter-spacing:0;text-transform:none;color:#081F5C;overflow-wrap:anywhere}
+.annualReport .annualChartFacts{margin:0;justify-content:flex-start;font-size:11px;line-height:1.6}
+.annualReport .financeSignedNet{color:#081F5C}.annualReport .financeSignedNet li{flex-wrap:wrap;border-color:var(--annual-grid);font-size:13px;line-height:1.6}.annualReport .financeSignedNet strong{white-space:normal;overflow-wrap:anywhere}
+@media (max-width:560px){.annualReport .annualChartCard{padding:18px}.annualMonthReadings{grid-template-columns:repeat(2,minmax(0,1fr));gap:0 12px}.annualReport .annualLifeFinanceCharts .annualChartCard:last-child .annualChartCanvas{min-height:0}.annualReport .annualChartFacts span{white-space:normal}.annualReport .annualChartCard h3{font-size:18px}}
 .annualRecordDetails{margin-top:16px;min-width:0}
 .annualRecordDetails>summary{display:list-item;min-height:44px;line-height:44px;cursor:pointer;font-size:13px}
 .annualRecordDetails>p{font-size:12px;color:var(--muted);line-height:1.7}
