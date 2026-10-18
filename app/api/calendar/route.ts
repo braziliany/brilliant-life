@@ -1,8 +1,9 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
-import { calendarOverrides } from "../../../db/schema";
+import { calendarOverrides, calendarWorkRecords } from "../../../db/schema";
 import { hasDashboardAccess } from "../access";
-import { validDate, validMonth } from "../validation";
+import { validMonth } from "../validation";
+import { handleCalendarMutation } from "../../features/calendar/arrangement-service";
 
 const jsonHeaders = { "Cache-Control": "no-store" };
 
@@ -33,25 +34,19 @@ export async function GET(request: Request) {
       .select()
       .from(calendarOverrides)
       .where(and(gte(calendarOverrides.date, start), lt(calendarOverrides.date, end)));
-    return Response.json({ overrides }, { headers: jsonHeaders });
+    const workRecords = await getDb().select().from(calendarWorkRecords)
+      .where(and(gte(calendarWorkRecords.date, start), lt(calendarWorkRecords.date, end)));
+    return Response.json({ overrides, workRecords }, { headers: jsonHeaders });
   } catch {
     return Response.json({ error: "Calendar database unavailable" }, { status: 500, headers: jsonHeaders });
   }
 }
 
-export async function PUT(request: Request) {
-  if (!hasDashboardAccess(request)) {
-    return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
-  }
-
-  try {
-    const payload = (await request.json()) as { date?: string; isWorkday?: boolean };
-    if (!validDate(payload.date) || typeof payload.isWorkday !== "boolean") {
-      return Response.json({ error: "date and isWorkday are required" }, { status: 400, headers: jsonHeaders });
-    }
-
+const mutate = (request: Request) => handleCalendarMutation(request, {
+  authorize: hasDashboardAccess,
+  save: async (payload) => {
     const values = {
-      date: payload.date!,
+      date: payload.date,
       isWorkday: payload.isWorkday,
       updatedAt: new Date().toISOString(),
     };
@@ -59,33 +54,17 @@ export async function PUT(request: Request) {
       target: calendarOverrides.date,
       set: values,
     });
-    return Response.json({ override: values }, { headers: jsonHeaders });
-  } catch {
-    return Response.json({ error: "Calendar update failed" }, { status: 500, headers: jsonHeaders });
-  }
-}
+    return values;
+  },
+  remove: date => getDb().delete(calendarOverrides).where(eq(calendarOverrides.date, date)),
+  resetMonth: async (month) => {
+    const start = `${month}-01`;
+    const [year, monthNumber] = month.split("-").map(Number);
+    const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
+    const end = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
+    await getDb().delete(calendarOverrides).where(and(gte(calendarOverrides.date, start), lt(calendarOverrides.date, end)));
+  },
+});
 
-export async function DELETE(request: Request) {
-  if (!hasDashboardAccess(request)) {
-    return Response.json({ error: "Cloudflare Access login required" }, { status: 401, headers: jsonHeaders });
-  }
-
-  try {
-    const payload = (await request.json()) as { date?: string; month?: string };
-    if (validDate(payload.date)) {
-      await getDb().delete(calendarOverrides).where(eq(calendarOverrides.date, payload.date!));
-      return Response.json({ deleted: payload.date }, { headers: jsonHeaders });
-    }
-    if (validMonth(payload.month)) {
-      const start = `${payload.month}-01`;
-      const [year, monthNumber] = payload.month.split("-").map(Number);
-      const nextMonth = new Date(Date.UTC(year, monthNumber, 1));
-      const end = `${nextMonth.getUTCFullYear()}-${String(nextMonth.getUTCMonth() + 1).padStart(2, "0")}-01`;
-      await getDb().delete(calendarOverrides).where(and(gte(calendarOverrides.date, start), lt(calendarOverrides.date, end)));
-      return Response.json({ reset: payload.month }, { headers: jsonHeaders });
-    }
-    return Response.json({ error: "date or month is required" }, { status: 400, headers: jsonHeaders });
-  } catch {
-    return Response.json({ error: "Calendar reset failed" }, { status: 500, headers: jsonHeaders });
-  }
-}
+export const PUT = mutate;
+export const DELETE = mutate;

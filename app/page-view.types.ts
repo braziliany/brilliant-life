@@ -86,6 +86,8 @@ export type HealthLoadStatus = "loading" | "ready" | "error";
 export type HealthMetric = "steps" | "activeEnergyKcal" | "exerciseMinutes" | "weightKg" | "sleepMinutes" | "restingHeartRateBpm";
 
 export type CalendarDayView = {
+  arrangementLabel?: string;
+  actualLabel?: string;
   key: string;
   day: number | null;
   className?: string;

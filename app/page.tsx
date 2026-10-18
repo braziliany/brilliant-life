@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HomePage } from "./components/home/HomePage";
 import { DashboardHeader } from "./components/shell/DashboardHeader";
 import { DataCenterOverview } from "./components/shell/DataCenterOverview";
@@ -23,7 +23,12 @@ import {
   selectTodayHealth,
   toChronologicalHealthHistory,
 } from "./features/health/domain";
+import { useAnnualCalendar } from "./features/calendar/useAnnualCalendar";
+import { CalendarDateEditor } from "./features/calendar/CalendarDateEditor";
+import type { CalendarWorkRecords, CalendarWorkRecord } from "./features/calendar/domain";
+import { summarizeRecordedHours, formatRecordedHours } from "./features/calendar/domain";
 import { WorkCalendarCard } from "./features/calendar/WorkCalendarCard";
+import { buildCalendarDayView } from "./features/calendar/day-view";
 import {
   calculateAnnualWorkdays,
   calendarDateKey,
@@ -126,9 +131,10 @@ export default function Home() {
   const [calendarEditing, setCalendarEditing] = useState(false);
   const [showAnnualStats, setShowAnnualStats] = useState(false);
   const [showCalendarNotes, setShowCalendarNotes] = useState(false);
-  const [annualOverrides, setAnnualOverrides] = useState<Record<string, boolean>>({});
   const [calendarNote, setCalendarNote] = useState<CalendarNote>({ month: "", scheduleNote: "", leaveNote: "", overtimeNote: "" });
   const [calendarNoteStatus, setCalendarNoteStatus] = useState<"idle" | "loading" | "saving" | "saved" | "error">("idle");
+  const [selectedCalendarDay, setSelectedCalendarDay] = useState<number | null>(null);
+  const [calendarWorkRecords, setCalendarWorkRecords] = useState<CalendarWorkRecords>({});
   const [calendarOverrides, setCalendarOverrides] = useState<Record<string, boolean>>({});
   const [calendarLoadStatus, setCalendarLoadStatus] = useState<"loading" | "ready" | "error">("loading");
   const [calendarReloadKey, setCalendarReloadKey] = useState(0);
@@ -160,35 +166,21 @@ export default function Home() {
   const { calendarDays, calendarRows } = getCalendarMonthShape(calendarMonth.year, calendarMonth.month);
   const calendarDayViews: CalendarDayView[] = calendarDays.map((day, index) => {
     if (day === null) return { key: `empty-${index}`, day: null };
-    const { date: key, holiday, makeup, workday, personalOverride } = resolveCalendarDay(calendarMonth.year, calendarMonth.month, day, calendarOverrides);
-    const isToday = key === todayKey;
-    const className = isToday ? "today" : workday && key < todayKey ? "worked" : workday ? "workday" : "weekend";
-    const statusLabel = personalOverride
-      ? `个人设为${workday ? "工作" : "休息"}`
-      : holiday
-        ? `${holiday} · 法定休假`
-        : makeup
-          ? "调休上班"
-          : workday ? "工作日" : "休息日";
-    return {
-      key,
-      day,
-      holiday,
-      className: `${className}${holiday ? " holiday" : ""}${makeup ? " makeup" : ""}${personalOverride ? (workday ? " personalWork" : " personalRest") : ""}${calendarEditing ? " editable" : ""}`,
-      ariaLabel: `${calendarMonth.month + 1}月${day}日，${statusLabel}${calendarEditing ? "，点击切换状态" : ""}`,
-      title: `${statusLabel}${calendarEditing ? " · 点击切换" : ""}`,
-      disabled: !calendarEditing || savingDate === key,
-    };
+    return buildCalendarDayView({ year: calendarMonth.year, month: calendarMonth.month, day, todayKey,
+      overrides: calendarOverrides, records: calendarWorkRecords, editing: calendarEditing,
+      busy: savingDate !== null || resettingCalendar });
   });
-  const calendarWorkdays = countCalendarMonthWorkdays(calendarMonth.year, calendarMonth.month, calendarOverrides);
+  const calendarWorkdays = countCalendarMonthWorkdays(calendarMonth.year, calendarMonth.month, calendarOverrides, calendarWorkRecords);
   const holidayCalendarConfigured = getHolidayCalendar(calendarMonth.year).status === "configured";
-  const { monthlyWorkdays: annualWorkdays, totalWorkdays: annualWorkdayTotal } = calculateAnnualWorkdays(calendarMonth.year, annualOverrides);
+  const annualRevision = useMemo(() => [calendarOverrides, calendarWorkRecords], [calendarOverrides, calendarWorkRecords]);
+  const annualCalendar = useAnnualCalendar(calendarMonth.year, showAnnualStats, annualRevision);
+  const { monthlyWorkdays: annualWorkdays, totalWorkdays: annualWorkdayTotal } = calculateAnnualWorkdays(calendarMonth.year, annualCalendar.overrides ?? {});
   const monthLabel = `${calendarMonth.year}年${calendarMonth.month + 1}月`;
   const calendarMonthKey = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
   const currentMonthKey = `${today.year}-${String(today.month + 1).padStart(2, "0")}`;
   const isCurrentCalendarMonth = calendarMonthKey === currentMonthKey;
   const workdays = calendarWorkdays;
-  const calendarProgress = summarizeCalendarMonthProgress(calendarMonth.year, calendarMonth.month, todayKey, calendarOverrides);
+  const calendarProgress = summarizeCalendarMonthProgress(calendarMonth.year, calendarMonth.month, todayKey, calendarOverrides, calendarWorkRecords);
   const { recentWeightHistory, latestWeight, weightChange, recentWeightMin, recentWeightRange } = calculateWeightTrend(healthHistory);
   const healthMetricConfig = {
     steps: { label: "步数", unit: "步", color: "var(--lime)" },
@@ -295,16 +287,20 @@ export default function Home() {
 
   useEffect(() => {
     setCalendarLoadStatus("loading");
-    fetch(`/api/calendar?month=${calendarMonthKey}`, { cache: "no-store" })
+    const controller = new AbortController();
+    fetch(`/api/calendar?month=${calendarMonthKey}`, { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         if (!response.ok) throw new Error("Calendar data unavailable");
-        return response.json() as Promise<{ overrides: Array<{ date: string; isWorkday: boolean }> }>;
+        return response.json() as Promise<{ overrides: Array<{ date: string; isWorkday: boolean }>; workRecords: Array<{ date: string } & CalendarWorkRecord> }>;
       })
-      .then(({ overrides }) => {
+      .then(({ overrides, workRecords }) => {
+        if (controller.signal.aborted) return;
+        setCalendarWorkRecords(Object.fromEntries(workRecords.map(item => [item.date, { worked: item.worked, hours: item.hours }])));
         setCalendarOverrides(Object.fromEntries(overrides.map((item) => [item.date, item.isWorkday])));
         setCalendarLoadStatus("ready");
       })
-      .catch(() => setCalendarLoadStatus("error"));
+      .catch(() => { if (!controller.signal.aborted) setCalendarLoadStatus("error"); });
+    return () => controller.abort();
   }, [calendarMonthKey, calendarReloadKey]);
   useEffect(() => {
     setCalendarNoteStatus("loading");
@@ -322,17 +318,6 @@ export default function Home() {
         setCalendarNoteStatus("error");
       });
   }, [calendarMonthKey]);
-  useEffect(() => {
-    if (!showAnnualStats) return;
-    fetch(`/api/calendar?year=${calendarMonth.year}`, { cache: "no-store" })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Annual calendar unavailable");
-        return response.json() as Promise<{ overrides: Array<{ date: string; isWorkday: boolean }> }>;
-      })
-      .then(({ overrides }) => setAnnualOverrides(Object.fromEntries(overrides.map((item) => [item.date, item.isWorkday]))))
-      .catch(() => setAnnualOverrides({}));
-  }, [calendarMonth.year, showAnnualStats, calendarOverrides]);
-
   const loadSalaryData = () => {
     setSalaryLoadStatus("loading");
     fetch("/api/salary", { cache: "no-store" })
@@ -387,28 +372,39 @@ export default function Home() {
   };
 
   const changeCalendarMonth = (offset: number) => {
+    if (savingDate !== null || resettingCalendar) return;
+    setSelectedCalendarDay(null);
     setLastCalendarChange(null);
     setCalendarMonth((current) => shiftCalendarMonth(current, offset));
   };
 
-  const toggleWorkday = async (day: number) => {
-    if (!calendarEditing) return;
-    const { date: key, hadOverride, previous: current, next } = getWorkdayToggle(calendarMonth.year, calendarMonth.month, day, calendarOverrides);
-    setCalendarOverrides((values) => ({ ...values, [key]: next }));
+  const saveArrangement = async (day: number, value: boolean | null) => {
+    const { date: key, hadOverride, previous: current } = getWorkdayToggle(calendarMonth.year, calendarMonth.month, day, calendarOverrides);
     setSavingDate(key);
     try {
       const response = await fetch("/api/calendar", {
-        method: "PUT",
+        method: value === null ? "DELETE" : "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ date: key, isWorkday: next }),
+        body: JSON.stringify(value === null ? { date: key } : { date: key, isWorkday: value }),
       });
       if (!response.ok) throw new Error("Save failed");
+      setCalendarOverrides(values => { const next = { ...values }; if (value === null) delete next[key]; else next[key] = value; return next; });
       setLastCalendarChange({ date: key, previous: current, hadOverride });
-    } catch {
-      setCalendarOverrides((values) => ({ ...values, [key]: current }));
-    } finally {
-      setSavingDate(null);
-    }
+    } finally { setSavingDate(null); }
+  };
+
+  const saveActualRecord = async (day: number, record: CalendarWorkRecord | null) => {
+    const date = calendarDateKey(calendarMonth.year, calendarMonth.month, day);
+    setSavingDate(date);
+    try {
+      const response = await fetch("/api/calendar-work", {
+        method: record === null ? "DELETE" : "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date, ...(record ?? {}) }),
+      });
+      if (!response.ok) throw new Error("Save failed");
+      setCalendarWorkRecords(values => { const next = { ...values }; if (record === null) delete next[date]; else next[date] = record; return next; });
+    } finally { setSavingDate(null); }
   };
 
   const undoCalendarChange = async () => {
@@ -439,7 +435,7 @@ export default function Home() {
   const resetOfficialCalendar = async () => {
     if (Object.keys(calendarOverrides).length === 0) return;
     const month = `${calendarMonth.year}-${String(calendarMonth.month + 1).padStart(2, "0")}`;
-    if (!window.confirm(`确定清除${monthLabel}的个人修改并恢复官方日历吗？`)) return;
+    if (!window.confirm(`确定清除${monthLabel}的个人安排并恢复默认吗？实际记录会保留。`)) return;
     setResettingCalendar(true);
     try {
       const response = await fetch("/api/calendar", {
@@ -707,6 +703,9 @@ export default function Home() {
               calendarMonth={calendarMonth}
               calendarLoadStatus={calendarLoadStatus}
               annualWorkdayTotal={annualWorkdayTotal}
+              annualLoadStatus={annualCalendar.status}
+              annualHasData={annualCalendar.overrides !== null}
+              onReloadAnnual={annualCalendar.retry}
               annualWorkdays={annualWorkdays}
               calendarNote={calendarNote}
               calendarNoteStatus={calendarNoteStatus}
@@ -718,15 +717,24 @@ export default function Home() {
               calendarDays={calendarDayViews}
               onToggleAnnual={() => { setShowAnnualStats((value) => !value); setShowCalendarNotes(false); setCalendarEditing(false); }}
               onToggleNotes={() => { setShowCalendarNotes((value) => !value); setShowAnnualStats(false); setCalendarEditing(false); }}
-              onToggleEditing={() => { setCalendarEditing((value) => !value); setShowAnnualStats(false); setShowCalendarNotes(false); }}
+              onToggleEditing={() => { setSelectedCalendarDay(null); setCalendarEditing((value) => !value); setShowAnnualStats(false); setShowCalendarNotes(false); }}
               onChangeMonth={changeCalendarMonth}
               onReload={() => setCalendarReloadKey((value) => value + 1)}
-              onSelectAnnualMonth={(month) => { setCalendarMonth({ year: calendarMonth.year, month }); setShowAnnualStats(false); }}
+              onSelectAnnualMonth={(month) => { if (savingDate !== null || resettingCalendar) return; setSelectedCalendarDay(null); setLastCalendarChange(null); setCalendarMonth({ year: calendarMonth.year, month }); setShowAnnualStats(false); }}
               onSaveNote={saveCalendarNote}
               onNoteChange={(field, value) => setCalendarNote((note) => ({ ...note, [field]: value }))}
               onUndo={undoCalendarChange}
               onReset={resetOfficialCalendar}
-              onToggleDay={toggleWorkday}
+              onToggleDay={day => { setSelectedCalendarDay(day); }}
+              recordedHours={{ ...summarizeRecordedHours(calendarWorkRecords, calendarMonthKey), hoursLabel: formatRecordedHours(calendarWorkRecords, calendarMonthKey) }}
+              editor={calendarEditing && selectedCalendarDay !== null && calendarLoadStatus === "ready" ? (() => {
+                const date = calendarDateKey(calendarMonth.year, calendarMonth.month, selectedCalendarDay);
+                const official = resolveCalendarDay(calendarMonth.year, calendarMonth.month, selectedCalendarDay, {});
+                const selectedDay = selectedCalendarDay;
+                return <CalendarDateEditor key={date} date={date} officialLabel={official.holiday ? `${official.holiday}法定休假` : official.makeup ? "调休上班" : official.workday ? "工作日" : "周末休息"}
+                  arrangement={calendarOverrides[date]} record={calendarWorkRecords[date]} busy={savingDate !== null || resettingCalendar}
+                  onArrange={value => saveArrangement(selectedDay, value)} onRecord={value => saveActualRecord(selectedDay, value)} onClose={() => setSelectedCalendarDay(null)} />;
+              })() : null}
             />
 
             <DailyGoalsColumn

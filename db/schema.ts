@@ -37,6 +37,13 @@ export const healthIngestionRuns = sqliteTable(
   (table) => [index("health_ingestion_runs_received_at_idx").on(table.receivedAt)]
 );
 
+export const calendarWorkRecords = sqliteTable("calendar_work_records", {
+  date: text("date").primaryKey(),
+  worked: integer("worked", { mode: "boolean" }).notNull(),
+  hours: real("hours"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const calendarOverrides = sqliteTable(
   "calendar_overrides",
   {

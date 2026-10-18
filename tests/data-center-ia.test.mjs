@@ -161,7 +161,7 @@ test("calendar uses natural height and a compact unclipped mobile grid", () => {
   assert.match(mobilePolish, /\.calendarActions\{width:auto;overflow:visible/);
   assert.match(mobilePolish, /\.calendarFacts\{gap:4px 8px;margin:8px 0 4px;padding:8px 10px\}/);
   assert.match(mobilePolish, /\.days\{column-gap:2px;row-gap:3px\}/);
-  assert.match(mobilePolish, /\.days>span,\.days>button,\.days\.sixRows>span,\.days\.sixRows>button\{width:34px;height:34px/);
+  assert.match(mobilePolish, /\.card\.calendar \.days>button,\.card\.calendar \.days\.sixRows>button,\.card\.calendar \.days>\.emptyDay\{[^}]*height:64px;min-height:64px;max-height:64px/);
   assert.doesNotMatch(mobilePolish, /\.grid>\.calendar\{[^}]*overflow-y:auto/);
 });
 
@@ -195,14 +195,14 @@ test("finance import uses an accessible custom picker and validates before enabl
   assert.match(styles, /\.financeFileButton,\.financeImportSubmit\{[^}]*min-height:44px/);
 });
 
-test("calendar today and personal override use distinct simultaneous indicators", () => {
-  assert.match(styles, /\.days>button\.today:before\{background:var\(--calendar-today\)\}/);
-  assert.match(styles, /\.calendarLegend \.todayLine\{background:var\(--calendar-today\)\}/);
-  assert.match(styles, /\.days>button\.personalWork:before,\.days>button\.personalRest:before\{background:var\(--calendar-personal\)\}/);
-  assert.match(styles, /\.calendarLegend \.personalLine\{background:var\(--calendar-personal\)\}/);
-  assert.match(styles, /\.days>button\.today\.personalWork:after,\.days>button\.today\.personalRest:after\{[^}]*background:var\(--calendar-personal\)/);
-  assert.ok(
-    styles.lastIndexOf(".days>button.today:before{background:var(--calendar-today)}") >
-      styles.indexOf(".days>button.workday:before"),
-  );
+test("calendar final-state bars and Today number outline remain independent", () => {
+  assert.match(styles, /\.card\.calendar \.days>button\.workday:before\{background:var\(--calendar-work\)\}/);
+  assert.match(styles, /\.card\.calendar \.days>button\.weekend:before\{background:var\(--calendar-rest\)\}/);
+  assert.match(styles, /\.card\.calendar \.days>button\.today \.dayNumber\{border-color:var\(--calendar-today\)\}/);
+  assert.doesNotMatch(styles, /\.today:before|\.todayLine|\.personalLine|\.holidayLine|\.makeupLine|\.personalWork:after|\.personalRest:after/);
+  const legend = calendar.slice(calendar.indexOf('<div className="calendarLegend">'));
+  assert.equal((legend.match(/<span>/g) ?? []).length, 2);
+  assert.match(legend, /workLine" \/>上班/);
+  assert.match(legend, /weekendLine" \/>休息/);
+  assert.doesNotMatch(calendar, /item\.arrangementLabel|item\.actualLabel/);
 });

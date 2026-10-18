@@ -21,6 +21,8 @@ import {
 import { calculateSalary, SALARY_POLICY } from "../app/api/salary/policy.ts";
 import { hasDashboardAccess, hasDashboardMutationOrigin } from "../app/api/access.ts";
 import { validNormalizedFinanceTransaction } from "../app/features/finance/import-service.ts";
+import { handleCalendarMutation } from "../app/features/calendar/arrangement-service.ts";
+import { handleWorkRecordMutation, parseWorkRecord, validCalendarDate } from "../app/features/calendar/work-record-service.ts";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const healthRoute = readFileSync(resolve(root, "app/api/health/route.ts"), "utf8");
@@ -56,6 +58,122 @@ test("calendar accepts only canonical month and date values", () => {
   assert.equal(validMonth("July"), false);
   assert.equal(validDate("2026-07-28"), true);
   assert.equal(validDate("2026/07/28"), false);
+});
+
+const calendarDateCases = [
+  ["2026-07-28", true],
+  ["2028-02-29", true],
+  ["2000-02-29", true],
+  ["2026-02-29", false],
+  ["1900-02-29", false],
+  ["2026-02-30", false],
+  ["2026-02-31", false],
+  ["2026-04-31", false],
+  ["2026-13-01", false],
+  ["2026-00-01", false],
+  ["2026-01-00", false],
+  ["2026-01-32", false],
+  ["2026-7-28", false],
+  ["2026/07/28", false],
+  ["2026-07-28T00:00:00Z", false],
+  [" 2026-07-28", false],
+  ["", false],
+  [null, false],
+  [undefined, false],
+  [20260728, false],
+  [[], false],
+  [{}, false],
+];
+
+test("personal arrangements and actual records share strict real calendar date validation", () => {
+  assert.equal(validCalendarDate, validDate);
+  for (const [date, accepted] of calendarDateCases) {
+    assert.equal(validDate(date), accepted, String(date));
+    assert.equal(parseWorkRecord({ date, worked: true, hours: 8 }) !== null, accepted, String(date));
+  }
+});
+
+const calendarMutationRequest = (body, method = "PUT") => new Request("http://localhost/api/calendar", {
+  method,
+  headers: { "Content-Type": "application/json", Origin: "http://localhost" },
+  body: JSON.stringify(body),
+});
+
+test("arrangement and actual API handlers reject invalid dates before storage and preserve canonical leap dates", async () => {
+  const saved = [];
+  const removed = [];
+  const resetMonths = [];
+  const deps = {
+    authorize: () => true,
+    save: async value => { saved.push(value); return value; },
+    remove: async date => { removed.push(date); },
+    resetMonth: async month => { resetMonths.push(month); },
+  };
+  for (const [date, accepted] of calendarDateCases) {
+    for (const method of ["PUT", "DELETE"]) {
+      const arrangement = method === "PUT" ? { date, isWorkday: false } : { date };
+      const actual = method === "PUT" ? { date, worked: true, hours: 8 } : { date };
+      const arrangementResponse = await handleCalendarMutation(calendarMutationRequest(arrangement, method), deps);
+      const actualResponse = await handleWorkRecordMutation(calendarMutationRequest(actual, method), deps);
+      assert.equal(arrangementResponse.status, accepted ? 200 : 400, `${method} arrangement ${String(date)}`);
+      assert.equal(actualResponse.status, accepted ? 200 : 400, `${method} actual ${String(date)}`);
+      assert.equal(arrangementResponse.headers.get("Cache-Control"), "no-store");
+    }
+  }
+  const acceptedDates = calendarDateCases.filter(([, accepted]) => accepted).map(([date]) => date);
+  assert.deepEqual(saved.filter(row => Object.hasOwn(row, "isWorkday")), acceptedDates.map(date => ({ date, isWorkday: false })));
+  assert.deepEqual(removed, acceptedDates.flatMap(date => [date, date]));
+  assert.deepEqual(resetMonths, []);
+});
+
+test("arrangement API returns 400 for malformed JSON, null, arrays and other invalid payloads", async () => {
+  let storageCalls = 0;
+  const deps = {
+    authorize: () => true,
+    save: async () => { storageCalls++; },
+    remove: async () => { storageCalls++; },
+    resetMonth: async () => { storageCalls++; },
+  };
+  for (const method of ["PUT", "DELETE"]) {
+    const malformed = new Request("http://localhost/api/calendar", { method, body: "{" });
+    const response = await handleCalendarMutation(malformed, deps);
+    assert.equal(response.status, 400);
+    assert.deepEqual(await response.json(), { error: "Invalid JSON" });
+    for (const payload of [null, [], [{ date: "2026-07-28", isWorkday: true }], "date", 0, false, {}, { date: "2026-02-30", month: "2026-02", isWorkday: true }]) {
+      const rejected = await handleCalendarMutation(calendarMutationRequest(payload, method), deps);
+      assert.equal(rejected.status, 400, `${method} ${JSON.stringify(payload)}`);
+      assert.equal(typeof (await rejected.json()).error, "string");
+    }
+  }
+  assert.equal(storageCalls, 0);
+});
+
+test("arrangement API preserves save and reset responses, access denial and real storage failures", async () => {
+  const calls = [];
+  const deps = {
+    authorize: () => true,
+    save: async value => { calls.push(["save", value]); return { ...value, updatedAt: "saved" }; },
+    remove: async date => { calls.push(["remove", date]); },
+    resetMonth: async month => { calls.push(["reset", month]); },
+  };
+  const payload = { date: "2028-02-29", isWorkday: false };
+  const saved = await handleCalendarMutation(calendarMutationRequest(payload), deps);
+  assert.equal(saved.status, 200);
+  assert.deepEqual(await saved.json(), { override: { ...payload, updatedAt: "saved" } });
+  const removed = await handleCalendarMutation(calendarMutationRequest({ date: payload.date }, "DELETE"), deps);
+  assert.deepEqual(await removed.json(), { deleted: payload.date });
+  const reset = await handleCalendarMutation(calendarMutationRequest({ month: "2028-02" }, "DELETE"), deps);
+  assert.deepEqual(await reset.json(), { reset: "2028-02" });
+  const count = calls.length;
+  const denied = await handleCalendarMutation(calendarMutationRequest(payload), { ...deps, authorize: () => false });
+  assert.equal(denied.status, 401);
+  assert.equal(calls.length, count);
+  const fail = async () => { throw new Error("unavailable"); };
+  for (const [method, body, failure] of [["PUT", payload, { save: fail }], ["DELETE", { date: payload.date }, { remove: fail }], ["DELETE", { month: "2028-02" }, { resetMonth: fail }]]) {
+    const response = await handleCalendarMutation(calendarMutationRequest(body, method), { ...deps, ...failure });
+    assert.equal(response.status, 500);
+    assert.equal(typeof (await response.json()).error, "string");
+  }
 });
 
 test("salary record enforces month and workday boundaries", () => {

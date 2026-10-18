@@ -1,10 +1,12 @@
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, rmSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import { countCalendarMonthWorkdays, resolveCalendarDay } from "../app/features/calendar/domain.ts";
+import { getShanghaiToday } from "../app/features/calendar/widget-contract.ts";
 
 const projectRoot = fileURLToPath(new URL("..", import.meta.url));
 const wranglerCli = join(projectRoot, "node_modules", "wrangler", "wrangler-dist", "cli.js");
@@ -48,7 +50,7 @@ const stopWorker = async (child) => {
   child.stderr?.destroy();
 };
 
-const render = async () => {
+const render = async (verifyCalendar = false) => {
   // Use the ignored, workspace-owned local runtime directory rather than a
   // Windows short-path Temp alias. Each render still gets isolated persistence.
   const harnessDirectory = join(projectRoot, ".wrangler");
@@ -60,7 +62,18 @@ const render = async () => {
   mkdirSync(xdg);
   const port = await availablePort();
   const inspectorPort = await availablePort();
-  const child = spawn(process.execPath, [
+  let child;
+  try {
+  if (verifyCalendar) {
+    const migrations = join(projectRoot, "drizzle");
+    const sql = readdirSync(migrations).filter(name => /^\d{4}_.+\.sql$/.test(name)).sort().map(name => readFileSync(join(migrations, name), "utf8")).join("\n");
+    const seedFile = join(root, "calendar-schema.sql");
+    writeFileSync(seedFile, sql);
+    execFileSync(process.execPath, [wranglerCli, "d1", "execute", "DB", "--local", "--persist-to", persistence, "--config", join(projectRoot, "dist", "server", "wrangler.json"), "--file", seedFile], {
+      cwd: projectRoot, env: { ...process.env, XDG_CONFIG_HOME: xdg }, stdio: ["ignore", "pipe", "pipe"], timeout: 15000,
+    });
+  }
+  child = spawn(process.execPath, [
     wranglerCli,
     "dev",
     "--config",
@@ -87,20 +100,20 @@ const render = async () => {
   // Drain both pipes so startup output cannot block the child process.
   child.stdout?.on("data", (chunk) => { diagnostics += chunk.toString(); });
   child.stderr?.on("data", (chunk) => { diagnostics += chunk.toString(); });
-  try {
     for (let attempt = 0; attempt < 60; attempt += 1) {
       if (child.exitCode !== null) throw new Error(`Local Worker exited before rendering. ${diagnostics}`);
-      try {
-        const response = await fetch(`http://127.0.0.1:${port}/`, { headers: { accept: "text/html" } });
-        const body = await response.arrayBuffer();
-        return new Response(body, response);
-      } catch {
+      let response;
+      try { response = await fetch(`http://127.0.0.1:${port}/`, { headers: { accept: "text/html" } }); } catch {
         await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
+        continue;
       }
+      const body = await response.arrayBuffer();
+      if (verifyCalendar) await verifyCalendarApi(`http://127.0.0.1:${port}`);
+      return new Response(body, response);
     }
     throw new Error(`Local Worker did not become ready. ${diagnostics}`);
   } finally {
-    await stopWorker(child);
+    if (child) await stopWorker(child);
     if (process.platform === "win32") {
       // Native Windows cleanup avoids the observed Node recursive-rm EPERM.
       // Validate the exact owned test directory before deleting anything.
@@ -138,4 +151,47 @@ test("renders the current Brilliant Life dashboard in the local Workers runtime"
   assert.match(html, /预计工资/);
   assert.match(html, /职业经历/);
   assert.doesNotMatch(html, /网站导航|升级计划|我的习惯|健康生活仪表盘|codex-preview|SkeletonPreview/);
+});
+
+async function verifyCalendarApi(origin) {
+  const get = async path => {
+    const response = await fetch(`${origin}${path}`);
+    assert.equal(response.status, 200, path);
+    return response.json();
+  };
+  const mutate = async (path, payload, method = "PUT") => {
+    const response = await fetch(`${origin}${path}`, { method, headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    assert.equal(response.status, 200, `${method} ${path}: ${await response.text()}`);
+  };
+  const month = getShanghaiToday(new Date()).slice(0, 7);
+  const date = `${month}-01`;
+  const [year, monthNumber] = month.split("-").map(Number);
+  await mutate("/api/calendar", { date, isWorkday: false });
+  await mutate("/api/calendar-work", { date, worked: true, hours: 8 });
+  // A fresh HTTP GET exercises the same persisted data used after page refresh.
+  const reloaded = await get(`/api/calendar?month=${month}`);
+  assert.equal(reloaded.overrides[0].isWorkday, false);
+  assert.equal(reloaded.workRecords[0].hours, 8);
+  const widget = await get(`/api/v1/calendar/widget?month=${month}`);
+  assert.equal(widget.days[0].isWorkday, true);
+  assert.equal(widget.days[0].personalOverride, "restday");
+  const annual = await get(`/api/annual?year=${year}`);
+  assert.equal(annual.summary.time.facts.months[monthNumber - 1].workdays, countCalendarMonthWorkdays(year, monthNumber - 1, { [date]: false }, { [date]: { worked: true, hours: 8 } }));
+  await mutate("/api/calendar", { month }, "DELETE");
+  const reset = await get(`/api/calendar?month=${month}`);
+  assert.equal(reset.overrides.length, 0);
+  assert.equal(reset.workRecords[0].hours, 8);
+  await mutate("/api/calendar-work", { date }, "DELETE");
+  const cleared = await get(`/api/v1/calendar/widget?month=${month}`);
+  assert.equal(cleared.days[0].isWorkday, resolveCalendarDay(year, monthNumber - 1, 1, {}).officialWorkday);
+  await mutate("/api/calendar-work", { date: "2026-10-10", worked: false, hours: 0 });
+  const makeupRest = await get("/api/calendar?month=2026-10");
+  assert.equal(makeupRest.workRecords.find(row => row.date === "2026-10-10").hours, 0);
+  await mutate("/api/calendar-work", { date: "2027-01-02", worked: true, hours: 8 });
+  assert.equal((await get("/api/calendar?month=2027-01")).workRecords[0].hours, 8);
+  assert.equal((await get("/api/calendar?year=2026")).workRecords.some(row => row.date === "2027-01-02"), false);
+}
+
+test("Calendar actual work persists through Worker APIs, reload, reset and year switches", { timeout: 60_000 }, async () => {
+  assert.equal((await render(true)).status, 200);
 });

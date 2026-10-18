@@ -75,10 +75,11 @@ test("an empty local D1 applies every migration in order", { timeout: 120_000 },
     const allMigrations = combineMigrations(harness.root, "all.sql", migrationFiles);
     harness.execute("--file", allMigrations);
 
-    const tables = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('health_daily','health_ingestion_runs','calendar_overrides','calendar_notes','salary_records','salary_settings','work_experiences','finance_transactions') ORDER BY name;"));
+    const tables = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'table' AND name IN ('health_daily','health_ingestion_runs','calendar_overrides','calendar_work_records','calendar_notes','salary_records','salary_settings','work_experiences','finance_transactions') ORDER BY name;"));
     assert.deepEqual(tables.map(({ name }) => name), [
       "calendar_notes",
       "calendar_overrides",
+      "calendar_work_records",
       "finance_transactions",
       "health_daily",
       "health_ingestion_runs",
@@ -87,6 +88,8 @@ test("an empty local D1 applies every migration in order", { timeout: 120_000 },
       "work_experiences",
     ]);
 
+    const workColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('calendar_work_records') ORDER BY cid;"));
+    assert.deepEqual(workColumns.map(row => row.name), ["date", "worked", "hours", "updated_at"]);
     const financeColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('finance_transactions') ORDER BY cid;"));
     assert.deepEqual(financeColumns.map(({ name }) => name).slice(0, 8), ["id", "source", "source_id", "occurred_at", "type", "amount_cents", "currency", "raw_type"]);
     const financeIndexes = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'finance_transactions' ORDER BY name;"));
@@ -153,6 +156,10 @@ INSERT INTO work_experiences (company, role, start_date, summary, sort_order) VA
 
     const salary = firstResults(harness.execute("--command", "SELECT month, workdays, gross_salary, income_tax, net_salary FROM salary_records;"));
     assert.deepEqual(salary, [{ month: "2026-07", workdays: 23, gross_salary: 6325, income_tax: 35.85, net_salary: 6159.15 }]);
+    const historicalPlan = firstResults(harness.execute("--command", "SELECT date, is_workday FROM calendar_overrides;"));
+    assert.deepEqual(historicalPlan, [{ date: "2026-07-05", is_workday: 1 }]);
+    const actualRows = firstResults(harness.execute("--command", "SELECT COUNT(*) AS count FROM calendar_work_records;"));
+    assert.deepEqual(actualRows, [{ count: 0 }], "migration must never infer actual hours from historical plans");
     const supportingRows = firstResults(harness.execute("--command", "SELECT (SELECT COUNT(*) FROM calendar_overrides) AS calendar_rows, (SELECT COUNT(*) FROM work_experiences) AS career_rows, (SELECT COUNT(*) FROM health_ingestion_runs) AS ingestion_rows;"));
     assert.deepEqual(supportingRows, [{ calendar_rows: 1, career_rows: 1, ingestion_rows: 0 }]);
   } finally {

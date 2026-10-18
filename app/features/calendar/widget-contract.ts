@@ -4,6 +4,7 @@ import {
   resolveCalendarDay,
   shiftCalendarMonth,
   type CalendarOverrides,
+  type CalendarWorkRecords,
 } from "./domain.ts";
 
 export const CALENDAR_WIDGET_SCHEMA_VERSION = "1.0";
@@ -86,6 +87,7 @@ const hasText = (value: unknown) => typeof value === "string" && value.trim().le
 export function buildCalendarWidgetDto(input: {
   month: string;
   overrides: CalendarOverrides;
+  workRecords?: CalendarWorkRecords;
   note?: CalendarWidgetNote | null;
   now: Date;
 }): CalendarWidgetDto {
@@ -94,8 +96,8 @@ export function buildCalendarWidgetDto(input: {
 
   const { year, month } = parsed;
   const { daysInMonth } = getCalendarMonthShape(year, month);
-  const days = Array.from({ length: daysInMonth }, (_, index) => {
-    const resolved = resolveCalendarDay(year, month, index + 1, input.overrides);
+  const days = Array.from({ length: daysInMonth }, (_, index): CalendarWidgetDay => {
+    const resolved = resolveCalendarDay(year, month, index + 1, input.overrides, input.workRecords);
     const override = resolved.personalOverride ? input.overrides[resolved.date] : undefined;
     return {
       date: resolved.date,

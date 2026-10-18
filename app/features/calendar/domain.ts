@@ -2,6 +2,44 @@ import { holidayCalendar2026 } from "./holiday-data/2026.ts";
 
 export type CalendarMonth = { year: number; month: number };
 export type CalendarOverrides = Record<string, boolean>;
+export type CalendarWorkRecord = { worked: boolean; hours: number | null };
+export type CalendarWorkRecords = Record<string, CalendarWorkRecord>;
+
+// Missing records and unknown hours must never become inferred hours.
+export const effectiveCalendarOverrides = (overrides: CalendarOverrides, records: CalendarWorkRecords = {}): CalendarOverrides => ({
+  ...overrides,
+  ...Object.fromEntries(Object.entries(records).map(([date, record]) => [date, record.worked])),
+});
+
+export function summarizeRecordedHours(records: CalendarWorkRecords, month: string) {
+  const entries = Object.entries(records).filter(([date]) => date.startsWith(`${month}-`));
+  return {
+    recordedDays: entries.length,
+    knownHoursDays: entries.filter(([, record]) => record.hours !== null).length,
+    hours: entries.reduce((sum, [, record]) => sum + (record.hours ?? 0), 0),
+  };
+}
+
+export function formatRecordedHours(records: CalendarWorkRecords, month: string): string {
+  // Inputs allow any finite decimal precision (step="any"). Sum their canonical
+  // decimal representations for display, so 0.1 + 0.2 is "0.3" without rounding
+  // a legitimate high-precision or very small input. Keep stored numbers and the
+  // numeric summary unchanged; this is only a presentation of the recorded values.
+  const decimals = Object.entries(records)
+    .filter(([date, record]) => date.startsWith(`${month}-`) && record.hours !== null)
+    .map(([, record]) => {
+      const [mantissa, exponent = "0"] = record.hours!.toString().split("e");
+      const [whole, fraction = ""] = mantissa.split(".");
+      return { digits: BigInt(whole + fraction), scale: fraction.length - Number(exponent) };
+    });
+  const scale = Math.max(0, ...decimals.map((value) => value.scale));
+  const total = decimals.reduce((sum, value) =>
+    sum + value.digits * BigInt(`1${"0".repeat(scale - value.scale)}`), BigInt(0));
+  const digits = total.toString().padStart(scale + 1, "0");
+  if (scale === 0) return digits;
+  const fraction = digits.slice(-scale).replace(/0+$/, "");
+  return `${digits.slice(0, -scale)}${fraction ? `.${fraction}` : ""}`;
+}
 
 type HolidayRange = readonly [start: string, end: string, name: string];
 type ConfiguredHolidayCalendar = {
@@ -57,6 +95,7 @@ export const resolveCalendarDay = (
   month: number,
   day: number,
   overrides: CalendarOverrides,
+  records: CalendarWorkRecords = {},
 ) => {
   const date = calendarDateKey(year, month, day);
   const officialWorkday = isOfficialWorkday(year, month, day);
@@ -67,7 +106,7 @@ export const resolveCalendarDay = (
     holiday: getHolidayName(date),
     makeup: isMakeupWorkday(date),
     officialWorkday,
-    workday: overrides[date] ?? officialWorkday,
+    workday: records[date]?.worked ?? overrides[date] ?? officialWorkday,
     personalOverride,
   };
 };
@@ -92,10 +131,11 @@ export const countCalendarMonthWorkdays = (
   year: number,
   month: number,
   overrides: CalendarOverrides,
+  records: CalendarWorkRecords = {},
 ) => {
   const { daysInMonth } = getCalendarMonthShape(year, month);
   return Array.from({ length: daysInMonth }, (_, index) => index + 1)
-    .filter((day) => resolveCalendarDay(year, month, day, overrides).workday)
+    .filter((day) => resolveCalendarDay(year, month, day, overrides, records).workday)
     .length;
 };
 
@@ -104,6 +144,7 @@ export const summarizeCalendarMonthProgress = (
   month: number,
   asOfDate: string,
   overrides: CalendarOverrides,
+  records: CalendarWorkRecords = {},
 ) => {
   const { daysInMonth } = getCalendarMonthShape(year, month);
   const monthKey = `${year}-${String(month + 1).padStart(2, "0")}`;
@@ -114,7 +155,7 @@ export const summarizeCalendarMonthProgress = (
       ? 0
       : Math.max(0, Math.min(Number(asOfDate.slice(-2)), daysInMonth));
   const resolved = Array.from({ length: daysInMonth }, (_, index) =>
-    resolveCalendarDay(year, month, index + 1, overrides),
+    resolveCalendarDay(year, month, index + 1, overrides, records),
   );
   const workdays = resolved.filter((day) => day.workday);
   return {
@@ -127,10 +168,10 @@ export const summarizeCalendarMonthProgress = (
   };
 };
 
-export const calculateAnnualWorkdays = (year: number, overrides: CalendarOverrides) => {
+export const calculateAnnualWorkdays = (year: number, overrides: CalendarOverrides, records: CalendarWorkRecords = {}) => {
   const monthlyWorkdays = Array.from(
     { length: 12 },
-    (_, month) => countCalendarMonthWorkdays(year, month, overrides),
+    (_, month) => countCalendarMonthWorkdays(year, month, overrides, records),
   );
 
   return {

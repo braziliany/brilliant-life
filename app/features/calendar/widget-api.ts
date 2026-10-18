@@ -3,7 +3,7 @@ import {
   validateCalendarWidgetMonth,
   type CalendarWidgetNote,
 } from "./widget-contract.ts";
-import type { CalendarOverrides } from "./domain.ts";
+import type { CalendarOverrides, CalendarWorkRecords } from "./domain.ts";
 
 export const calendarWidgetHeaders = {
   "Cache-Control": "private, no-store, max-age=0",
@@ -13,6 +13,7 @@ export const calendarWidgetHeaders = {
 
 type CalendarWidgetData = {
   overrides: CalendarOverrides;
+  workRecords?: CalendarWorkRecords;
   note?: CalendarWidgetNote | null;
 };
 

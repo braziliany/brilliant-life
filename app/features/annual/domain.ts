@@ -16,6 +16,8 @@ import {
   getHolidayCalendar,
   resolveCalendarDay,
   type CalendarOverrides,
+  type CalendarWorkRecords,
+  effectiveCalendarOverrides,
 } from "../calendar/domain.ts";
 import {
   getHealthMetricCoverage,
@@ -53,6 +55,7 @@ type DomainSummary<Facts, Coverage> = {
 
 type CalendarYearData = {
   overrides?: CalendarOverrides;
+  workRecords?: CalendarWorkRecords;
 };
 
 type AnnualSummaryInput = {
@@ -344,7 +347,7 @@ export function summarizeCalendarYear(
     };
     for (let day = 1; day <= daysInMonth; day += 1) {
       const date = new Date(Date.UTC(year, monthIndex, day));
-      const resolved = resolveCalendarDay(year, monthIndex, day, overrides);
+      const resolved = resolveCalendarDay(year, monthIndex, day, overrides, calendarData.workRecords);
       const dateKey = resolved.date;
       const weekday = date.getUTCDay();
 
@@ -382,9 +385,11 @@ export function summarizeCalendarYear(
       ratio: officialCalendarConfigured ? 1 : 0,
       officialCalendarConfigured,
     },
-    sources: officialCalendarConfigured
-      ? [`holiday_calendar_${year}`, "calendar_overrides"]
-      : ["calendar_overrides"],
+    sources: [
+      ...(officialCalendarConfigured ? [`holiday_calendar_${year}`] : []),
+      "calendar_overrides",
+      ...(Object.keys(calendarData.workRecords ?? {}).some(date => date.startsWith(`${year}-`)) ? ["calendar_work_records"] : []),
+    ],
     warnings: officialCalendarConfigured
       ? []
       : ["unconfigured-holiday-calendar"],
@@ -652,7 +657,7 @@ export function generateAnnualSummaryDraft(
     healthRecords: reporting.factThroughDate
       ? data.healthRecords.filter((record) => record.date <= reporting.factThroughDate!)
       : [],
-    calendarOverrides: data.calendarData.overrides ?? {},
+    calendarOverrides: effectiveCalendarOverrides(data.calendarData.overrides ?? {}, data.calendarData.workRecords),
     salaryRecords: salaryRecordsForPeriod,
     lifeFinance,
   });
@@ -731,7 +736,8 @@ const warningExplanations: Record<string, string> = {
 
 const sourceExplanations: Record<string, string> = {
   health_daily: "健康每日汇总记录",
-  calendar_overrides: "个人工作日历修改",
+  calendar_overrides: "个人上班或休息安排",
+  calendar_work_records: "实际工作记录",
   salary_records: "已保存的月度工资快照",
   "finance_transactions:qianji": "钱迹导入",
   work_experiences: "职业经历记录",

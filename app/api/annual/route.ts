@@ -1,7 +1,7 @@
 import { asc, and, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../db";
 import {
-  calendarOverrides,
+  calendarOverrides, calendarWorkRecords,
   financeTransactions,
   healthDaily,
   salaryRecords,
@@ -45,7 +45,7 @@ export async function GET(request: Request) {
 
   try {
     const db = getDb();
-    const [healthRecords, overrides, salaries, financeRows, experiences] = await Promise.all([
+    const [healthRecords, overrides, salaries, financeRows, experiences, workRecords] = await Promise.all([
       db
         .select()
         .from(healthDaily)
@@ -84,6 +84,7 @@ export async function GET(request: Request) {
         .select()
         .from(workExperiences)
         .orderBy(asc(workExperiences.startDate), asc(workExperiences.id)),
+      db.select().from(calendarWorkRecords).where(and(gte(calendarWorkRecords.date, dateStart), lt(calendarWorkRecords.date, dateEnd))),
     ]);
     const generatedAt = new Date().toISOString();
     const summary = generateAnnualSummaryDraft(year, {
@@ -91,6 +92,7 @@ export async function GET(request: Request) {
       asOfDate: shanghaiDateKey(),
       healthRecords,
       calendarData: {
+        workRecords: Object.fromEntries(workRecords.map(row => [row.date, { worked: row.worked, hours: row.hours }])),
         overrides: Object.fromEntries(
           overrides.map((item) => [item.date, item.isWorkday]),
         ),

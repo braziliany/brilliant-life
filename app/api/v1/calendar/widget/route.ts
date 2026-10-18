@@ -1,6 +1,6 @@
 import { and, eq, gte, lt } from "drizzle-orm";
 import { getDb } from "../../../../../db";
-import { calendarNotes, calendarOverrides } from "../../../../../db/schema";
+import { calendarNotes, calendarOverrides, calendarWorkRecords } from "../../../../../db/schema";
 import { hasDashboardAccess } from "../../../access";
 import {
   calendarWidgetMethodNotAllowed,
@@ -19,7 +19,7 @@ export function GET(request: Request) {
     async loadMonth(month) {
       const db = getDb();
       const start = `${month}-01`;
-      const [overrideRows, noteRows] = await Promise.all([
+      const [overrideRows, noteRows, workRecords] = await Promise.all([
         db.select({ date: calendarOverrides.date, isWorkday: calendarOverrides.isWorkday })
           .from(calendarOverrides)
           .where(and(gte(calendarOverrides.date, start), lt(calendarOverrides.date, nextMonthStart(month)))),
@@ -28,8 +28,10 @@ export function GET(request: Request) {
           leaveNote: calendarNotes.leaveNote,
           overtimeNote: calendarNotes.overtimeNote,
         }).from(calendarNotes).where(eq(calendarNotes.month, month)).limit(1),
+        db.select().from(calendarWorkRecords).where(and(gte(calendarWorkRecords.date, start), lt(calendarWorkRecords.date, nextMonthStart(month)))),
       ]);
       return {
+        workRecords: Object.fromEntries(workRecords.map(row => [row.date, { worked: row.worked, hours: row.hours }])),
         overrides: Object.fromEntries(overrideRows.map((row) => [row.date, row.isWorkday])),
         note: noteRows[0] ?? null,
       };
