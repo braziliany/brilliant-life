@@ -12,7 +12,8 @@ export type PrimaryNavigationKey =
   | "finance-records"
   | "salary"
   | "annual"
-  | "timeline";
+  | "timeline"
+  | "possessions";
 
 const PRIMARY_NAVIGATION = [
   { key: "home", label: "首页", href: "/" },
@@ -23,6 +24,7 @@ const PRIMARY_NAVIGATION = [
   { key: "salary", label: "工资", href: "/#finance" },
   { key: "annual", label: "年度档案", href: "/#annual" },
   { key: "timeline", label: "时间线", href: "/timeline" },
+  { key: "possessions", label: "物品", href: "/possessions" },
 ] as const satisfies readonly { key: PrimaryNavigationKey; label: string; href: string }[];
 
 export function SiteNavigation({ activePage = "home" }: Props) {

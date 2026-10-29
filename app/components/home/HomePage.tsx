@@ -1,4 +1,5 @@
 import type { HealthLoadStatus, ShanghaiDate } from "../../page-view.types";
+import { HomePossessionsEntry } from "./HomePossessionsEntry";
 
 type Props = {
   today: ShanghaiDate;
@@ -41,6 +42,7 @@ export function HomePage({ today, dailyQuote, healthLoadStatus, steps, stepGoal,
           <button type="button" onClick={() => onOpenDashboard("health")}><span>查看完整数据</span><b>↗</b></button>
         </div>
       </div>
+      <HomePossessionsEntry />
       <div className="homeHighlights">
         <button type="button" onClick={() => onOpenDashboard("health")}><i className="healthHighlight" /><span>健康趋势</span><strong>{healthLoadStatus === "ready" ? `${healthHistoryDays} 天` : "—"}</strong><small>最近 30 天内有记录的日期</small></button>
         <button type="button" onClick={() => onOpenDashboard("time")}><i className="calendarHighlight" /><span>本月工作</span><strong>{workdays} 天</strong><small>日历实时统计</small></button>

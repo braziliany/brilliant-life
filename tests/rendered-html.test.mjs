@@ -108,7 +108,10 @@ const render = async (verifyCalendar = false) => {
         continue;
       }
       const body = await response.arrayBuffer();
-      if (verifyCalendar) await verifyCalendarApi(`http://127.0.0.1:${port}`);
+      if (verifyCalendar) {
+        await verifyCalendarApi(`http://127.0.0.1:${port}`);
+        await verifyPossessionsApi(`http://127.0.0.1:${port}`);
+      }
       return new Response(body, response);
     }
     throw new Error(`Local Worker did not become ready. ${diagnostics}`);
@@ -195,3 +198,31 @@ async function verifyCalendarApi(origin) {
 test("Calendar actual work persists through Worker APIs, reload, reset and year switches", { timeout: 60_000 }, async () => {
   assert.equal((await render(true)).status, 200);
 });
+
+async function verifyPossessionsApi(origin) {
+  const request = async (path, method = "GET", payload, expected = 200) => {
+    const response = await fetch(`${origin}${path}`, { method, ...(payload === undefined ? {} : { headers: { Origin: origin, "Content-Type": "application/json" }, body: JSON.stringify(payload) }) });
+    const text = await response.text(); assert.equal(response.status, expected, `${method} ${path}: ${text}`); return JSON.parse(text);
+  };
+  const page = await fetch(`${origin}/possessions`); assert.equal(page.status, 200); assert.match(await page.text(), /物品|POSSESSIONS/);
+  const value = { name: "仅本地的合成物品", category: "其他", purchasePriceCents: 0 };
+  const created = (await request("/api/possessions/items", "POST", value, 201)).record;
+  assert.equal(created.purchaseDate, null); assert.equal(created.purchasePriceCents, 0);
+  const usedOn = getShanghaiToday(new Date());
+  const use = (await request("/api/possessions/uses", "POST", { itemId: created.id, usedOn }, 201)).record;
+  const read = () => request(`/api/possessions?itemId=${created.id}`);
+  assert.equal((await read()).item.metrics.recordedUses, 1);
+  await request("/api/possessions/uses", "PUT", { id: use.id, itemId: created.id, usedOn: "2024-02-29", count: 3 });
+  assert.equal((await read()).item.metrics.recordedUses, 3);
+  await request("/api/possessions/items", "PATCH", { id: created.id, archived: true });
+  assert.equal((await read()).uses.length, 1);
+  await request("/api/possessions/uses", "DELETE", { id: use.id, itemId: created.id });
+  assert.equal((await read()).item.metrics.recordedUses, 0);
+  await request("/api/possessions/items", "POST", { ...value, purchaseDate: "2026-02-30" }, 400);
+  const wish = (await request("/api/possessions/wishes", "POST", { name: "仅本地的合成愿望", budgetCents: 10000, status: "purchased" }, 201)).record;
+  const converted = (await request("/api/possessions/convert", "POST", { wishId: wish.id, item: { name: "从愿望转入", category: "其他" } }, 201)).item;
+  assert.equal(converted.purchasePriceCents, null); assert.equal(converted.sourceWishId, wish.id);
+  await request("/api/possessions/convert", "POST", { wishId: wish.id, item: { name: "从愿望转入", category: "其他" } }, 409);
+  const forbidden = await fetch(`${origin}/api/possessions/items`, { method: "POST", headers: { Origin: "https://other.example.com", "Content-Type": "application/json" }, body: JSON.stringify(value) });
+  assert.equal(forbidden.status, 403);
+}

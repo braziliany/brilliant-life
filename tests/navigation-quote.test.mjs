@@ -29,6 +29,7 @@ test("formal navigation exposes every approved destination in fixed order", () =
     ["salary", "工资", "/#finance"],
     ["annual", "年度档案", "/#annual"],
     ["timeline", "时间线", "/timeline"],
+    ["possessions", "物品", "/possessions"],
   ];
   let cursor = -1;
   for (const [key, label, href] of entries) {

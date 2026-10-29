@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const healthDaily = sqliteTable(
   "health_daily",
@@ -144,3 +144,55 @@ export const financeTransactions = sqliteTable(
     index("finance_transactions_life_domain_idx").on(table.lifeDomain),
   ]
 );
+
+export const possessionWishes = sqliteTable("possession_wishes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  budgetCents: integer("budget_cents"),
+  plannedDate: text("planned_date"),
+  notes: text("notes").notNull().default(""),
+  status: text("status", { enum: ["wanted", "purchased", "cancelled"] }).notNull().default("wanted"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => [
+  check("possession_wishes_budget_check", sql`${table.budgetCents} IS NULL OR (${table.budgetCents} >= 0 AND typeof(${table.budgetCents}) = 'integer')`),
+  check("possession_wishes_status_check", sql`${table.status} IN ('wanted','purchased','cancelled')`),
+  index("possession_wishes_planned_date_idx").on(table.plannedDate),
+]);
+
+export const possessionItems = sqliteTable("possession_items", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  category: text("category").notNull(),
+  brandModel: text("brand_model"),
+  purchaseDate: text("purchase_date"),
+  purchasePriceCents: integer("purchase_price_cents"),
+  notes: text("notes").notNull().default(""),
+  status: text("status", { enum: ["in_use", "idle", "sold", "gifted", "retired"] }).notNull().default("in_use"),
+  endedDate: text("ended_date"),
+  archivedAt: text("archived_at"),
+  sourceWishId: integer("source_wish_id").references(() => possessionWishes.id, { onDelete: "restrict" }),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => [
+  uniqueIndex("possession_items_source_wish_unique").on(table.sourceWishId),
+  index("possession_items_purchase_date_idx").on(table.purchaseDate),
+  index("possession_items_ended_date_idx").on(table.endedDate),
+  check("possession_items_price_check", sql`${table.purchasePriceCents} IS NULL OR (${table.purchasePriceCents} >= 0 AND typeof(${table.purchasePriceCents}) = 'integer')`),
+  check("possession_items_status_check", sql`${table.status} IN ('in_use','idle','sold','gifted','retired')`),
+  check("possession_items_end_check", sql`((${table.status} IN ('in_use','idle') AND ${table.endedDate} IS NULL) OR (${table.status} IN ('sold','gifted','retired') AND ${table.endedDate} IS NOT NULL)) AND (${table.purchaseDate} IS NULL OR ${table.endedDate} IS NULL OR ${table.endedDate} >= ${table.purchaseDate})`),
+]);
+
+export const possessionUses = sqliteTable("possession_uses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  itemId: integer("item_id").notNull().references(() => possessionItems.id, { onDelete: "restrict" }),
+  usedOn: text("used_on").notNull(),
+  count: integer("count").notNull().default(1),
+  note: text("note").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, table => [
+  index("possession_uses_item_date_idx").on(table.itemId, table.usedOn),
+  index("possession_uses_date_idx").on(table.usedOn),
+  check("possession_uses_count_check", sql`typeof(${table.count}) = 'integer' AND ${table.count} BETWEEN 1 AND 1000000`),
+]);

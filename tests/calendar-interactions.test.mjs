@@ -1,80 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync } from "node:fs";
-import { homedir, tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { createRequire } from "node:module";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { after, before, test } from "node:test";
-import { createServer } from "vite";
-import react from "@vitejs/plugin-react";
-
-// Actual ReactDOM/browser component interactions, using the existing node:test
-// suite and bundled browser tooling. Controlled fixture HTTP is not an API,
-// database, full dashboard, Cloudflare Access or iPhone end-to-end test.
-const require = createRequire(import.meta.url);
+import { fileURLToPath } from "node:url";
+import { test } from "node:test";
+import { browserHarness } from "./helpers/browser-harness.mjs";
 const root = fileURLToPath(new URL("..", import.meta.url));
-const bundlePlaywright = join(homedir(), ".cache", "codex-runtimes", "codex-primary-runtime", "dependencies", "node", "node_modules", "playwright");
-async function loadPlaywright() {
-  const candidates = [process.env.CALENDAR_PLAYWRIGHT_PATH, "playwright", bundlePlaywright].filter(Boolean);
-  for (const candidate of candidates) {
-    try {
-      const loaded = await import(pathToFileURL(require.resolve(candidate)).href);
-      return loaded.default ?? loaded;
-    }
-    catch (error) {
-      if (candidate !== candidates.at(-1)) continue;
-      throw new Error("Calendar browser interactions require existing Playwright; set CALENDAR_PLAYWRIGHT_PATH to its package directory.", { cause: error });
-    }
-  }
-}
-
-let server;
-let browser;
-let baseUrl;
-before(async () => {
-  server = await createServer({
-    root, configFile: false, plugins: [react()], appType: "custom",
-    cacheDir: join(tmpdir(), "pulse-calendar-interactions-vite"),
-    server: { host: "127.0.0.1", port: 0 },
-    optimizeDeps: { include: ["react", "react-dom/client"] },
-  });
-  server.middlewares.use(async (request, response, next) => {
-    if (request.url?.split("?")[0] !== "/") return next();
-    try {
-      const html = await server.transformIndexHtml("/", '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head><body><div id="root"></div><script type="module" src="/tests/fixtures/calendar-interactions.tsx"></script></body></html>');
-      response.setHeader("Content-Type", "text/html; charset=utf-8");
-      response.end(html);
-    } catch (error) { next(error); }
-  });
-  await server.listen();
-  baseUrl = `http://127.0.0.1:${server.httpServer.address().port}`;
-  const { chromium } = await loadPlaywright();
-  const edgeExecutable = process.env.CALENDAR_BROWSER_EXECUTABLE;
-  browser = await chromium.launch(edgeExecutable && existsSync(edgeExecutable)
-    ? { executablePath: edgeExecutable, headless: true }
-    : { channel: process.env.CALENDAR_BROWSER_CHANNEL ?? "msedge", headless: true });
-});
-after(async () => {
-  await browser?.close();
-  await server?.close();
-});
-
-async function withPage(fixture, action, contextOptions = {}) {
-  const context = await browser.newContext(contextOptions);
-  const page = await context.newPage();
-  const errors = [];
-  page.on("pageerror", error => errors.push(error.message));
-  try {
-    await action(page, async () => {
-      await page.goto(`${baseUrl}/?fixture=${fixture}`);
-      await page.locator("#root > main").waitFor({ state: "visible", timeout: 5000 });
-    });
-    assert.deepEqual(errors, [], "component runtime has no browser exceptions");
-  } catch (error) {
-    if (errors.length) error.message += `\nBrowser exceptions: ${errors.join("; ")}`;
-    throw error;
-  } finally { await context.close(); }
-}
+const withPage = browserHarness("tests/fixtures/calendar-interactions.tsx", "calendar");
 
 const successfulSave = async route => route.fulfill({ json: { value: route.request().postDataJSON().value } });
 const planForm = page => page.getByRole("form", { name: "我的安排表单", exact: true });

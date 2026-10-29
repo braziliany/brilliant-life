@@ -1,6 +1,7 @@
 @import "../tokens.css";
 @import "tailwindcss";
 
+
 /* Hallmark · pre-emit critique: P5 H4 E4 S5 R5 V4 */
 
 :root { --ink:#22252b; --muted:#777970; --paper:#f7f5ef; --panel:#fff; --line:#ebe9e2; --lime:#dfff54; --coral:#ff7668; }

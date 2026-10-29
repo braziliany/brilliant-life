@@ -90,6 +90,8 @@ test("an empty local D1 applies every migration in order", { timeout: 120_000 },
 
     const workColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('calendar_work_records') ORDER BY cid;"));
     assert.deepEqual(workColumns.map(row => row.name), ["date", "worked", "hours", "updated_at"]);
+    const possessionTables = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'possession_%' ORDER BY name;"));
+    assert.deepEqual(possessionTables.map(row => row.name), ["possession_items", "possession_uses", "possession_wishes"]);
     const financeColumns = firstResults(harness.execute("--command", "SELECT name FROM pragma_table_info('finance_transactions') ORDER BY cid;"));
     assert.deepEqual(financeColumns.map(({ name }) => name).slice(0, 8), ["id", "source", "source_id", "occurred_at", "type", "amount_cents", "currency", "raw_type"]);
     const financeIndexes = firstResults(harness.execute("--command", "SELECT name FROM sqlite_schema WHERE type = 'index' AND tbl_name = 'finance_transactions' ORDER BY name;"));
@@ -162,7 +164,24 @@ INSERT INTO work_experiences (company, role, start_date, summary, sort_order) VA
     assert.deepEqual(actualRows, [{ count: 0 }], "migration must never infer actual hours from historical plans");
     const supportingRows = firstResults(harness.execute("--command", "SELECT (SELECT COUNT(*) FROM calendar_overrides) AS calendar_rows, (SELECT COUNT(*) FROM work_experiences) AS career_rows, (SELECT COUNT(*) FROM health_ingestion_runs) AS ingestion_rows;"));
     assert.deepEqual(supportingRows, [{ calendar_rows: 1, career_rows: 1, ingestion_rows: 0 }]);
+    const possessionRows = firstResults(harness.execute("--command", "SELECT (SELECT COUNT(*) FROM possession_items) AS items, (SELECT COUNT(*) FROM possession_uses) AS uses, (SELECT COUNT(*) FROM possession_wishes) AS wishes;"));
+    assert.deepEqual(possessionRows, [{ items: 0, uses: 0, wishes: 0 }], "upgrade never infers possessions from existing financial or calendar facts");
   } finally {
     rmSync(harness.root, { recursive: true, force: true });
   }
+});
+
+test("Calendar 0015 local D1 upgrades to possessions without rewriting actual work", { timeout: 120_000 }, () => {
+  const harness = createHarness("possessions-upgrade");
+  try {
+    const split = migrationFiles.indexOf("0016_possessions_phase1.sql");
+    assert.ok(split > 0);
+    harness.execute("--file", combineMigrations(harness.root, "calendar.sql", migrationFiles.slice(0, split), "INSERT INTO calendar_work_records(date,worked,hours) VALUES ('2026-10-17',1,8);"));
+    harness.execute("--file", combineMigrations(harness.root, "possessions.sql", migrationFiles.slice(split)));
+    assert.deepEqual(firstResults(harness.execute("--command", "SELECT date,worked,hours FROM calendar_work_records;")), [{ date: "2026-10-17", worked: 1, hours: 8 }]);
+    harness.execute("--command", "INSERT INTO possession_items(name,category,purchase_price_cents) VALUES ('合成物品','其他',0); INSERT INTO possession_uses(item_id,used_on,count) VALUES (1,'2024-02-29',2);");
+    assert.throws(() => harness.execute("--command", "INSERT INTO possession_uses(item_id,used_on) VALUES(999,'2026-10-01');"), "orphan uses are blocked");
+    assert.throws(() => harness.execute("--command", "DELETE FROM possession_items WHERE id=1;"), "history does not cascade away");
+    assert.deepEqual(firstResults(harness.execute("--command", "SELECT item_id,count FROM possession_uses;")), [{ item_id: 1, count: 2 }]);
+  } finally { rmSync(harness.root, { recursive: true, force: true }); }
 });

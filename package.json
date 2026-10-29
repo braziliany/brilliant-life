@@ -17,7 +17,7 @@
     "test:annual-ia": "node --test tests/annual-ia.test.mjs",
     "test:annual-visual": "node --test tests/annual-visual.test.mjs",
     "test:rendered": "node --test tests/rendered-html.test.mjs",
-    "verify": "npm run build && npm run test:domains && npm run test:calendar-interactions && npm run test:data-truth && npm run test:ux-cleanup && npm run test:annual-ia && npm run test:annual-visual && npm run test:migrations && npm run test:rendered",
+    "verify": "npm run build && npm run test:domains && npm run test:calendar-interactions && npm run test:possessions && npm run test:possessions-interactions && npm run test:possessions-worker && npm run test:data-truth && npm run test:ux-cleanup && npm run test:annual-ia && npm run test:annual-visual && npm run test:migrations && npm run test:rendered",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "drizzle-kit generate",
     "db:backup": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/backup-d1.ps1",
@@ -27,7 +27,12 @@
     "preview:reset": "node scripts/annual-preview.mjs reset",
     "finance:reconcile": "node scripts/finance-reconcile.mjs",
     "finance:validate": "node scripts/finance-validate.mjs",
-    "test:migrations": "node --test tests/migration-smoke.test.mjs"
+    "test:migrations": "node --test tests/migration-smoke.test.mjs",
+    "test:possessions": "node --test --test-concurrency=1 tests/possessions-domain.test.mjs tests/possessions-api.test.mjs",
+    "test:possessions-interactions": "node --test --test-concurrency=1 tests/possessions-interactions.test.mjs",
+    "test:possessions-worker": "node --test --test-concurrency=1 tests/possessions-worker-interactions.test.mjs",
+    "preview:possessions:seed": "node scripts/possessions-preview.mjs seed",
+    "preview:possessions": "node scripts/possessions-preview.mjs serve"
   },
   "dependencies": {
     "@fontsource/lxgw-wenkai": "^5.3.0",

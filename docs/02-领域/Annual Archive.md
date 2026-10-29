@@ -2,6 +2,8 @@
 
 Annual Archive 是跨领域只读模型。输入为目标年份、当前 `asOf` 以及 Health、Calendar、Career、Salary、Life Finance 的领域结果；它不写数据库，不修改源记录。
 
+物品档案 Phase 1 本轮不增加正式年度区块，也不改变 Insights 算法；新增领域仅保留可按购买、退出和使用日期读取的事实及索引，未来接入须另行定义 read-model 契约。详见[物品档案](./Possessions.md)。
+
 ## 时间语义
 
 - 当前年度：YTD，只陈述 `asOf` 之前发生的记录。
